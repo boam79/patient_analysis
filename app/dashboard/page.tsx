@@ -86,9 +86,9 @@ export default function DashboardPage() {
     <div className="container mx-auto px-4 py-8 space-y-6" id="dashboard-main">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold mb-2">PDR Dashboard v4.1</h1>
+          <h1 className="text-3xl font-bold mb-2">환자 데이터 분석툴</h1>
           <p className="text-muted-foreground">
-            통합 환자 데이터 분석 대시보드 (필터링 및 인터랙션)
+            통합 환자 데이터 분석 대시보드 v4.1
           </p>
         </div>
         <ExportMenu data={SAMPLE_DISEASES} />
