@@ -139,7 +139,7 @@ export default function UploadPage() {
             {processing ? (
               <>
                 <div className="animate-spin h-4 w-4 border-2 border-primary-foreground border-t-transparent rounded-full mr-2" />
-                처리 중... {progress}%
+                처리 중...
               </>
             ) : (
               <>
