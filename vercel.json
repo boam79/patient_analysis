@@ -1,22 +1,8 @@
 {
   "version": 2,
   "name": "pdr-dashboard",
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/next"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/$1"
-    }
-  ],
+  "framework": "nextjs",
+  "regions": ["icn1"],
   "env": {
     "NEXT_TELEMETRY_DISABLED": "1"
   },
@@ -75,8 +61,6 @@
       "source": "/health",
       "destination": "/api/health"
     }
-  ],
-  "regions": ["icn1"],
-  "framework": "nextjs"
+  ]
 }
 
