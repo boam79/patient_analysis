@@ -357,16 +357,26 @@ npm run analyze
 
 더 자세한 정보는 다음 문서를 참조하세요:
 
-- [Phase 1 완료 보고서](PHASE1_COMPLETE.md)
-- [Phase 2 완료 보고서](PHASE2_COMPLETE.md)
-- [Phase 3 완료 보고서](PHASE3_COMPLETE.md)
-- [Phase 4 완료 보고서](PHASE4_COMPLETE.md)
-- [Phase 5 완료 보고서](PHASE5_COMPLETE.md)
-- [Phase 6 완료 보고서](PHASE6_COMPLETE.md)
-- [Phase 7 완료 보고서](PHASE7_COMPLETE.md)
-- [Phase 8 완료 보고서](PHASE8_COMPLETE.md)
-- [Phase 9 완료 보고서](PHASE9_COMPLETE.md)
-- [제품 설계 문서](PDR_Dashboard_v4.1_Final.md)
+### 개발 완료 보고서
+- [Phase 4 완료 보고서](docs/PHASE4_COMPLETE.md)
+- [Phase 5 완료 보고서](docs/PHASE5_COMPLETE.md)
+- [Phase 6 완료 보고서](docs/PHASE6_COMPLETE.md)
+- [Phase 7 완료 보고서](docs/PHASE7_COMPLETE.md)
+- [Phase 8 완료 보고서](docs/PHASE8_COMPLETE.md)
+- [Phase 9 완료 보고서](docs/PHASE9_COMPLETE.md)
+
+### 설계 문서
+- [제품 설계 문서 (PDR v4.1)](docs/PDR_Dashboard_v4.1_Final.md)
+- [와이어프레임 부록](docs/pdr_appendix_wireframe.md)
+- [지오코딩 설정](docs/geocodingmap.md)
+
+### 배포 가이드
+- [배포 가이드](docs/DEPLOYMENT_GUIDE.md)
+- [Vercel 배포 단계](docs/VERCEL_DEPLOYMENT_STEPS.md)
+- [Vercel 배포 준비](docs/VERCEL_DEPLOY_READY.md)
+- [로컬 테스트 완료](docs/LOCAL_TEST_COMPLETE.md)
+- [최종 배포 요약](docs/FINAL_DEPLOYMENT_SUMMARY.md)
+- [UI 업데이트 가이드](docs/UI_UPDATE_GUIDE.md)
 
 ---
 
