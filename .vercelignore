@@ -1,0 +1,43 @@
+# Vercel 배포시 제외할 파일
+
+# 개발 환경
+.next/
+node_modules/
+.DS_Store
+*.log
+
+# 테스트 및 문서
+*.md
+PHASE*.md
+LOCAL_TEST_COMPLETE.md
+DEPLOYMENT_GUIDE.md
+
+# 백업 파일
+*.bak
+auth.ts.bak
+middleware.ts.bak
+
+# 로컬 환경 설정
+.env.local
+.env*.local
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+.cursor/
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Prisma (데이터베이스 미사용)
+prisma/
+
+# 더미 데이터
+public/dummy-data.csv
+
