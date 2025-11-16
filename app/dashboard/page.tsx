@@ -111,11 +111,11 @@ export default function DashboardPage() {
   const totalSurgery = Math.floor(totalPatients * 0.15)
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-6" id="dashboard-main">
-      <div className="flex items-center justify-between">
+    <div className="container mx-auto px-4 py-6 space-y-4" id="dashboard-main">
+      <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-3xl font-bold mb-2">환자 데이터 분석툴</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl font-bold">환자 데이터 분석툴</h1>
+          <p className="text-sm text-muted-foreground">
             통합 환자 데이터 분석 대시보드 v4.1
             {(selectedDiseases.length > 0 || selectedRegions.length > 0) && 
               ` (필터 ${selectedDiseases.length + selectedRegions.length}개 적용)`}
@@ -125,48 +125,48 @@ export default function DashboardPage() {
       </div>
 
       {/* KPI 카드 - 필터 적용 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">총 환자수</p>
-                <p className="text-2xl font-bold">{totalPatients.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">총 환자수</p>
+                <p className="text-xl font-bold">{totalPatients.toLocaleString()}</p>
               </div>
-              <Users className="h-8 w-8 text-muted-foreground" />
+              <Users className="h-6 w-6 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">재방문율</p>
-                <p className="text-2xl font-bold">{recurrenceRate}%</p>
+                <p className="text-xs text-muted-foreground">재방문율</p>
+                <p className="text-xl font-bold">{recurrenceRate}%</p>
               </div>
-              <TrendingUp className="h-8 w-8 text-positive" />
+              <TrendingUp className="h-6 w-6 text-positive" />
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">평균 간격</p>
-                <p className="text-2xl font-bold">{avgInterval}일</p>
+                <p className="text-xs text-muted-foreground">평균 간격</p>
+                <p className="text-xl font-bold">{avgInterval}일</p>
               </div>
-              <Clock className="h-8 w-8 text-muted-foreground" />
+              <Clock className="h-6 w-6 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">총 수술 건수</p>
-                <p className="text-2xl font-bold">{totalSurgery}건</p>
+                <p className="text-xs text-muted-foreground">총 수술 건수</p>
+                <p className="text-xl font-bold">{totalSurgery}건</p>
               </div>
-              <Activity className="h-8 w-8 text-muted-foreground" />
+              <Activity className="h-6 w-6 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
@@ -176,22 +176,22 @@ export default function DashboardPage() {
       <FilterPanel />
 
       {/* 메인 대시보드 */}
-      <div className="grid grid-cols-12 gap-4">
+      <div className="grid grid-cols-12 gap-3">
         {/* 좌측 패널 */}
-        <div className="col-span-12 lg:col-span-3 space-y-4">
+        <div className="col-span-12 lg:col-span-3 space-y-3">
           <Card id="disease-chart">
-            <CardHeader>
-              <CardTitle>Top 10 질병</CardTitle>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Top 10 질병</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-0">
               <InteractiveDiseaseChart data={filteredDiseases} title="" />
             </CardContent>
           </Card>
           <Card id="age-pyramid-chart">
-            <CardHeader>
-              <CardTitle>연령 분포</CardTitle>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">연령 분포</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-0">
               <AgePyramidChart data={SAMPLE_AGE_PYRAMID} />
             </CardContent>
           </Card>
@@ -199,21 +199,21 @@ export default function DashboardPage() {
 
         {/* 중앙 지도 */}
         <Card className="col-span-12 lg:col-span-6" id="map-container">
-          <CardHeader>
-            <CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">
               공간 분석 지도
               {selectedRegions.length > 0 && ` (${selectedRegions.length}개 지역 선택)`}
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-0">
             <InteractiveMap data={filteredMapData} mode="markers" />
           </CardContent>
         </Card>
 
         {/* 우측 패널 */}
         <Card className="col-span-12 lg:col-span-3">
-          <CardHeader>
-            <CardTitle>선택 영역 정보</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">선택 영역 정보</CardTitle>
           </CardHeader>
           <CardContent>
             {selectedDiseases.length > 0 || selectedRegions.length > 0 ? (
@@ -257,57 +257,57 @@ export default function DashboardPage() {
           <TabsTrigger value="surgery">Surgery</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="trend" className="mt-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <TabsContent value="trend" className="mt-3">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             <Card>
-              <CardHeader>
-                <CardTitle>월별 추세</CardTitle>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">월별 추세</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-0">
                 <MonthlyTrendChart data={SAMPLE_MONTHLY_TREND} />
               </CardContent>
             </Card>
             <Card>
-              <CardHeader>
-                <CardTitle>신규 vs 재방문</CardTitle>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">신규 vs 재방문</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-0">
                 <NewVsReturningChart data={SAMPLE_MONTHLY_TREND} />
               </CardContent>
             </Card>
           </div>
         </TabsContent>
 
-        <TabsContent value="boundary" className="mt-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <TabsContent value="boundary" className="mt-3">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             <Card>
-              <CardHeader>
-                <CardTitle>지역 비교</CardTitle>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">지역 비교</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-0">
                 <BoundaryComparisonChart data={SAMPLE_BOUNDARY_DATA} />
               </CardContent>
             </Card>
             <Card>
-              <CardHeader>
-                <CardTitle>분포 분석</CardTitle>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">분포 분석</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-0">
                 <BoxplotChart data={SAMPLE_BOXPLOT_DATA} />
               </CardContent>
             </Card>
           </div>
         </TabsContent>
 
-        <TabsContent value="table" className="mt-4">
+        <TabsContent value="table" className="mt-3">
           <Card>
-            <CardHeader>
-              <CardTitle>데이터 테이블</CardTitle>
-              <p className="text-sm text-muted-foreground">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">데이터 테이블</CardTitle>
+              <p className="text-xs text-muted-foreground">
                 전체 {filteredDiseases.length}개 질병 데이터
               </p>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-0">
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
@@ -343,21 +343,21 @@ export default function DashboardPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="surgery" className="mt-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <TabsContent value="surgery" className="mt-3">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             <Card>
-              <CardHeader>
-                <CardTitle>수술별 산점도</CardTitle>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">수술별 산점도</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-0">
                 <SurgeryScatterChart data={SAMPLE_SURGERY_SCATTER} />
               </CardContent>
             </Card>
             <Card>
-              <CardHeader>
-                <CardTitle>수술-질병 연관</CardTitle>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">수술-질병 연관</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-0">
                 <SurgeryDiseaseMatrix
                   data={SAMPLE_SURGERY_MATRIX}
                   diseases={['무릎관절증', '척추관협착증', '고혈압']}
