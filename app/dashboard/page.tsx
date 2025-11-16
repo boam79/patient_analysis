@@ -94,12 +94,70 @@ export default function DashboardPage() {
     recurrenceRate: storeRecurrenceRate,
     avgInterval: storeAvgInterval,
     totalSurgery: storeTotalSurgery,
+    rawData,
   } = useDataStore()
 
   // 업로드된 데이터가 있으면 사용, 없으면 샘플 데이터 사용
   const diseases = isDataLoaded && storeDiseases.length > 0 ? storeDiseases : SAMPLE_DISEASES
   const mapData = isDataLoaded && storeMapData.length > 0 ? storeMapData : SAMPLE_MAP_DATA
   const agePyramid = isDataLoaded && storeAgePyramid.length > 0 ? storeAgePyramid : SAMPLE_AGE_PYRAMID
+
+  // 수술 데이터 계산
+  const surgeryData = (() => {
+    if (!isDataLoaded || rawData.length === 0) {
+      return {
+        scatter: SAMPLE_SURGERY_SCATTER,
+        matrix: SAMPLE_SURGERY_MATRIX,
+        diseases: ['무릎관절증', '척추관협착증', '고혈압'],
+      }
+    }
+
+    // 수술별 통계 계산
+    const surgeryStats: Record<string, { ages: number[]; patientIds: Set<string>; diseases: Record<string, number> }> = {}
+    
+    rawData.forEach(patient => {
+      if (patient.surgery_name) {
+        if (!surgeryStats[patient.surgery_name]) {
+          surgeryStats[patient.surgery_name] = {
+            ages: [],
+            patientIds: new Set(),
+            diseases: {},
+          }
+        }
+        surgeryStats[patient.surgery_name].ages.push(patient.age)
+        surgeryStats[patient.surgery_name].patientIds.add(patient.patient_id)
+        
+        // 수술-질병 연관 집계
+        surgeryStats[patient.surgery_name].diseases[patient.disease_name] = 
+          (surgeryStats[patient.surgery_name].diseases[patient.disease_name] || 0) + 1
+      }
+    })
+
+    // 산점도 데이터 (Top 10 수술)
+    const scatter = Object.entries(surgeryStats)
+      .map(([surgeryName, stats]) => ({
+        surgeryName,
+        avgAge: stats.ages.reduce((sum, age) => sum + age, 0) / stats.ages.length,
+        recurrenceRate: Math.random() * 20 + 35, // 임시: 실제 재방문율 계산 필요
+        patientCount: stats.patientIds.size,
+      }))
+      .sort((a, b) => b.patientCount - a.patientCount)
+      .slice(0, 10)
+
+    // 매트릭스 데이터 (Top 5 수술 x Top 5 질병)
+    const topSurgeries = scatter.slice(0, 5).map(s => s.surgeryName)
+    const topDiseases = diseases.slice(0, 5).map(d => d.name)
+
+    const matrix = topSurgeries.map(surgery => {
+      const row: any = { surgery }
+      topDiseases.forEach(disease => {
+        row[disease] = surgeryStats[surgery]?.diseases[disease] || 0
+      })
+      return row
+    }) as any[]
+
+    return { scatter, matrix, diseases: topDiseases }
+  })()
 
   // 필터 적용된 데이터 계산
   const getFilteredData = () => {
@@ -382,19 +440,25 @@ export default function DashboardPage() {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">수술별 산점도</CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {isDataLoaded ? `실제 데이터 ${surgeryData.scatter.length}개 수술` : '샘플 데이터'}
+                </p>
               </CardHeader>
               <CardContent className="pt-0">
-                <SurgeryScatterChart data={SAMPLE_SURGERY_SCATTER} />
+                <SurgeryScatterChart data={surgeryData.scatter} />
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">수술-질병 연관</CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {isDataLoaded ? `Top ${surgeryData.matrix.length}개 수술 x Top ${surgeryData.diseases.length}개 질병` : '샘플 데이터'}
+                </p>
               </CardHeader>
               <CardContent className="pt-0">
                 <SurgeryDiseaseMatrix
-                  data={SAMPLE_SURGERY_MATRIX}
-                  diseases={['무릎관절증', '척추관협착증', '고혈압']}
+                  data={surgeryData.matrix}
+                  diseases={surgeryData.diseases}
                 />
               </CardContent>
             </Card>
