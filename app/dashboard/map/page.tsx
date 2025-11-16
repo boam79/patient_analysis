@@ -18,22 +18,27 @@ const SAMPLE_DATA = [
 ]
 
 export default function MapPage() {
-  const [mode, setMode] = useState<'heatmap' | 'markers'>('heatmap')
   const [selectedLocation, setSelectedLocation] = useState<any>(null)
-  const [activeTab, setActiveTab] = useState<'heatmap' | 'markers' | 'patients' | 'recurrence'>('heatmap')
+  const [activeTab, setActiveTab] = useState<'new' | 'returning' | 'patients' | 'recurrence'>('new')
 
   const handleLocationSelect = (h3Index: string, data: any) => {
     setSelectedLocation({ h3Index, data })
   }
 
-  // 각 탭에 맞는 데이터 생성
+  // 각 탭에 맞는 데이터 생성 (모두 마커 모드)
   const getDataForTab = () => {
     switch(activeTab) {
+      case 'new':
+        // 신환 데이터
+        return SAMPLE_DATA.map(d => ({ ...d, value: d.value * 80, label: '신환' }))
+      case 'returning':
+        // 재환 데이터
+        return SAMPLE_DATA.map(d => ({ ...d, value: d.value * 50, label: '재환' }))
       case 'patients':
-        // 환자수 데이터 (더 큰 값)
+        // 환자수 데이터
         return SAMPLE_DATA.map(d => ({ ...d, value: d.value * 100, label: '환자수' }))
       case 'recurrence':
-        // 재방문율 데이터 (퍼센트)
+        // 재방문율 데이터
         return SAMPLE_DATA.map(d => ({ ...d, value: d.value, label: '재방문율' }))
       default:
         return SAMPLE_DATA
@@ -46,7 +51,7 @@ export default function MapPage() {
         <div>
           <h1 className="text-3xl font-bold mb-2">공간 분석 지도</h1>
           <p className="text-muted-foreground">
-            OpenStreetMap 기반 환자 분포 히트맵 및 마커
+            OpenStreetMap 기반 환자 분포 마커 (1개 지역 선택)
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -63,13 +68,13 @@ export default function MapPage() {
 
       <Tabs value={activeTab} onValueChange={(v: any) => setActiveTab(v)} className="w-full">
         <TabsList className="grid w-full grid-cols-4 mb-6">
-          <TabsTrigger value="heatmap" onClick={() => setMode('heatmap')}>
-            <Layers className="h-4 w-4 mr-2" />
-            히트맵
+          <TabsTrigger value="new">
+            <Users className="h-4 w-4 mr-2" />
+            신환
           </TabsTrigger>
-          <TabsTrigger value="markers" onClick={() => setMode('markers')}>
-            <Map className="h-4 w-4 mr-2" />
-            마커
+          <TabsTrigger value="returning">
+            <Activity className="h-4 w-4 mr-2" />
+            재환
           </TabsTrigger>
           <TabsTrigger value="patients">
             <Users className="h-4 w-4 mr-2" />
@@ -81,61 +86,18 @@ export default function MapPage() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="heatmap" className="mt-6">
+        <TabsContent value="new" className="mt-6">
           <div className="grid grid-cols-12 gap-4">
             <Card className="col-span-12 lg:col-span-9">
-              <CardContent className="p-6">
-                <LeafletMap
-                  center={[37.5665, 126.9780]}
-                  zoom={11}
-                  data={SAMPLE_DATA}
-                  mode="heatmap"
-                  onLocationSelect={handleLocationSelect}
-                />
-              </CardContent>
-            </Card>
-
-            <Card className="col-span-12 lg:col-span-3">
               <CardHeader>
-                <CardTitle>선택 영역 정보</CardTitle>
-                <CardDescription>지도를 클릭하여 상세 정보 확인</CardDescription>
+                <CardTitle>신환 분포</CardTitle>
+                <CardDescription>첫 방문 환자 분포 (마커)</CardDescription>
               </CardHeader>
-              <CardContent>
-                {selectedLocation ? (
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-sm font-medium">H3 인덱스</p>
-                      <p className="text-xs text-muted-foreground">{selectedLocation.h3Index}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">값</p>
-                      <p className="text-2xl font-bold">{selectedLocation.data.value}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">좌표</p>
-                      <p className="text-xs text-muted-foreground">
-                        {selectedLocation.data.latitude.toFixed(4)}, {selectedLocation.data.longitude.toFixed(4)}
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    지도에서 위치를 선택하세요
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="markers" className="mt-6">
-          <div className="grid grid-cols-12 gap-4">
-            <Card className="col-span-12 lg:col-span-9">
               <CardContent className="p-6">
                 <LeafletMap
                   center={[37.5665, 126.9780]}
                   zoom={11}
-                  data={SAMPLE_DATA}
+                  data={SAMPLE_DATA.map(d => ({ ...d, value: d.value * 80 }))}
                   mode="markers"
                   onLocationSelect={handleLocationSelect}
                 />
@@ -144,32 +106,67 @@ export default function MapPage() {
 
             <Card className="col-span-12 lg:col-span-3">
               <CardHeader>
-                <CardTitle>선택 영역 정보</CardTitle>
-                <CardDescription>마커를 클릭하여 상세 정보 확인</CardDescription>
+                <CardTitle>통계</CardTitle>
+                <CardDescription>신환 통계</CardDescription>
               </CardHeader>
               <CardContent>
-                {selectedLocation ? (
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-sm font-medium">H3 인덱스</p>
-                      <p className="text-xs text-muted-foreground">{selectedLocation.h3Index}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">값</p>
-                      <p className="text-2xl font-bold">{selectedLocation.data.value}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">좌표</p>
-                      <p className="text-xs text-muted-foreground">
-                        {selectedLocation.data.latitude.toFixed(4)}, {selectedLocation.data.longitude.toFixed(4)}
-                      </p>
-                    </div>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm font-medium">총 신환수</p>
+                    <p className="text-2xl font-bold">687명</p>
                   </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    마커를 선택하세요
-                  </p>
-                )}
+                  <div>
+                    <p className="text-sm font-medium">평균 신환/지역</p>
+                    <p className="text-2xl font-bold">137명</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">신환 비율</p>
+                    <p className="text-2xl font-bold">55.7%</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="returning" className="mt-6">
+          <div className="grid grid-cols-12 gap-4">
+            <Card className="col-span-12 lg:col-span-9">
+              <CardHeader>
+                <CardTitle>재환 분포</CardTitle>
+                <CardDescription>재방문 환자 분포 (마커)</CardDescription>
+              </CardHeader>
+              <CardContent className="p-6">
+                <LeafletMap
+                  center={[37.5665, 126.9780]}
+                  zoom={11}
+                  data={SAMPLE_DATA.map(d => ({ ...d, value: d.value * 50 }))}
+                  mode="markers"
+                  onLocationSelect={handleLocationSelect}
+                />
+              </CardContent>
+            </Card>
+
+            <Card className="col-span-12 lg:col-span-3">
+              <CardHeader>
+                <CardTitle>통계</CardTitle>
+                <CardDescription>재환 통계</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm font-medium">총 재환수</p>
+                    <p className="text-2xl font-bold">547명</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">평균 재환/지역</p>
+                    <p className="text-2xl font-bold">109명</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">재환 비율</p>
+                    <p className="text-2xl font-bold">44.3%</p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -179,15 +176,15 @@ export default function MapPage() {
           <div className="grid grid-cols-12 gap-4">
             <Card className="col-span-12 lg:col-span-9">
               <CardHeader>
-                <CardTitle>환자수 히트맵</CardTitle>
-                <CardDescription>지역별 환자 수 분포 (샘플 데이터)</CardDescription>
+                <CardTitle>환자수 분포</CardTitle>
+                <CardDescription>지역별 환자 수 분포 (마커)</CardDescription>
               </CardHeader>
               <CardContent className="p-6">
                 <LeafletMap
                   center={[37.5665, 126.9780]}
                   zoom={11}
                   data={SAMPLE_DATA.map(d => ({ ...d, value: d.value * 100 }))}
-                  mode="heatmap"
+                  mode="markers"
                   onLocationSelect={handleLocationSelect}
                 />
               </CardContent>
@@ -222,15 +219,15 @@ export default function MapPage() {
           <div className="grid grid-cols-12 gap-4">
             <Card className="col-span-12 lg:col-span-9">
               <CardHeader>
-                <CardTitle>재방문율 히트맵</CardTitle>
-                <CardDescription>지역별 재방문율 분포 (샘플 데이터)</CardDescription>
+                <CardTitle>재방문율 분포</CardTitle>
+                <CardDescription>지역별 재방문율 분포 (마커)</CardDescription>
               </CardHeader>
               <CardContent className="p-6">
                 <LeafletMap
                   center={[37.5665, 126.9780]}
                   zoom={11}
                   data={SAMPLE_DATA.map(d => ({ ...d, value: d.value * 0.45 }))}
-                  mode="heatmap"
+                  mode="markers"
                   onLocationSelect={handleLocationSelect}
                 />
               </CardContent>
