@@ -1,6 +1,7 @@
 'use client'
 
 import { useFilterStore } from '@/stores/filter-store'
+import { useDataStore } from '@/stores/data-store'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -32,6 +33,9 @@ export function FilterPanel() {
 
   const [showDiseaseSelect, setShowDiseaseSelect] = useState(false)
   const [showRegionSelect, setShowRegionSelect] = useState(false)
+
+  // 데이터 스토어에서 실제 데이터 가져오기
+  const { rawData, isDataLoaded } = useDataStore()
 
   // 활성 필터 계산
   const activeFilters = useMemo(() => {
@@ -65,23 +69,57 @@ export function FilterPanel() {
     '70대 이상',
   ]
 
-  const diseaseOptions = [
-    '무릎관절증',
-    '척추관협착증',
-    '고혈압',
-    '당뇨병',
-    '어깨충돌증후군',
-    '요추추간판장애',
-    '골다공증',
-  ]
+  // 실제 데이터에서 질병 목록 추출 (Top 20)
+  const diseaseOptions = useMemo(() => {
+    if (!isDataLoaded || rawData.length === 0) {
+      return [
+        '무릎관절증',
+        '척추관협착증',
+        '고혈압',
+        '당뇨병',
+        '어깨충돌증후군',
+        '요추추간판장애',
+        '골다공증',
+      ]
+    }
+    
+    const diseaseCounts = rawData.reduce((acc, patient) => {
+      if (patient.disease_name) {
+        acc[patient.disease_name] = (acc[patient.disease_name] || 0) + 1
+      }
+      return acc
+    }, {} as Record<string, number>)
+    
+    return Object.entries(diseaseCounts)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 20)
+      .map(([name]) => name)
+  }, [isDataLoaded, rawData])
 
-  const regionOptions = [
-    '서울 중구',
-    '서울 동대문구',
-    '서울 용산구',
-    '서울 성동구',
-    '서울 강남구',
-  ]
+  // 실제 데이터에서 지역 목록 추출
+  const regionOptions = useMemo(() => {
+    if (!isDataLoaded || rawData.length === 0) {
+      return [
+        '서울 중구',
+        '서울 동대문구',
+        '서울 용산구',
+        '서울 성동구',
+        '서울 강남구',
+      ]
+    }
+    
+    const regionCounts = rawData.reduce((acc, patient) => {
+      if (patient.region && patient.region !== '미분류') {
+        acc[patient.region] = (acc[patient.region] || 0) + 1
+      }
+      return acc
+    }, {} as Record<string, number>)
+    
+    return Object.entries(regionCounts)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 30)
+      .map(([name]) => name)
+  }, [isDataLoaded, rawData])
 
   return (
     <Card className="w-full">

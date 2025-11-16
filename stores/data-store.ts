@@ -139,27 +139,77 @@ export const useDataStore = create<DataState & DataActions>()(
             .sort((a, b) => b.count - a.count)
             .slice(0, 10)
 
-          // 지도 데이터 계산 (지역별 집계)
-          const regionMap = new Map<string, { lat: number; lng: number; count: number }>()
-          rawData.forEach((patient) => {
-            if (patient.latitude && patient.longitude) {
-              const existing = regionMap.get(patient.region) || { lat: 0, lng: 0, count: 0 }
-              regionMap.set(patient.region, {
-                lat: (existing.lat * existing.count + patient.latitude) / (existing.count + 1),
-                lng: (existing.lng * existing.count + patient.longitude) / (existing.count + 1),
-                count: existing.count + 1,
-              })
-            }
-          })
+      // 지도 데이터 계산 (지역별 집계)
+      // 1. 지역별 환자 수 집계
+      const regionCountMap = new Map<string, number>()
+      rawData.forEach((patient) => {
+        if (patient.region && patient.region !== '미분류') {
+          const count = regionCountMap.get(patient.region) || 0
+          regionCountMap.set(patient.region, count + 1)
+        }
+      })
 
-          const mapData: MapData[] = Array.from(regionMap.entries()).map(([region, data]) => ({
-            latitude: data.lat,
-            longitude: data.lng,
-            value: data.count,
-            h3Index: `h3-${region}`,
+      // 2. 주요 지역 좌표 매핑 (샘플)
+      const regionCoordinates: Record<string, { lat: number; lng: number }> = {
+        '서울 종로구': { lat: 37.5730, lng: 126.9794 },
+        '서울 중구': { lat: 37.5641, lng: 126.9979 },
+        '서울 용산구': { lat: 37.5326, lng: 126.9900 },
+        '서울 성동구': { lat: 37.5634, lng: 127.0368 },
+        '서울 강남구': { lat: 37.5172, lng: 127.0473 },
+        '서울 서초구': { lat: 37.4836, lng: 127.0327 },
+        '서울 송파구': { lat: 37.5145, lng: 127.1060 },
+        '서울 강동구': { lat: 37.5301, lng: 127.1238 },
+        '서울 마포구': { lat: 37.5663, lng: 126.9019 },
+        '서울 영등포구': { lat: 37.5264, lng: 126.8963 },
+        '서울 관악구': { lat: 37.4784, lng: 126.9516 },
+        '서울 동작구': { lat: 37.5124, lng: 126.9393 },
+        '서울 강서구': { lat: 37.5509, lng: 126.8495 },
+        '서울 구로구': { lat: 37.4954, lng: 126.8874 },
+        '서울 금천구': { lat: 37.4568, lng: 126.8956 },
+        '서울 양천구': { lat: 37.5172, lng: 126.8664 },
+        '경기 수원시': { lat: 37.2636, lng: 127.0286 },
+        '경기 성남시': { lat: 37.4201, lng: 127.1262 },
+        '경기 고양시': { lat: 37.6584, lng: 126.8320 },
+        '경기 부천시': { lat: 37.5034, lng: 126.7660 },
+        '경기 화성시': { lat: 37.1990, lng: 126.8310 },
+        '경기 남양주시': { lat: 37.6360, lng: 127.2164 },
+        '경기 안산시': { lat: 37.3219, lng: 126.8309 },
+        '경기 안양시': { lat: 37.3943, lng: 126.9568 },
+        '경기 평택시': { lat: 36.9922, lng: 127.1129 },
+        '경기 시흥시': { lat: 37.3800, lng: 126.8028 },
+        '경기 김포시': { lat: 37.6152, lng: 126.7157 },
+        '경기 광명시': { lat: 37.4786, lng: 126.8644 },
+        '경기 군포시': { lat: 37.3617, lng: 126.9352 },
+        '경기 하남시': { lat: 37.5393, lng: 127.2147 },
+        '인천 중구': { lat: 37.4738, lng: 126.6216 },
+        '인천 동구': { lat: 37.4739, lng: 126.6433 },
+        '인천 남구': { lat: 37.4539, lng: 126.6508 },
+        '인천 연수구': { lat: 37.4095, lng: 126.6785 },
+        '인천 남동구': { lat: 37.4474, lng: 126.7314 },
+        '인천 부평구': { lat: 37.5069, lng: 126.7218 },
+        '인천 계양구': { lat: 37.5376, lng: 126.7379 },
+        '인천 서구': { lat: 37.5454, lng: 126.6759 },
+      }
+
+      // 3. 지도 데이터 생성
+      const mapData: MapData[] = Array.from(regionCountMap.entries())
+        .map(([region, count]) => {
+          // 좌표가 있으면 사용, 없으면 서울 중심 기준 랜덤
+          const coords = regionCoordinates[region] || {
+            lat: 37.5665 + (Math.random() - 0.5) * 0.5,
+            lng: 126.9780 + (Math.random() - 0.5) * 0.5,
+          }
+          return {
+            latitude: coords.lat,
+            longitude: coords.lng,
+            value: count,
+            h3Index: `h3_${region.replace(/\s/g, '_')}`,
             region,
-            patientCount: data.count,
-          }))
+            patientCount: count,
+          }
+        })
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 50) // 상위 50개 지역만 표시
 
           // 연령 피라미드 계산
           const ageGroupMap = new Map<string, { male: number; female: number }>()

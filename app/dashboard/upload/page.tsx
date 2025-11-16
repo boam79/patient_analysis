@@ -38,8 +38,16 @@ export default function UploadPage() {
         if (row.age || row['나이']) {
           age = Number(row.age || row['나이'])
         } else if (row.birth_date || row['생년월일']) {
-          const birthYear = new Date(row.birth_date || row['생년월일']).getFullYear()
-          age = new Date().getFullYear() - birthYear
+          const birthDateStr = (row.birth_date || row['생년월일']).toString()
+          // YYYYMMDD 형식 파싱
+          if (birthDateStr.length === 8) {
+            const birthYear = parseInt(birthDateStr.substring(0, 4))
+            age = new Date().getFullYear() - birthYear
+          } else {
+            // YYYY-MM-DD 형식
+            const birthYear = new Date(birthDateStr).getFullYear()
+            age = new Date().getFullYear() - birthYear
+          }
         }
 
         // 성별 정규화
@@ -51,6 +59,23 @@ export default function UploadPage() {
           gender = '여성'
         }
 
+        // 주소에서 지역 추출
+        const address = row.address || row['주소'] || ''
+        let region = row.region || row['지역'] || ''
+        
+        if (!region && address) {
+          // "서울특별시 종로구 세종대로" → "서울 종로구"
+          // "경기도 수원시 영통구" → "경기 수원시"
+          const addressParts = address.split(' ')
+          if (addressParts.length >= 2) {
+            const sido = addressParts[0].replace('특별시', '').replace('광역시', '').replace('도', '')
+            const sigungu = addressParts[1].replace('시', '시').replace('구', '구').replace('군', '군')
+            region = `${sido} ${sigungu}`
+          } else {
+            region = addressParts[0] || '미분류'
+          }
+        }
+
         return {
           patient_id: (row.patient_id || row['환자ID'] || row.id || Math.random().toString()).toString(),
           visit_date: row.visit_date || row['방문일자'] || new Date().toISOString().split('T')[0],
@@ -60,8 +85,8 @@ export default function UploadPage() {
           disease_name: row.disease_name || row['질병명'] || '미분류 질병',
           surgery_code: row.surgery_code || row['수술코드'] || undefined,
           surgery_name: row.surgery_name || row['수술명'] || undefined,
-          address: row.address || row['주소'] || '',
-          region: row.region || row['지역'] || '미분류',
+          address,
+          region,
           latitude: row.latitude ? Number(row.latitude) : undefined,
           longitude: row.longitude ? Number(row.longitude) : undefined,
           h3_index: row.h3_index || row.h3Index || undefined,
