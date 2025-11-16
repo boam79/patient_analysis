@@ -124,6 +124,9 @@ export default function DashboardPage() {
         <ExportMenu data={filteredDiseases} />
       </div>
 
+      {/* 필터 패널 */}
+      <FilterPanel />
+
       {/* KPI 카드 - 필터 적용 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <Card>
@@ -171,9 +174,6 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-
-      {/* 필터 패널 */}
-      <FilterPanel />
 
       {/* 메인 대시보드 */}
       <div className="grid grid-cols-12 gap-3">
