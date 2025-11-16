@@ -1,14 +1,21 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { Upload } from 'lucide-react'
+import { Upload, RefreshCw } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { useDataStore } from '@/stores/data-store'
+import { useFilterStore } from '@/stores/filter-store'
 
 export function Header() {
   const router = useRouter()
+  const { resetData, isDataLoaded, totalPatients } = useDataStore()
+  const { resetFilters } = useFilterStore()
 
   const handleReset = () => {
-    // 초기화: 업로드 페이지로 이동
+    // 데이터 및 필터 초기화
+    resetData()
+    resetFilters()
+    // 업로드 페이지로 이동
     router.push('/dashboard/upload')
   }
 
@@ -22,15 +29,21 @@ export function Header() {
         {/* 로고 및 네비게이션 */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-6">
-            <button 
+          <div className="flex items-center gap-4">
+            <button
               onClick={handleReset}
-              className="flex items-center gap-4 hover:opacity-80 transition-opacity cursor-pointer"
+              className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer group"
             >
               <h1 className="text-2xl font-bold">환자 데이터 분석툴</h1>
-              <span className="text-sm text-muted-foreground">
-                v4.1
-              </span>
+              <RefreshCw className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
             </button>
+            <span className="text-sm text-muted-foreground">v4.1</span>
+            {isDataLoaded && (
+              <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
+                {totalPatients.toLocaleString()}명 로드됨
+              </span>
+            )}
+          </div>
             <nav className="flex items-center gap-4 ml-8">
               <a 
                 href="/dashboard" 

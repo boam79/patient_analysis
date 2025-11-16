@@ -11,12 +11,21 @@ import { CheckCircle2, Database, TrendingUp } from 'lucide-react'
 
 export default function UploadPage() {
   const router = useRouter()
-  const { setRawData, processData, setLoading } = useDataStore()
+  const { setRawData, processData, setLoading, isDataLoaded, totalPatients, resetData } = useDataStore()
   
   const [uploadedData, setUploadedData] = useState<any[] | null>(null)
   const [fileName, setFileName] = useState<string>('')
   const [processing, setProcessing] = useState(false)
   const [success, setSuccess] = useState(false)
+
+  const handleClearData = () => {
+    if (confirm('저장된 데이터를 삭제하시겠습니까?')) {
+      resetData()
+      setUploadedData(null)
+      setFileName('')
+      setSuccess(false)
+    }
+  }
 
   const handleDataLoaded = async (data: any[], name: string) => {
     setUploadedData(data)
@@ -117,12 +126,38 @@ export default function UploadPage() {
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold mb-2">데이터 업로드</h1>
-        <p className="text-muted-foreground">
-          환자 데이터 파일을 업로드하고 자동 전처리를 수행합니다
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">데이터 업로드</h1>
+          <p className="text-muted-foreground">
+            환자 데이터 파일을 업로드하고 자동 전처리를 수행합니다
+          </p>
+        </div>
+        {isDataLoaded && (
+          <Button variant="outline" onClick={handleClearData}>
+            <Database className="mr-2 h-4 w-4" />
+            저장된 데이터 삭제
+          </Button>
+        )}
       </div>
+
+      {isDataLoaded && (
+        <Card className="border-primary/50 bg-primary/5">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 text-primary">
+              <CheckCircle2 className="h-5 w-5" />
+              <div>
+                <p className="font-medium">
+                  저장된 데이터가 있습니다: {totalPatients.toLocaleString()}명
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  새 파일을 업로드하면 기존 데이터를 덮어씁니다
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <FileUpload onDataLoaded={handleDataLoaded} />
 

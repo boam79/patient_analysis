@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { devtools } from 'zustand/middleware'
+import { devtools, persist, createJSONStorage } from 'zustand/middleware'
 
 // 환자 데이터 타입
 export interface PatientData {
@@ -109,10 +109,20 @@ const initialState: DataState = {
 
 export const useDataStore = create<DataState & DataActions>()(
   devtools(
-    (set, get) => ({
-      ...initialState,
+    persist(
+      (set, get) => ({
+        ...initialState,
 
       setRawData: (data) => {
+        // localStorage 용량 체크 (대략적)
+        const dataSize = JSON.stringify(data).length
+        const sizeMB = (dataSize / 1024 / 1024).toFixed(2)
+        console.log(`📊 데이터 크기: ${sizeMB}MB (${data.length}개 레코드)`)
+        
+        if (dataSize > 4 * 1024 * 1024) { // 4MB 이상
+          console.warn('⚠️ 데이터가 너무 큽니다. 브라우저 저장소 제한으로 일부 기능이 제한될 수 있습니다.')
+        }
+        
         set({ rawData: data, isDataLoaded: true, error: null })
       },
 
@@ -279,7 +289,35 @@ export const useDataStore = create<DataState & DataActions>()(
       setError: (error) => set({ error }),
 
       resetData: () => set(initialState),
-    }),
+      }),
+      {
+        name: 'patient-data-storage', // localStorage key
+        storage: createJSONStorage(() => localStorage),
+        // 용량 큰 데이터는 압축하거나 중요한 필드만 저장
+        partialize: (state) => ({
+          rawData: state.rawData,
+          isDataLoaded: state.isDataLoaded,
+          diseases: state.diseases,
+          mapData: state.mapData,
+          agePyramid: state.agePyramid,
+          totalPatients: state.totalPatients,
+          recurrenceRate: state.recurrenceRate,
+          avgInterval: state.avgInterval,
+          totalSurgery: state.totalSurgery,
+          // isLoading, error는 제외 (휘발성 데이터)
+        }),
+        // 데이터 복원 후 자동 처리하지 않음 (이미 처리된 상태)
+        onRehydrateStorage: () => (state) => {
+          if (state) {
+            console.log('✅ 저장된 데이터 복원 완료:', {
+              환자수: state.rawData.length,
+              질병수: state.diseases.length,
+              지역수: state.mapData.length,
+            })
+          }
+        },
+      }
+    ),
     { name: 'DataStore' }
   )
 )
