@@ -11,7 +11,10 @@ import { BoundaryComparisonChart, BoxplotChart } from '@/components/charts/bound
 import { SurgeryScatterChart, SurgeryDiseaseMatrix } from '@/components/charts/surgery-chart'
 import { ExportMenu } from '@/components/export/export-menu'
 import { useFilterStore } from '@/stores/filter-store'
-import { Users, TrendingUp, Clock, Activity } from 'lucide-react'
+import { useDataStore } from '@/stores/data-store'
+import { Users, TrendingUp, Clock, Activity, Upload } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { useRouter } from 'next/navigation'
 
 // 샘플 데이터
 const SAMPLE_DISEASES = [
@@ -80,35 +83,57 @@ const SAMPLE_SURGERY_MATRIX = [
 ]
 
 export default function DashboardPage() {
+  const router = useRouter()
   const { selectedDiseases, selectedRegions, ageGroups, genders } = useFilterStore()
+  const { 
+    isDataLoaded, 
+    diseases: storeDiseases, 
+    mapData: storeMapData,
+    agePyramid: storeAgePyramid,
+    totalPatients: storeTotalPatients,
+    recurrenceRate: storeRecurrenceRate,
+    avgInterval: storeAvgInterval,
+    totalSurgery: storeTotalSurgery,
+  } = useDataStore()
+
+  // 업로드된 데이터가 있으면 사용, 없으면 샘플 데이터 사용
+  const diseases = isDataLoaded && storeDiseases.length > 0 ? storeDiseases : SAMPLE_DISEASES
+  const mapData = isDataLoaded && storeMapData.length > 0 ? storeMapData : SAMPLE_MAP_DATA
+  const agePyramid = isDataLoaded && storeAgePyramid.length > 0 ? storeAgePyramid : SAMPLE_AGE_PYRAMID
 
   // 필터 적용된 데이터 계산
   const getFilteredData = () => {
-    let diseases = [...SAMPLE_DISEASES]
-    let mapData = [...SAMPLE_MAP_DATA]
+    let filteredDiseases = [...diseases]
+    let filteredMapData = [...mapData]
     
     // 질병 필터 적용
     if (selectedDiseases.length > 0) {
-      diseases = diseases.filter(d => selectedDiseases.includes(d.name))
+      filteredDiseases = filteredDiseases.filter(d => selectedDiseases.includes(d.name))
     }
     
     // 지역 필터 적용
     if (selectedRegions.length > 0) {
-      mapData = mapData.filter(m => selectedRegions.includes(m.region))
+      filteredMapData = filteredMapData.filter(m => selectedRegions.includes(m.region))
     }
     
-    return { diseases, mapData }
+    return { diseases: filteredDiseases, mapData: filteredMapData }
   }
 
   const { diseases: filteredDiseases, mapData: filteredMapData } = getFilteredData()
 
   // KPI 계산 (필터 적용됨)
-  const totalPatients = filteredDiseases.reduce((sum, d) => sum + d.count, 0) || 1234
-  const recurrenceRate = filteredMapData.length > 0 
-    ? (filteredMapData.reduce((sum, d) => sum + d.value, 0) / filteredMapData.length * 100).toFixed(1)
-    : "45.2"
-  const avgInterval = selectedRegions.length > 0 ? Math.floor(28 + Math.random() * 10) : 28
-  const totalSurgery = Math.floor(totalPatients * 0.15)
+  const totalPatients = isDataLoaded 
+    ? (filteredDiseases.reduce((sum, d) => sum + d.count, 0) || storeTotalPatients)
+    : (filteredDiseases.reduce((sum, d) => sum + d.count, 0) || 1234)
+    
+  const recurrenceRate = isDataLoaded
+    ? storeRecurrenceRate.toFixed(1)
+    : (filteredMapData.length > 0 
+        ? (filteredMapData.reduce((sum, d) => sum + d.value, 0) / filteredMapData.length * 100).toFixed(1)
+        : "45.2")
+        
+  const avgInterval = isDataLoaded ? storeAvgInterval : (selectedRegions.length > 0 ? Math.floor(28 + Math.random() * 10) : 28)
+  const totalSurgery = isDataLoaded ? storeTotalSurgery : Math.floor(totalPatients * 0.15)
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-4" id="dashboard-main">
@@ -117,11 +142,20 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold">환자 데이터 분석툴</h1>
           <p className="text-sm text-muted-foreground">
             통합 환자 데이터 분석 대시보드 v4.1
+            {isDataLoaded ? ' (실제 데이터)' : ' (샘플 데이터)'}
             {(selectedDiseases.length > 0 || selectedRegions.length > 0) && 
-              ` (필터 ${selectedDiseases.length + selectedRegions.length}개 적용)`}
+              ` | 필터 ${selectedDiseases.length + selectedRegions.length}개 적용`}
           </p>
         </div>
-        <ExportMenu data={filteredDiseases} />
+        <div className="flex gap-2">
+          {!isDataLoaded && (
+            <Button variant="outline" size="sm" onClick={() => router.push('/dashboard/upload')}>
+              <Upload className="h-4 w-4 mr-2" />
+              데이터 업로드
+            </Button>
+          )}
+          <ExportMenu data={filteredDiseases} />
+        </div>
       </div>
 
       {/* 필터 패널 */}
@@ -192,7 +226,7 @@ export default function DashboardPage() {
               <CardTitle className="text-base">연령 분포</CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              <AgePyramidChart data={SAMPLE_AGE_PYRAMID} />
+              <AgePyramidChart data={agePyramid} />
             </CardContent>
           </Card>
         </div>
