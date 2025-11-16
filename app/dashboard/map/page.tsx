@@ -39,36 +39,33 @@ export default function MapPage() {
     }
 
     // 환자별 방문 횟수 계산
-    const patientVisits = new Map<string, number>()
+    const patientVisits: Record<string, number> = {}
     rawData.forEach(patient => {
-      const visits = patientVisits.get(patient.patient_id) || 0
-      patientVisits.set(patient.patient_id, visits + 1)
+      patientVisits[patient.patient_id] = (patientVisits[patient.patient_id] || 0) + 1
     })
 
     // 지역별 신환/재환 집계
-    const regionNewCount = new Map<string, number>()
-    const regionReturningCount = new Map<string, number>()
+    const regionNewCount: Record<string, number> = {}
+    const regionReturningCount: Record<string, number> = {}
 
     rawData.forEach(patient => {
-      const isNew = patientVisits.get(patient.patient_id) === 1
+      const isNew = patientVisits[patient.patient_id] === 1
       if (isNew) {
-        const count = regionNewCount.get(patient.region) || 0
-        regionNewCount.set(patient.region, count + 1)
+        regionNewCount[patient.region] = (regionNewCount[patient.region] || 0) + 1
       } else {
-        const count = regionReturningCount.get(patient.region) || 0
-        regionReturningCount.set(patient.region, count + 1)
+        regionReturningCount[patient.region] = (regionReturningCount[patient.region] || 0) + 1
       }
     })
 
     // 지도 데이터와 매핑
     const newPatients = mapData.map(m => ({
       ...m,
-      value: regionNewCount.get(m.region) || 0,
+      value: regionNewCount[m.region] || 0,
     }))
 
     const returningPatients = mapData.map(m => ({
       ...m,
-      value: regionReturningCount.get(m.region) || 0,
+      value: regionReturningCount[m.region] || 0,
     }))
 
     return { newPatients, returningPatients }
