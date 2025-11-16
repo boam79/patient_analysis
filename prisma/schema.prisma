@@ -1,0 +1,140 @@
+// Prisma schema for PDR Dashboard v4.1
+// NCP Cloud DB for PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// NextAuth.js 필수 테이블
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime? @map("email_verified")
+  password      String?   // bcrypt 해시
+  image         String?
+  role          UserRole  @default(USER)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  accounts      Account[]
+  sessions      Session[]
+  permissions   UserPermission[]
+  auditLogs     AuditLog[]
+
+  @@map("users")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// RBAC (Role-Based Access Control)
+enum UserRole {
+  ADMIN       // 전체 관리자
+  ANALYST     // 데이터 분석가
+  VIEWER      // 읽기 전용 사용자
+  USER        // 일반 사용자
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  name        String   @unique // 예: "data:upload", "report:generate", "user:manage"
+  description String?
+  category    String   // "data", "report", "user", "system"
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  users UserPermission[]
+
+  @@map("permissions")
+}
+
+model UserPermission {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  permissionId String   @map("permission_id")
+  grantedAt    DateTime @default(now()) @map("granted_at")
+  grantedBy    String?  @map("granted_by") // 권한을 부여한 관리자 ID
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, permissionId])
+  @@map("user_permissions")
+}
+
+// 감사 로그 (Audit Log)
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  action    String   // "login", "data_upload", "report_generate", "user_create", etc.
+  resource  String?  // 영향을 받은 리소스 (예: "file:patient_data.csv")
+  details   Json?    // 추가 상세 정보
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// 데이터셋 메타데이터 (향후 확장용)
+model Dataset {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  uploadedBy  String   @map("uploaded_by") // User ID
+  fileSize    BigInt   @map("file_size")
+  rowCount    Int      @map("row_count")
+  status      String   @default("pending") // "pending", "processing", "completed", "failed"
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([uploadedBy])
+  @@index([status])
+  @@map("datasets")
+}

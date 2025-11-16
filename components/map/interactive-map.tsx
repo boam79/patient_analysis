@@ -1,0 +1,208 @@
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
+import { useFilterStore } from '@/stores/filter-store'
+import type L from 'leaflet'
+
+interface MapData {
+  latitude: number
+  longitude: number
+  value: number
+  h3Index: string
+  region?: string
+}
+
+interface InteractiveMapProps {
+  data?: MapData[]
+  mode?: 'heatmap' | 'markers'
+}
+
+export function InteractiveMap({
+  data = [],
+  mode = 'heatmap',
+}: InteractiveMapProps) {
+  const mapRef = useRef<any>(null)
+  const mapContainerRef = useRef<HTMLDivElement>(null)
+  const heatLayerRef = useRef<any>(null)
+  const markerLayerRef = useRef<any>(null)
+  const [leafletLoaded, setLeafletLoaded] = useState(false)
+  
+  const { selectedH3Index, selectedRegions, setSelectedH3Index, addRegion, removeRegion, setSelectedChartData } =
+    useFilterStore()
+
+  // Leaflet 동적 로드 및 지도 초기화
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    let map: any = null
+
+    // Leaflet CSS 동적 로드
+    if (!document.getElementById('leaflet-css')) {
+      const link = document.createElement('link')
+      link.id = 'leaflet-css'
+      link.rel = 'stylesheet'
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
+      link.integrity = 'sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY='
+      link.crossOrigin = ''
+      document.head.appendChild(link)
+    }
+
+    import('leaflet').then((L) => {
+      if (!mapContainerRef.current || mapRef.current) return
+
+      // Leaflet 아이콘 설정 수정
+      delete (L.Icon.Default.prototype as any)._getIconUrl
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+        iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+      })
+
+      map = L.map(mapContainerRef.current, {
+        center: [37.5665, 126.978],
+        zoom: 11,
+      })
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap',
+        maxZoom: 19,
+      }).addTo(map)
+
+      mapRef.current = map
+      setLeafletLoaded(true)
+    }).catch(err => {
+      console.error('Leaflet 로드 실패:', err)
+    })
+
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove()
+        mapRef.current = null
+      }
+    }
+  }, [])
+
+  // 데이터 렌더링 (히트맵 또는 마커)
+  useEffect(() => {
+    if (!leafletLoaded || !mapRef.current || !data.length) return
+
+    const map = mapRef.current
+
+    // 기존 레이어 제거
+    if (heatLayerRef.current) {
+      map.removeLayer(heatLayerRef.current)
+      heatLayerRef.current = null
+    }
+    if (markerLayerRef.current) {
+      map.removeLayer(markerLayerRef.current)
+      markerLayerRef.current = null
+    }
+
+    import('leaflet').then((L) => {
+      if (!mapRef.current) return
+
+      if (mode === 'heatmap') {
+        import('leaflet.heat').then(() => {
+          if (!mapRef.current) return
+
+          const heatData = data.map((point) => [
+            point.latitude,
+            point.longitude,
+            point.value,
+          ])
+
+          // @ts-ignore
+          const heatLayer = (L as any).heatLayer(heatData, {
+            radius: 25,
+            blur: 15,
+            maxZoom: 17,
+            max: 1.0,
+            gradient: {
+              0.0: '#3b82f6',
+              0.5: '#f59e0b',
+              1.0: '#ef4444',
+            },
+          })
+
+          heatLayer.addTo(mapRef.current)
+          heatLayerRef.current = heatLayer
+        })
+      } else if (mode === 'markers') {
+        const markerLayer = L.default.layerGroup()
+
+        data.forEach((point) => {
+          const isSelected = selectedH3Index === point.h3Index
+          const icon = L.default.divIcon({
+            className: 'custom-marker',
+            html: `<div style="
+              background-color: ${isSelected ? '#10B981' : '#3b82f6'};
+              width: 12px;
+              height: 12px;
+              border-radius: 50%;
+              border: 2px solid white;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            "></div>`,
+            iconSize: [12, 12],
+          })
+
+          const marker = L.default.marker([point.latitude, point.longitude], { icon })
+
+          marker.bindPopup(`
+            <div style="min-width: 150px;">
+              <strong>값: ${point.value}</strong><br/>
+              ${point.region ? `지역: ${point.region}<br/>` : ''}
+              H3: ${point.h3Index.slice(0, 10)}...
+            </div>
+          `)
+
+          marker.on('click', () => {
+            // H3 인덱스 선택
+            setSelectedH3Index(point.h3Index)
+            
+            // 차트 데이터 업데이트
+            setSelectedChartData('region', point.region || point.h3Index)
+            
+            // 지역 필터에 추가/제거
+            if (point.region) {
+              if (selectedRegions.includes(point.region)) {
+                removeRegion(point.region)
+              } else {
+                addRegion(point.region)
+              }
+            }
+          })
+
+          marker.addTo(markerLayer)
+        })
+
+        markerLayer.addTo(map)
+        markerLayerRef.current = markerLayer
+      }
+    })
+  }, [leafletLoaded, data, mode, selectedH3Index, selectedRegions, setSelectedH3Index, addRegion, removeRegion, setSelectedChartData])
+
+  return (
+    <div className="relative w-full h-full">
+      <div
+        ref={mapContainerRef}
+        className="w-full h-full rounded-lg"
+        style={{ minHeight: '500px' }}
+      />
+      {selectedH3Index && (
+        <div className="absolute top-4 right-4 bg-background/90 backdrop-blur-sm p-3 rounded-lg shadow-lg border">
+          <p className="text-xs font-medium">선택된 영역</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {selectedH3Index.slice(0, 12)}...
+          </p>
+          <button
+            onClick={() => setSelectedH3Index(null)}
+            className="text-xs text-primary hover:underline mt-1"
+          >
+            선택 해제
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
