@@ -161,18 +161,20 @@ export function InteractiveMap({
             </div>
           `)
 
-          marker.on('click', () => {
-            // H3 인덱스 선택
-            setSelectedH3Index(point.h3Index)
-            
-            // 차트 데이터 업데이트
-            setSelectedChartData('region', point.region || point.h3Index)
-            
-            // 지역 필터에 추가 (토글하지 않음 - 여러 지역 선택 가능)
-            if (point.region && !selectedRegions.includes(point.region)) {
-              addRegion(point.region)
+          // 각 마커에 고유한 클릭 핸들러 (클로저로 point 캡처)
+          marker.on('click', ((capturedPoint) => {
+            return () => {
+              requestAnimationFrame(() => {
+                setSelectedH3Index(capturedPoint.h3Index)
+                setSelectedChartData('region', capturedPoint.region || capturedPoint.h3Index)
+                
+                const currentRegions = useFilterStore.getState().selectedRegions
+                if (capturedPoint.region && !currentRegions.includes(capturedPoint.region)) {
+                  addRegion(capturedPoint.region)
+                }
+              })
             }
-          })
+          })(point))
 
           marker.addTo(markerLayer)
           

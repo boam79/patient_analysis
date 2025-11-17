@@ -42,11 +42,17 @@ export const InteractiveDiseaseChart = memo(function InteractiveDiseaseChart({ d
         <BarChart
           data={data}
           layout="vertical"
-          margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
+          margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
           <XAxis type="number" />
-          <YAxis dataKey="name" type="category" width={90} fontSize={12} />
+          <YAxis 
+            dataKey="name" 
+            type="category" 
+            width={120} 
+            fontSize={11}
+            tick={{ textAnchor: 'start' }}
+          />
           <Tooltip
             contentStyle={{
               backgroundColor: 'hsl(var(--popover))',
