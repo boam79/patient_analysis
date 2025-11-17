@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { FilterPanel } from '@/components/filter/filter-panel'
@@ -179,10 +180,59 @@ export default function DashboardPage() {
 
   const { diseases: filteredDiseases, mapData: filteredMapData } = getFilteredData()
 
-  // KPI 계산 (필터 적용됨)
+  // 선택된 지역의 Top 5 질병/수술 계산
+  const selectedRegionStats = useMemo(() => {
+    if (!isDataLoaded || selectedRegions.length === 0 || rawData.length === 0) {
+      return { diseases: [], surgeries: [], patientCount: 0 }
+    }
+
+    // 선택된 지역의 환자 데이터 필터링
+    const regionPatients = rawData.filter(p => selectedRegions.includes(p.region))
+    
+    if (regionPatients.length === 0) {
+      return { diseases: [], surgeries: [], patientCount: 0 }
+    }
+
+    // 질병 Top 5
+    const diseaseCounts: Record<string, number> = {}
+    regionPatients.forEach(p => {
+      diseaseCounts[p.disease_name] = (diseaseCounts[p.disease_name] || 0) + 1
+    })
+    
+    const topDiseases = Object.entries(diseaseCounts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5)
+
+    // 수술 Top 5
+    const surgeryCounts: Record<string, number> = {}
+    regionPatients.forEach(p => {
+      if (p.surgery_name) {
+        surgeryCounts[p.surgery_name] = (surgeryCounts[p.surgery_name] || 0) + 1
+      }
+    })
+    
+    const topSurgeries = Object.entries(surgeryCounts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5)
+
+    // 고유 환자 수 계산
+    const uniquePatientIds = new Set(regionPatients.map(p => p.patient_id))
+    
+    return {
+      diseases: topDiseases,
+      surgeries: topSurgeries,
+      patientCount: uniquePatientIds.size,
+      totalRecords: regionPatients.length,
+    }
+  }, [isDataLoaded, selectedRegions, rawData])
+
+  // KPI 계산
+  // 총 환자수는 필터와 무관하게 전체 rawData 기준 (고유 환자 수)
   const totalPatients = isDataLoaded 
-    ? (filteredDiseases.reduce((sum, d) => sum + d.count, 0) || storeTotalPatients)
-    : (filteredDiseases.reduce((sum, d) => sum + d.count, 0) || 1234)
+    ? storeTotalPatients  // 전체 환자 수 (필터 무관)
+    : 1234
     
   const recurrenceRate = isDataLoaded
     ? storeRecurrenceRate.toFixed(1)
@@ -328,6 +378,54 @@ export default function DashboardPage() {
                         <p key={region} className="text-sm">• {region}</p>
                       ))}
                     </div>
+                    
+                    {/* 지역별 통계 */}
+                    {selectedRegionStats.patientCount > 0 && (
+                      <div className="mt-4 pt-4 border-t">
+                        <p className="text-xs text-muted-foreground mb-2">
+                          환자 수: {selectedRegionStats.patientCount.toLocaleString()}명
+                          {selectedRegionStats.totalRecords && (
+                            <span className="ml-1">
+                              (방문 {selectedRegionStats.totalRecords.toLocaleString()}건)
+                            </span>
+                          )}
+                        </p>
+                        
+                        {/* Top 5 질병 */}
+                        {selectedRegionStats.diseases.length > 0 && (
+                          <div className="mb-3">
+                            <p className="text-xs font-medium mb-1">Top 5 질병</p>
+                            <div className="space-y-1">
+                              {selectedRegionStats.diseases.map((disease, idx) => (
+                                <div key={disease.name} className="flex justify-between text-xs">
+                                  <span className="text-muted-foreground">
+                                    {idx + 1}. {disease.name}
+                                  </span>
+                                  <span className="font-medium">{disease.count}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Top 5 수술 */}
+                        {selectedRegionStats.surgeries.length > 0 && (
+                          <div>
+                            <p className="text-xs font-medium mb-1">Top 5 수술</p>
+                            <div className="space-y-1">
+                              {selectedRegionStats.surgeries.map((surgery, idx) => (
+                                <div key={surgery.name} className="flex justify-between text-xs">
+                                  <span className="text-muted-foreground">
+                                    {idx + 1}. {surgery.name}
+                                  </span>
+                                  <span className="font-medium">{surgery.count}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

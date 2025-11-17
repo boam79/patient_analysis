@@ -290,7 +290,6 @@ export const useDataStore = create<DataState & DataActions>()(
           }))
 
           // KPI 계산
-          const totalPatients = rawData.length
           const surgeryCount = rawData.filter((p) => p.surgery_code).length
           
           // 재방문율 계산: 2회 이상 방문한 환자 비율
@@ -302,6 +301,9 @@ export const useDataStore = create<DataState & DataActions>()(
           const uniquePatients = Object.keys(patientVisitCounts).length
           const returningPatients = Object.values(patientVisitCounts).filter(count => count > 1).length
           const calculatedRecurrenceRate = uniquePatients > 0 ? (returningPatients / uniquePatients) * 100 : 0
+          
+          // 총 환자수 = 고유 환자 수 (중복 제거)
+          const totalPatients = uniquePatients
           
           // 평균 재방문 간격 계산: 환자별 방문 날짜 간격의 평균
           let totalIntervals = 0
