@@ -150,16 +150,34 @@ export const useDataStore = create<DataState & DataActions>()(
             .slice(0, 10)
 
       // 지도 데이터 계산 (지역별 집계)
-      // 1. 지역별 환자 수 집계
-      const regionCountMap = new Map<string, number>()
+      // 1. 지역별 환자 수 및 좌표 집계
+      const regionDataMap = new Map<string, { 
+        count: number
+        latitudes: number[]
+        longitudes: number[]
+      }>()
+      
       rawData.forEach((patient) => {
         if (patient.region && patient.region !== '미분류') {
-          const count = regionCountMap.get(patient.region) || 0
-          regionCountMap.set(patient.region, count + 1)
+          const existing = regionDataMap.get(patient.region) || {
+            count: 0,
+            latitudes: [],
+            longitudes: [],
+          }
+          
+          existing.count++
+          
+          // 실제 데이터에 좌표가 있으면 수집
+          if (patient.latitude && patient.longitude) {
+            existing.latitudes.push(patient.latitude)
+            existing.longitudes.push(patient.longitude)
+          }
+          
+          regionDataMap.set(patient.region, existing)
         }
       })
 
-      // 2. 주요 지역 좌표 매핑 (샘플)
+      // 2. 백업용 주요 지역 좌표 매핑 (실제 좌표가 없을 때만 사용)
       const regionCoordinates: Record<string, { lat: number; lng: number }> = {
         '서울 종로구': { lat: 37.5730, lng: 126.9794 },
         '서울 중구': { lat: 37.5641, lng: 126.9979 },
@@ -201,21 +219,35 @@ export const useDataStore = create<DataState & DataActions>()(
         '인천 서구': { lat: 37.5454, lng: 126.6759 },
       }
 
-      // 3. 지도 데이터 생성
-      const mapData: MapData[] = Array.from(regionCountMap.entries())
-        .map(([region, count]) => {
-          // 좌표가 있으면 사용, 없으면 서울 중심 기준 랜덤
-          const coords = regionCoordinates[region] || {
-            lat: 37.5665 + (Math.random() - 0.5) * 0.5,
-            lng: 126.9780 + (Math.random() - 0.5) * 0.5,
+      // 3. 지도 데이터 생성 (실제 좌표 우선 사용)
+      const mapData: MapData[] = Array.from(regionDataMap.entries())
+        .map(([region, data]) => {
+          let lat: number
+          let lng: number
+          
+          // 우선순위 1: 실제 데이터의 좌표 평균값 사용
+          if (data.latitudes.length > 0 && data.longitudes.length > 0) {
+            lat = data.latitudes.reduce((sum, v) => sum + v, 0) / data.latitudes.length
+            lng = data.longitudes.reduce((sum, v) => sum + v, 0) / data.longitudes.length
           }
+          // 우선순위 2: 하드코딩된 지역 좌표 사용
+          else if (regionCoordinates[region]) {
+            lat = regionCoordinates[region].lat
+            lng = regionCoordinates[region].lng
+          }
+          // 우선순위 3: 서울 중심 기준 랜덤 (마지막 fallback)
+          else {
+            lat = 37.5665 + (Math.random() - 0.5) * 0.5
+            lng = 126.9780 + (Math.random() - 0.5) * 0.5
+          }
+          
           return {
-            latitude: coords.lat,
-            longitude: coords.lng,
-            value: count,
+            latitude: lat,
+            longitude: lng,
+            value: data.count,
             h3Index: `h3_${region.replace(/\s/g, '_')}`,
             region,
-            patientCount: count,
+            patientCount: data.count,
           }
         })
         .sort((a, b) => b.value - a.value)
@@ -260,16 +292,46 @@ export const useDataStore = create<DataState & DataActions>()(
           // KPI 계산
           const totalPatients = rawData.length
           const surgeryCount = rawData.filter((p) => p.surgery_code).length
-          const recurrenceRate = 45.2 // TODO: 실제 재방문율 계산 로직 필요
-          const avgInterval = 28 // TODO: 실제 평균 간격 계산 로직 필요
+          
+          // 재방문율 계산: 2회 이상 방문한 환자 비율
+          const patientVisitCounts: Record<string, number> = {}
+          rawData.forEach((patient) => {
+            patientVisitCounts[patient.patient_id] = (patientVisitCounts[patient.patient_id] || 0) + 1
+          })
+          
+          const uniquePatients = Object.keys(patientVisitCounts).length
+          const returningPatients = Object.values(patientVisitCounts).filter(count => count > 1).length
+          const calculatedRecurrenceRate = uniquePatients > 0 ? (returningPatients / uniquePatients) * 100 : 0
+          
+          // 평균 재방문 간격 계산: 환자별 방문 날짜 간격의 평균
+          let totalIntervals = 0
+          let intervalCount = 0
+          
+          Object.keys(patientVisitCounts).forEach((patientId) => {
+            const patientVisits = rawData
+              .filter(p => p.patient_id === patientId)
+              .map(p => new Date(p.visit_date).getTime())
+              .sort((a, b) => a - b)
+            
+            // 방문이 2회 이상인 경우만 간격 계산
+            if (patientVisits.length > 1) {
+              for (let i = 1; i < patientVisits.length; i++) {
+                const interval = (patientVisits[i] - patientVisits[i-1]) / (1000 * 60 * 60 * 24) // 일 단위
+                totalIntervals += interval
+                intervalCount++
+              }
+            }
+          })
+          
+          const calculatedAvgInterval = intervalCount > 0 ? Math.round(totalIntervals / intervalCount) : 0
 
           set({
             diseases,
             mapData,
             agePyramid,
             totalPatients,
-            recurrenceRate,
-            avgInterval,
+            recurrenceRate: calculatedRecurrenceRate,
+            avgInterval: calculatedAvgInterval,
             totalSurgery: surgeryCount,
             isLoading: false,
           })
