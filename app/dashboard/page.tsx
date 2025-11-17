@@ -103,8 +103,8 @@ export default function DashboardPage() {
   const mapData = isDataLoaded && storeMapData.length > 0 ? storeMapData : SAMPLE_MAP_DATA
   const agePyramid = isDataLoaded && storeAgePyramid.length > 0 ? storeAgePyramid : SAMPLE_AGE_PYRAMID
 
-  // 수술 데이터 계산
-  const surgeryData = (() => {
+  // 수술 데이터 계산 (useMemo로 최적화)
+  const surgeryData = useMemo(() => {
     if (!isDataLoaded || rawData.length === 0) {
       return {
         scatter: SAMPLE_SURGERY_SCATTER,
@@ -158,21 +158,21 @@ export default function DashboardPage() {
     }) as any[]
 
     return { scatter, matrix, diseases: topDiseases }
-  })()
+  }, [isDataLoaded, rawData, diseases])
 
-  // 필터 적용된 데이터 계산
-  const getFilteredData = () => {
-    let filteredDiseases = [...diseases]
+  // 필터 적용된 데이터 계산 (useMemo로 최적화)
+  const filteredDiseases = useMemo(() => {
+    let filtered = [...diseases]
     
     // 질병 필터 적용
     if (selectedDiseases.length > 0) {
-      filteredDiseases = filteredDiseases.filter(d => selectedDiseases.includes(d.name))
+      filtered = filtered.filter(d => selectedDiseases.includes(d.name))
     }
     
     // 지역 필터는 질병 데이터에만 적용 (지도는 항상 모든 지역 표시)
-    if (selectedRegions.length > 0) {
+    if (selectedRegions.length > 0 && rawData.length > 0) {
       // 선택된 지역의 질병 데이터만 필터링
-      filteredDiseases = filteredDiseases.filter(disease => {
+      filtered = filtered.filter(disease => {
         // rawData에서 해당 질병이 선택된 지역에 있는지 확인
         const diseaseInSelectedRegions = rawData.some(
           p => p.disease_name === disease.name && selectedRegions.includes(p.region)
@@ -181,10 +181,8 @@ export default function DashboardPage() {
       })
     }
     
-    return { diseases: filteredDiseases }
-  }
-
-  const { diseases: filteredDiseases } = getFilteredData()
+    return filtered
+  }, [diseases, selectedDiseases, selectedRegions, rawData])
 
   // 선택된 지역의 Top 5 질병/수술 계산
   const selectedRegionStats = useMemo(() => {

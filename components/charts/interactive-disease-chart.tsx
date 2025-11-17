@@ -1,5 +1,6 @@
 'use client'
 
+import { memo } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { useFilterStore } from '@/stores/filter-store'
 
@@ -19,7 +20,7 @@ interface InteractiveDiseaseChartProps {
   title?: string
 }
 
-export function InteractiveDiseaseChart({ data, title = 'Top 10 질병' }: InteractiveDiseaseChartProps) {
+export const InteractiveDiseaseChart = memo(function InteractiveDiseaseChart({ data, title = 'Top 10 질병' }: InteractiveDiseaseChartProps) {
   const { selectedDiseases, addDisease, removeDisease, setSelectedChartData } = useFilterStore()
 
   const handleBarClick = (entry: DiseaseData) => {
@@ -84,5 +85,5 @@ export function InteractiveDiseaseChart({ data, title = 'Top 10 질병' }: Inter
       )}
     </div>
   )
-}
+})
 
