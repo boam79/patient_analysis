@@ -131,18 +131,22 @@ export function InteractiveMap({
         const markerLayer = L.default.layerGroup()
 
         data.forEach((point) => {
-          const isSelected = selectedH3Index === point.h3Index
+          // 지역이 선택되었는지 확인
+          const isRegionSelected = point.region && selectedRegions.includes(point.region)
+          const isH3Selected = selectedH3Index === point.h3Index
+          const isSelected = isRegionSelected || isH3Selected
+          
           const icon = L.default.divIcon({
             className: 'custom-marker',
             html: `<div style="
               background-color: ${isSelected ? '#10B981' : '#3b82f6'};
-              width: 12px;
-              height: 12px;
+              width: ${isSelected ? '14px' : '12px'};
+              height: ${isSelected ? '14px' : '12px'};
               border-radius: 50%;
               border: 2px solid white;
               box-shadow: 0 2px 4px rgba(0,0,0,0.3);
             "></div>`,
-            iconSize: [12, 12],
+            iconSize: [isSelected ? 14 : 12, isSelected ? 14 : 12],
           })
 
           const marker = L.default.marker([point.latitude, point.longitude], { icon })

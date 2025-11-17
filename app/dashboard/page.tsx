@@ -163,22 +163,28 @@ export default function DashboardPage() {
   // 필터 적용된 데이터 계산
   const getFilteredData = () => {
     let filteredDiseases = [...diseases]
-    let filteredMapData = [...mapData]
     
     // 질병 필터 적용
     if (selectedDiseases.length > 0) {
       filteredDiseases = filteredDiseases.filter(d => selectedDiseases.includes(d.name))
     }
     
-    // 지역 필터 적용
+    // 지역 필터는 질병 데이터에만 적용 (지도는 항상 모든 지역 표시)
     if (selectedRegions.length > 0) {
-      filteredMapData = filteredMapData.filter(m => selectedRegions.includes(m.region))
+      // 선택된 지역의 질병 데이터만 필터링
+      filteredDiseases = filteredDiseases.filter(disease => {
+        // rawData에서 해당 질병이 선택된 지역에 있는지 확인
+        const diseaseInSelectedRegions = rawData.some(
+          p => p.disease_name === disease.name && selectedRegions.includes(p.region)
+        )
+        return diseaseInSelectedRegions
+      })
     }
     
-    return { diseases: filteredDiseases, mapData: filteredMapData }
+    return { diseases: filteredDiseases }
   }
 
-  const { diseases: filteredDiseases, mapData: filteredMapData } = getFilteredData()
+  const { diseases: filteredDiseases } = getFilteredData()
 
   // 선택된 지역의 Top 5 질병/수술 계산
   const selectedRegionStats = useMemo(() => {
@@ -238,8 +244,8 @@ export default function DashboardPage() {
     
   const recurrenceRate = isDataLoaded
     ? storeRecurrenceRate.toFixed(1)
-    : (filteredMapData.length > 0 
-        ? (filteredMapData.reduce((sum, d) => sum + d.value, 0) / filteredMapData.length * 100).toFixed(1)
+    : (mapData.length > 0 
+        ? (mapData.reduce((sum, d) => sum + d.value, 0) / mapData.length * 100).toFixed(1)
         : "45.2")
         
   const avgInterval = isDataLoaded ? storeAvgInterval : (selectedRegions.length > 0 ? Math.floor(28 + Math.random() * 10) : 28)
@@ -353,7 +359,7 @@ export default function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
-            <InteractiveMap data={filteredMapData} mode="markers" />
+            <InteractiveMap data={mapData} mode="markers" />
           </CardContent>
         </Card>
 
