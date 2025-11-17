@@ -46,48 +46,59 @@ export default function MapPage() {
       patientVisits[key] = (patientVisits[key] || 0) + 1
     })
 
-    // 지역별 신환/재환 집계
-    const regionNewCount: Record<string, number> = {}
-    const regionReturningCount: Record<string, number> = {}
+    // 지역별 신환/재환 집계 (고유 환자 기준)
+    const regionNewPatients: Record<string, Set<string>> = {}
+    const regionReturningPatients: Record<string, Set<string>> = {}
 
     rawData.forEach(patient => {
       const key = patientKey(patient)
       const isNew = patientVisits[key] === 1
+      
+      if (!patient.region || patient.region === '미분류') return
+      
       if (isNew) {
-        regionNewCount[patient.region] = (regionNewCount[patient.region] || 0) + 1
+        if (!regionNewPatients[patient.region]) {
+          regionNewPatients[patient.region] = new Set()
+        }
+        regionNewPatients[patient.region].add(key)
       } else {
-        regionReturningCount[patient.region] = (regionReturningCount[patient.region] || 0) + 1
+        if (!regionReturningPatients[patient.region]) {
+          regionReturningPatients[patient.region] = new Set()
+        }
+        regionReturningPatients[patient.region].add(key)
       }
     })
 
     // 지도 데이터와 매핑
     const newPatients = mapData.map(m => ({
       ...m,
-      value: regionNewCount[m.region] || 0,
+      value: regionNewPatients[m.region]?.size || 0,
     }))
 
     const returningPatients = mapData.map(m => ({
       ...m,
-      value: regionReturningCount[m.region] || 0,
+      value: regionReturningPatients[m.region]?.size || 0,
     }))
 
     return { newPatients, returningPatients }
   }, [isDataLoaded, rawData, mapData])
 
-  // 재방문율 계산
+  // 재방문율 계산 (지역별)
   const recurrenceData = useMemo(() => {
     if (!isDataLoaded || mapData.length === 0) {
       return SAMPLE_DATA.map(d => ({ ...d, value: d.value * 0.45 }))
     }
 
-    const totalNew = patientTypeData.newPatients.reduce((sum, d) => sum + d.value, 0)
-    const totalReturning = patientTypeData.returningPatients.reduce((sum, d) => sum + d.value, 0)
-    const totalAll = totalNew + totalReturning
-
-    return mapData.map(m => ({
-      ...m,
-      value: totalAll > 0 ? (m.value / totalAll) * 100 : 0, // 재방문율 %
-    }))
+    return mapData.map(m => {
+      const newCount = patientTypeData.newPatients.find(p => p.region === m.region)?.value || 0
+      const returningCount = patientTypeData.returningPatients.find(p => p.region === m.region)?.value || 0
+      const total = newCount + returningCount
+      
+      return {
+        ...m,
+        value: total > 0 ? (returningCount / total) * 100 : 0, // 지역별 재방문율 %
+      }
+    })
   }, [isDataLoaded, mapData, patientTypeData])
 
   // 각 탭에 맞는 데이터 생성
@@ -126,6 +137,17 @@ export default function MapPage() {
   // 통계 계산
   const stats = useMemo(() => {
     const data = getDataForTab()
+    
+    if (activeTab === 'recurrence') {
+      // 재방문율은 평균과 최대값만 표시
+      const avg = data.length > 0 
+        ? data.reduce((sum, d) => sum + d.value, 0) / data.length 
+        : 0
+      const max = data.length > 0 ? Math.max(...data.map(d => d.value)) : 0
+      return { total: 0, avg, max }
+    }
+    
+    // 신환, 재환, 환자수는 합계, 평균, 최대값 표시
     const total = data.reduce((sum, d) => sum + d.value, 0)
     const avg = data.length > 0 ? Math.round(total / data.length) : 0
     const max = data.length > 0 ? Math.max(...data.map(d => d.value)) : 0
