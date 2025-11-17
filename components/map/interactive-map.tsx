@@ -59,8 +59,8 @@ export function InteractiveMap({
       })
 
       map = L.map(mapContainerRef.current, {
-        center: [37.5665, 126.978],
-        zoom: 11,
+        center: [36.5, 127.5], // 한국 중심
+        zoom: 7, // 전국이 보이는 줌 레벨
       })
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -162,13 +162,9 @@ export function InteractiveMap({
             // 차트 데이터 업데이트
             setSelectedChartData('region', point.region || point.h3Index)
             
-            // 지역 필터에 추가/제거
-            if (point.region) {
-              if (selectedRegions.includes(point.region)) {
-                removeRegion(point.region)
-              } else {
-                addRegion(point.region)
-              }
+            // 지역 필터에 추가 (토글하지 않음 - 여러 지역 선택 가능)
+            if (point.region && !selectedRegions.includes(point.region)) {
+              addRegion(point.region)
             }
           })
 

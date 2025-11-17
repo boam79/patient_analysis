@@ -77,6 +77,9 @@ export default function ChartsPage() {
       return SAMPLE_MONTHLY_TREND
     }
 
+    // 환자 키 생성 함수 (이름+주소)
+    const patientKey = (p: any) => `${p.name}|${p.address}`
+
     // 방문일자를 월별로 그룹화
     const monthlyData = rawData.reduce((acc, patient) => {
       const date = new Date(patient.visit_date)
@@ -86,13 +89,14 @@ export default function ChartsPage() {
         acc[month] = { newPatients: new Set(), returningPatients: new Set() }
       }
 
-      // 환자별 방문 횟수 계산 (간단히 중복 체크)
-      const isNew = rawData.filter(p => p.patient_id === patient.patient_id).length === 1
+      // 환자별 방문 횟수 계산 (이름+주소 기준)
+      const key = patientKey(patient)
+      const isNew = rawData.filter(p => patientKey(p) === key).length === 1
       
       if (isNew) {
-        acc[month].newPatients.add(patient.patient_id)
+        acc[month].newPatients.add(key)
       } else {
-        acc[month].returningPatients.add(patient.patient_id)
+        acc[month].returningPatients.add(key)
       }
 
       return acc

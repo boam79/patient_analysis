@@ -75,11 +75,23 @@ export default function UploadPage() {
         if (!region && address) {
           // "서울특별시 종로구 세종대로" → "서울 종로구"
           // "경기도 수원시 영통구" → "경기 수원시"
+          // "세종특별자치시 한누리대로" → "세종 세종시"
           const addressParts = address.split(' ')
           if (addressParts.length >= 2) {
-            const sido = addressParts[0].replace('특별시', '').replace('광역시', '').replace('도', '')
-            const sigungu = addressParts[1].replace('시', '시').replace('구', '구').replace('군', '군')
-            region = `${sido} ${sigungu}`
+            const sido = addressParts[0]
+              .replace('특별시', '')
+              .replace('광역시', '')
+              .replace('특별자치시', '')
+              .replace('특별자치도', '')
+              .replace('도', '')
+            const sigungu = addressParts[1]
+            
+            // 세종시 특별 처리
+            if (sido === '세종') {
+              region = '세종 세종시'
+            } else {
+              region = `${sido} ${sigungu}`
+            }
           } else {
             region = addressParts[0] || '미분류'
           }
