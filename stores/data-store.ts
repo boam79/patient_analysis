@@ -51,6 +51,24 @@ export interface MonthlyTrendData {
   returningPatients: number
 }
 
+// 지역별 통계 데이터 타입 (Boundary Chart용)
+export interface BoundaryData {
+  region: string
+  patients: number
+  recurrenceRate: number
+  avgAge: number
+}
+
+// Boxplot 데이터 타입
+export interface BoxplotData {
+  region: string
+  min: number
+  q1: number
+  median: number
+  q3: number
+  max: number
+}
+
 export interface DataState {
   // 원본 데이터
   rawData: PatientData[]
@@ -61,6 +79,8 @@ export interface DataState {
   mapData: MapData[]
   agePyramid: AgePyramidData[]
   monthlyTrend: MonthlyTrendData[]
+  boundaryData: BoundaryData[]
+  boxplotData: BoxplotData[]
   
   // KPI 데이터
   totalPatients: number
@@ -83,6 +103,8 @@ export interface DataActions {
   setMapData: (mapData: MapData[]) => void
   setAgePyramid: (agePyramid: AgePyramidData[]) => void
   setMonthlyTrend: (monthlyTrend: MonthlyTrendData[]) => void
+  setBoundaryData: (boundaryData: BoundaryData[]) => void
+  setBoxplotData: (boxplotData: BoxplotData[]) => void
   
   // KPI 설정
   setKPI: (kpi: { totalPatients: number; recurrenceRate: number; avgInterval: number; totalSurgery: number }) => void
@@ -100,6 +122,8 @@ const initialState: DataState = {
   mapData: [],
   agePyramid: [],
   monthlyTrend: [],
+  boundaryData: [],
+  boxplotData: [],
   totalPatients: 0,
   recurrenceRate: 0,
   avgInterval: 0,
@@ -418,10 +442,167 @@ export const useDataStore = create<DataState & DataActions>()(
           
           const calculatedAvgInterval = intervalCount > 0 ? Math.round(totalIntervals / intervalCount) : 0
 
+          // 지역별 통계 계산 (Task 1.1)
+          const regionStatsMap = new Map<string, {
+            patientKeys: Set<string>
+            ages: number[]
+            visits: number
+          }>()
+
+          rawData.forEach((patient) => {
+            if (patient.region && patient.region !== '미분류') {
+              const key = patientKey(patient)
+              
+              if (!regionStatsMap.has(patient.region)) {
+                regionStatsMap.set(patient.region, {
+                  patientKeys: new Set(),
+                  ages: [],
+                  visits: 0,
+                })
+              }
+              
+              const stats = regionStatsMap.get(patient.region)!
+              stats.patientKeys.add(key)
+              stats.ages.push(patient.age)
+              stats.visits++
+            }
+          })
+
+          const boundaryData: BoundaryData[] = Array.from(regionStatsMap.entries())
+            .map(([region, stats]) => {
+              const uniquePatients = stats.patientKeys.size
+              const avgAge = stats.ages.reduce((sum, age) => sum + age, 0) / stats.ages.length
+              
+              // 지역별 재방문율 계산
+              const regionPatientVisits: Record<string, number> = {}
+              rawData.forEach((p) => {
+                if (p.region === region) {
+                  const key = patientKey(p)
+                  regionPatientVisits[key] = (regionPatientVisits[key] || 0) + 1
+                }
+              })
+              
+              const returningInRegion = Object.values(regionPatientVisits).filter(count => count > 1).length
+              const recurrenceRate = uniquePatients > 0 ? (returningInRegion / uniquePatients) * 100 : 0
+              
+              return {
+                region,
+                patients: uniquePatients,
+                recurrenceRate,
+                avgAge: Math.round(avgAge * 10) / 10, // 소수점 1자리
+              }
+            })
+            .sort((a, b) => b.patients - a.patients)
+            .slice(0, 10) // Top 10 지역
+
+          // Boxplot 통계 계산 (Task 1.2)
+          // 사분위수 계산 헬퍼 함수
+          const calculateQuartiles = (values: number[]) => {
+            if (values.length === 0) {
+              return { min: 0, q1: 0, median: 0, q3: 0, max: 0 }
+            }
+            
+            const sorted = [...values].sort((a, b) => a - b)
+            const min = sorted[0]
+            const max = sorted[sorted.length - 1]
+            
+            const median = sorted.length % 2 === 0
+              ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
+              : sorted[Math.floor(sorted.length / 2)]
+            
+            const q1Index = Math.floor(sorted.length * 0.25)
+            const q3Index = Math.floor(sorted.length * 0.75)
+            
+            const q1 = sorted[q1Index]
+            const q3 = sorted[q3Index]
+            
+            return { min, q1, median, q3, max }
+          }
+
+          // 지역별 재방문 간격 수집
+          const regionIntervalsMap = new Map<string, number[]>()
+
+          Object.keys(patientVisitCounts).forEach((key) => {
+            const patientVisits = rawData
+              .filter(p => patientKey(p) === key)
+              .sort((a, b) => new Date(a.visit_date).getTime() - new Date(b.visit_date).getTime())
+            
+            if (patientVisits.length > 1) {
+              const region = patientVisits[0].region
+              
+              if (region && region !== '미분류') {
+                if (!regionIntervalsMap.has(region)) {
+                  regionIntervalsMap.set(region, [])
+                }
+                
+                for (let i = 1; i < patientVisits.length; i++) {
+                  const interval = (new Date(patientVisits[i].visit_date).getTime() - 
+                                   new Date(patientVisits[i-1].visit_date).getTime()) / 
+                                   (1000 * 60 * 60 * 24)
+                  regionIntervalsMap.get(region)!.push(interval)
+                }
+              }
+            }
+          })
+
+          const boxplotData: BoxplotData[] = Array.from(regionIntervalsMap.entries())
+            .filter(([_, intervals]) => intervals.length >= 5) // 최소 5개 데이터포인트 필요
+            .map(([region, intervals]) => {
+              const quartiles = calculateQuartiles(intervals)
+              return {
+                region,
+                ...quartiles,
+              }
+            })
+            .sort((a, b) => b.median - a.median)
+            .slice(0, 10) // Top 10 지역
+
+          // 월별 트렌드 계산 (Task 1.3)
+          const monthlyData = rawData.reduce((acc, patient) => {
+            const date = new Date(patient.visit_date)
+            const month = `${date.getMonth() + 1}월`
+            
+            if (!acc[month]) {
+              acc[month] = { newPatients: new Set(), returningPatients: new Set() }
+            }
+
+            const key = patientKey(patient)
+            const isNew = patientVisitCounts[key] === 1
+            
+            if (isNew) {
+              acc[month].newPatients.add(key)
+            } else {
+              acc[month].returningPatients.add(key)
+            }
+
+            return acc
+          }, {} as Record<string, { newPatients: Set<string>; returningPatients: Set<string> }>)
+
+          const monthOrder = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월']
+          
+          const monthlyTrend: MonthlyTrendData[] = monthOrder
+            .filter(month => monthlyData[month])
+            .map(month => {
+              const data = monthlyData[month]
+              const newCount = data.newPatients.size
+              const returningCount = data.returningPatients.size
+              const total = newCount + returningCount
+              
+              return {
+                month,
+                newPatients: newCount,
+                returningPatients: returningCount,
+                recurrenceRate: total > 0 ? (returningCount / total) * 100 : 0,
+              }
+            })
+
           set({
             diseases,
             mapData,
             agePyramid,
+            boundaryData,
+            boxplotData,
+            monthlyTrend,
             totalPatients,
             recurrenceRate: calculatedRecurrenceRate,
             avgInterval: calculatedAvgInterval,
@@ -437,6 +618,8 @@ export const useDataStore = create<DataState & DataActions>()(
       setMapData: (mapData) => set({ mapData }),
       setAgePyramid: (agePyramid) => set({ agePyramid }),
       setMonthlyTrend: (monthlyTrend) => set({ monthlyTrend }),
+      setBoundaryData: (boundaryData) => set({ boundaryData }),
+      setBoxplotData: (boxplotData) => set({ boxplotData }),
 
       setKPI: (kpi) => set(kpi),
 
@@ -455,6 +638,9 @@ export const useDataStore = create<DataState & DataActions>()(
           diseases: state.diseases,
           mapData: state.mapData,
           agePyramid: state.agePyramid,
+          monthlyTrend: state.monthlyTrend,
+          boundaryData: state.boundaryData,
+          boxplotData: state.boxplotData,
           totalPatients: state.totalPatients,
           recurrenceRate: state.recurrenceRate,
           avgInterval: state.avgInterval,

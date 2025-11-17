@@ -91,6 +91,9 @@ export default function DashboardPage() {
     diseases: storeDiseases, 
     mapData: storeMapData,
     agePyramid: storeAgePyramid,
+    boundaryData: storeBoundaryData,
+    boxplotData: storeBoxplotData,
+    monthlyTrend: storeMonthlyTrend,
     totalPatients: storeTotalPatients,
     recurrenceRate: storeRecurrenceRate,
     avgInterval: storeAvgInterval,
@@ -102,6 +105,9 @@ export default function DashboardPage() {
   const diseases = isDataLoaded && storeDiseases.length > 0 ? storeDiseases : SAMPLE_DISEASES
   const mapData = isDataLoaded && storeMapData.length > 0 ? storeMapData : SAMPLE_MAP_DATA
   const agePyramid = isDataLoaded && storeAgePyramid.length > 0 ? storeAgePyramid : SAMPLE_AGE_PYRAMID
+  const boundaryData = isDataLoaded && storeBoundaryData.length > 0 ? storeBoundaryData : SAMPLE_BOUNDARY_DATA
+  const boxplotData = isDataLoaded && storeBoxplotData.length > 0 ? storeBoxplotData : SAMPLE_BOXPLOT_DATA
+  const monthlyTrend = isDataLoaded && storeMonthlyTrend.length > 0 ? storeMonthlyTrend : SAMPLE_MONTHLY_TREND
 
   // 수술 데이터 계산 (useMemo로 최적화)
   const surgeryData = useMemo(() => {
@@ -183,6 +189,239 @@ export default function DashboardPage() {
     
     return filtered
   }, [diseases, selectedDiseases, selectedRegions, rawData])
+
+  // 필터링된 rawData 계산 (Task 3.1)
+  const filteredRawData = useMemo(() => {
+    if (!isDataLoaded || rawData.length === 0) {
+      return []
+    }
+
+    let filtered = [...rawData]
+
+    // 질병 필터
+    if (selectedDiseases.length > 0) {
+      filtered = filtered.filter(p => selectedDiseases.includes(p.disease_name))
+    }
+
+    // 지역 필터
+    if (selectedRegions.length > 0) {
+      filtered = filtered.filter(p => selectedRegions.includes(p.region))
+    }
+
+    // 연령 필터
+    if (ageGroups.length > 0) {
+      filtered = filtered.filter(p => {
+        const age = p.age
+        if (age < 20) return ageGroups.includes('10대 이하')
+        if (age < 30) return ageGroups.includes('20대')
+        if (age < 40) return ageGroups.includes('30대')
+        if (age < 50) return ageGroups.includes('40대')
+        if (age < 60) return ageGroups.includes('50대')
+        if (age < 70) return ageGroups.includes('60대')
+        return ageGroups.includes('70대 이상')
+      })
+    }
+
+    // 성별 필터
+    if (genders.length > 0 && genders.length < 2) {
+      filtered = filtered.filter(p => 
+        p.gender === genders[0] || 
+        (genders[0] === '남성' && p.gender === 'M') ||
+        (genders[0] === '여성' && p.gender === 'F')
+      )
+    }
+
+    return filtered
+  }, [isDataLoaded, rawData, selectedDiseases, selectedRegions, ageGroups, genders])
+
+  // 필터링된 Boundary 데이터 계산
+  const filteredBoundaryData = useMemo(() => {
+    if (!isDataLoaded || filteredRawData.length === 0) {
+      return boundaryData // 필터 없으면 원본 사용
+    }
+
+    const patientKey = (p: any) => `${p.name}|${p.address}`
+    
+    const regionStatsMap = new Map<string, {
+      patientKeys: Set<string>
+      ages: number[]
+    }>()
+
+    filteredRawData.forEach((patient) => {
+      if (patient.region && patient.region !== '미분류') {
+        const key = patientKey(patient)
+        
+        if (!regionStatsMap.has(patient.region)) {
+          regionStatsMap.set(patient.region, {
+            patientKeys: new Set(),
+            ages: [],
+          })
+        }
+        
+        const stats = regionStatsMap.get(patient.region)!
+        stats.patientKeys.add(key)
+        stats.ages.push(patient.age)
+      }
+    })
+
+    return Array.from(regionStatsMap.entries())
+      .map(([region, stats]) => {
+        const uniquePatients = stats.patientKeys.size
+        const avgAge = stats.ages.reduce((sum, age) => sum + age, 0) / stats.ages.length
+        
+        // 지역별 재방문율 계산
+        const regionPatientVisits: Record<string, number> = {}
+        filteredRawData.forEach((p) => {
+          if (p.region === region) {
+            const key = patientKey(p)
+            regionPatientVisits[key] = (regionPatientVisits[key] || 0) + 1
+          }
+        })
+        
+        const returningInRegion = Object.values(regionPatientVisits).filter(count => count > 1).length
+        const recurrenceRate = uniquePatients > 0 ? (returningInRegion / uniquePatients) * 100 : 0
+        
+        return {
+          region,
+          patients: uniquePatients,
+          recurrenceRate,
+          avgAge: Math.round(avgAge * 10) / 10,
+        }
+      })
+      .sort((a, b) => b.patients - a.patients)
+      .slice(0, 10)
+  }, [isDataLoaded, filteredRawData, boundaryData])
+
+  // 필터링된 Boxplot 데이터 계산
+  const filteredBoxplotData = useMemo(() => {
+    if (!isDataLoaded || filteredRawData.length === 0) {
+      return boxplotData // 필터 없으면 원본 사용
+    }
+
+    const patientKey = (p: any) => `${p.name}|${p.address}`
+    
+    // 사분위수 계산 함수
+    const calculateQuartiles = (values: number[]) => {
+      if (values.length === 0) {
+        return { min: 0, q1: 0, median: 0, q3: 0, max: 0 }
+      }
+      
+      const sorted = [...values].sort((a, b) => a - b)
+      const min = sorted[0]
+      const max = sorted[sorted.length - 1]
+      
+      const median = sorted.length % 2 === 0
+        ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
+        : sorted[Math.floor(sorted.length / 2)]
+      
+      const q1Index = Math.floor(sorted.length * 0.25)
+      const q3Index = Math.floor(sorted.length * 0.75)
+      
+      const q1 = sorted[q1Index]
+      const q3 = sorted[q3Index]
+      
+      return { min, q1, median, q3, max }
+    }
+
+    // 환자별 방문 횟수 계산
+    const patientVisitCounts: Record<string, number> = {}
+    filteredRawData.forEach((patient) => {
+      const key = patientKey(patient)
+      patientVisitCounts[key] = (patientVisitCounts[key] || 0) + 1
+    })
+
+    // 지역별 재방문 간격 수집
+    const regionIntervalsMap = new Map<string, number[]>()
+
+    Object.keys(patientVisitCounts).forEach((key) => {
+      const patientVisits = filteredRawData
+        .filter(p => patientKey(p) === key)
+        .sort((a, b) => new Date(a.visit_date).getTime() - new Date(b.visit_date).getTime())
+      
+      if (patientVisits.length > 1) {
+        const region = patientVisits[0].region
+        
+        if (region && region !== '미분류') {
+          if (!regionIntervalsMap.has(region)) {
+            regionIntervalsMap.set(region, [])
+          }
+          
+          for (let i = 1; i < patientVisits.length; i++) {
+            const interval = (new Date(patientVisits[i].visit_date).getTime() - 
+                             new Date(patientVisits[i-1].visit_date).getTime()) / 
+                             (1000 * 60 * 60 * 24)
+            regionIntervalsMap.get(region)!.push(interval)
+          }
+        }
+      }
+    })
+
+    return Array.from(regionIntervalsMap.entries())
+      .filter(([_, intervals]) => intervals.length >= 5)
+      .map(([region, intervals]) => {
+        const quartiles = calculateQuartiles(intervals)
+        return {
+          region,
+          ...quartiles,
+        }
+      })
+      .sort((a, b) => b.median - a.median)
+      .slice(0, 10)
+  }, [isDataLoaded, filteredRawData, boxplotData])
+
+  // 필터링된 월별 트렌드 계산
+  const filteredMonthlyTrend = useMemo(() => {
+    if (!isDataLoaded || filteredRawData.length === 0) {
+      return monthlyTrend // 필터 없으면 원본 사용
+    }
+
+    const patientKey = (p: any) => `${p.name}|${p.address}`
+    
+    // 환자별 방문 횟수 계산
+    const patientVisitCounts: Record<string, number> = {}
+    filteredRawData.forEach((patient) => {
+      const key = patientKey(patient)
+      patientVisitCounts[key] = (patientVisitCounts[key] || 0) + 1
+    })
+
+    const monthlyData = filteredRawData.reduce((acc, patient) => {
+      const date = new Date(patient.visit_date)
+      const month = `${date.getMonth() + 1}월`
+      
+      if (!acc[month]) {
+        acc[month] = { newPatients: new Set(), returningPatients: new Set() }
+      }
+
+      const key = patientKey(patient)
+      const isNew = patientVisitCounts[key] === 1
+      
+      if (isNew) {
+        acc[month].newPatients.add(key)
+      } else {
+        acc[month].returningPatients.add(key)
+      }
+
+      return acc
+    }, {} as Record<string, { newPatients: Set<string>; returningPatients: Set<string> }>)
+
+    const monthOrder = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월']
+    
+    return monthOrder
+      .filter(month => monthlyData[month])
+      .map(month => {
+        const data = monthlyData[month]
+        const newCount = data.newPatients.size
+        const returningCount = data.returningPatients.size
+        const total = newCount + returningCount
+        
+        return {
+          month,
+          newPatients: newCount,
+          returningPatients: returningCount,
+          recurrenceRate: total > 0 ? (returningCount / total) * 100 : 0,
+        }
+      })
+  }, [isDataLoaded, filteredRawData, monthlyTrend])
 
   // 선택된 지역의 Top 5 질병/수술 계산
   const selectedRegionStats = useMemo(() => {
@@ -463,7 +702,7 @@ export default function DashboardPage() {
                 <CardTitle className="text-base">월별 추세</CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <MonthlyTrendChart data={SAMPLE_MONTHLY_TREND} />
+                <MonthlyTrendChart data={filteredMonthlyTrend} />
               </CardContent>
             </Card>
             <Card>
@@ -471,7 +710,7 @@ export default function DashboardPage() {
                 <CardTitle className="text-base">신규 vs 재방문</CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <NewVsReturningChart data={SAMPLE_MONTHLY_TREND} />
+                <NewVsReturningChart data={filteredMonthlyTrend} />
               </CardContent>
             </Card>
           </div>
@@ -484,7 +723,7 @@ export default function DashboardPage() {
                 <CardTitle className="text-base">지역 비교</CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <BoundaryComparisonChart data={SAMPLE_BOUNDARY_DATA} />
+                <BoundaryComparisonChart data={filteredBoundaryData} />
               </CardContent>
             </Card>
             <Card>
@@ -492,7 +731,7 @@ export default function DashboardPage() {
                 <CardTitle className="text-base">분포 분석</CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <BoxplotChart data={SAMPLE_BOXPLOT_DATA} />
+                <BoxplotChart data={filteredBoxplotData} />
               </CardContent>
             </Card>
           </div>
