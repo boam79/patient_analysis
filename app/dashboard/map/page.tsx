@@ -90,8 +90,14 @@ export default function MapPage() {
     }
 
     return mapData.map(m => {
-      const newCount = patientTypeData.newPatients.find(p => p.region === m.region)?.value || 0
-      const returningCount = patientTypeData.returningPatients.find(p => p.region === m.region)?.value || 0
+      // 타입 안전성을 위해 region 체크
+      const region = m.region || ''
+      if (!region) {
+        return { ...m, value: 0 }
+      }
+      
+      const newCount = patientTypeData.newPatients.find((p: any) => p.region === region)?.value || 0
+      const returningCount = patientTypeData.returningPatients.find((p: any) => p.region === region)?.value || 0
       const total = newCount + returningCount
       
       return {

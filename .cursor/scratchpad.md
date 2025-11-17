@@ -471,14 +471,51 @@
 
 **다음 작업**: Phase 4 - 테스트 및 검증
 
+### 지도 페이지 수정 (2024-11-17)
+
+**문제 분석**:
+- ✅ 지도 페이지는 실제 데이터를 잘 반영하고 있음
+- ⚠️ 신환/재환 통계 계산 로직 개선 필요
+- ⚠️ 재방문율 계산 방식 수정 필요
+
+**수정 사항**:
+1. 신환/재환 집계를 고유 환자 기준으로 변경 (Set 사용)
+2. 지역별 재방문율 계산 로직 개선
+3. 통계 패널의 재방문율 표시 방식 수정
+
+**변경된 파일**:
+- `app/dashboard/map/page.tsx` (신환/재환 계산 로직 개선)
+
 ---
 
-**최종 업데이트**: 2024-11-17 (Phase 1-3 완료)
+**최종 업데이트**: 2024-11-17 (Phase 1-3 완료, GitHub 푸시 완료)
 **프로젝트 상태**: ✅ 73% 완료 (8/11 작업)
-**다음 단계**: Phase 4 - 사용자 브라우저 테스트
+**Git 커밋**: fbad674 - feat: 차트 데이터 실제 반영 및 필터 시스템 통합
+**다음 단계**: Vercel 자동 배포 대기 → 배포된 환경에서 테스트
 
 ---
 
 ## 📄 관련 문서
-- **상세 보고서**: `/docs/CHART_DATA_VERIFICATION_COMPLETE.md`
+- **작업 완료 보고서**: `/docs/CHART_DATA_VERIFICATION_COMPLETE.md`
+- **배포 준비 가이드**: `/docs/PHASE4_DEPLOYMENT_READY.md`
+- **테스트 가이드**: `/docs/DEPLOYMENT_TEST_GUIDE.md`
 - **진행 상황**: 위 "프로젝트 현황판" 참조
+
+## 🚀 배포 상태
+- ✅ GitHub 푸시 완료 (main 브랜치)
+- ⏳ Vercel 자동 배포 진행 중 (예상 2-3분)
+- ⏳ 배포된 환경에서 테스트 대기
+
+**커밋 내역**:
+```
+fbad674 - feat: 차트 데이터 실제 반영 및 필터 시스템 통합
+- 4 files changed, 1257 insertions(+), 7 deletions(-)
+- stores/data-store.ts: +180 라인
+- app/dashboard/page.tsx: +240 라인
+- docs/CHART_DATA_VERIFICATION_COMPLETE.md: 신규 생성
+```
+
+**배포 설정**:
+- 프로젝트명: pdr-dashboard
+- 리전: icn1 (서울)
+- 프레임워크: Next.js 15
