@@ -113,20 +113,20 @@ export default function DashboardPage() {
       }
     }
 
-    // 수술별 통계 계산
-    const surgeryStats: Record<string, { ages: number[]; patientIds: Set<string>; diseases: Record<string, number> }> = {}
+    // 수술별 통계 계산 (이름+주소 기준)
+    const surgeryStats: Record<string, { ages: number[]; patientKeys: Set<string>; diseases: Record<string, number> }> = {}
     
     rawData.forEach(patient => {
       if (patient.surgery_name) {
         if (!surgeryStats[patient.surgery_name]) {
           surgeryStats[patient.surgery_name] = {
             ages: [],
-            patientIds: new Set(),
+            patientKeys: new Set(),
             diseases: {},
           }
         }
         surgeryStats[patient.surgery_name].ages.push(patient.age)
-        surgeryStats[patient.surgery_name].patientIds.add(patient.patient_id)
+        surgeryStats[patient.surgery_name].patientKeys.add(`${patient.name}|${patient.address}`)
         
         // 수술-질병 연관 집계
         surgeryStats[patient.surgery_name].diseases[patient.disease_name] = 
@@ -140,7 +140,7 @@ export default function DashboardPage() {
         surgeryName,
         avgAge: stats.ages.reduce((sum, age) => sum + age, 0) / stats.ages.length,
         recurrenceRate: Math.random() * 20 + 35, // 임시: 실제 재방문율 계산 필요
-        patientCount: stats.patientIds.size,
+        patientCount: stats.patientKeys.size,
       }))
       .sort((a, b) => b.patientCount - a.patientCount)
       .slice(0, 10)
@@ -217,13 +217,15 @@ export default function DashboardPage() {
       .sort((a, b) => b.count - a.count)
       .slice(0, 5)
 
-    // 고유 환자 수 계산
-    const uniquePatientIds = new Set(regionPatients.map(p => p.patient_id))
+    // 고유 환자 수 계산 (이름+주소 기준)
+    const uniquePatientKeys = new Set(
+      regionPatients.map(p => `${p.name}|${p.address}`)
+    )
     
     return {
       diseases: topDiseases,
       surgeries: topSurgeries,
-      patientCount: uniquePatientIds.size,
+      patientCount: uniquePatientKeys.size,
       totalRecords: regionPatients.length,
     }
   }, [isDataLoaded, selectedRegions, rawData])
@@ -271,17 +273,20 @@ export default function DashboardPage() {
 
       {/* KPI 카드 - 필터 적용 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground">총 환자수</p>
-                <p className="text-xl font-bold">{totalPatients.toLocaleString()}</p>
-              </div>
-              <Users className="h-6 w-6 text-muted-foreground" />
-            </div>
-          </CardContent>
-        </Card>
+             <Card>
+               <CardContent className="p-4">
+                 <div className="flex items-center justify-between">
+                   <div>
+                     <p className="text-xs text-muted-foreground">총 환자수</p>
+                     <p className="text-xl font-bold">{totalPatients.toLocaleString()}</p>
+                     <p className="text-[10px] text-muted-foreground mt-0.5">
+                       (고유 환자 ID)
+                     </p>
+                   </div>
+                   <Users className="h-6 w-6 text-muted-foreground" />
+                 </div>
+               </CardContent>
+             </Card>
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">

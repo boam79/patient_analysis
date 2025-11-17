@@ -4,6 +4,7 @@ import { devtools, persist, createJSONStorage } from 'zustand/middleware'
 // 환자 데이터 타입
 export interface PatientData {
   patient_id: string
+  name: string  // 환자 이름 추가
   visit_date: string
   age: number
   gender: string
@@ -292,26 +293,29 @@ export const useDataStore = create<DataState & DataActions>()(
           // KPI 계산
           const surgeryCount = rawData.filter((p) => p.surgery_code).length
           
-          // 재방문율 계산: 2회 이상 방문한 환자 비율
+          // 재방문율 계산: 이름+주소 조합으로 동일 환자 판별
+          const patientKey = (p: PatientData) => `${p.name}|${p.address}`
           const patientVisitCounts: Record<string, number> = {}
+          
           rawData.forEach((patient) => {
-            patientVisitCounts[patient.patient_id] = (patientVisitCounts[patient.patient_id] || 0) + 1
+            const key = patientKey(patient)
+            patientVisitCounts[key] = (patientVisitCounts[key] || 0) + 1
           })
           
           const uniquePatients = Object.keys(patientVisitCounts).length
           const returningPatients = Object.values(patientVisitCounts).filter(count => count > 1).length
           const calculatedRecurrenceRate = uniquePatients > 0 ? (returningPatients / uniquePatients) * 100 : 0
           
-          // 총 환자수 = 고유 환자 수 (중복 제거)
+          // 총 환자수 = 고유 환자 수 (이름+주소 기준 중복 제거)
           const totalPatients = uniquePatients
           
-          // 평균 재방문 간격 계산: 환자별 방문 날짜 간격의 평균
+          // 평균 재방문 간격 계산: 이름+주소 기준으로 환자별 방문 날짜 간격의 평균
           let totalIntervals = 0
           let intervalCount = 0
           
-          Object.keys(patientVisitCounts).forEach((patientId) => {
+          Object.keys(patientVisitCounts).forEach((key) => {
             const patientVisits = rawData
-              .filter(p => p.patient_id === patientId)
+              .filter(p => patientKey(p) === key)
               .map(p => new Date(p.visit_date).getTime())
               .sort((a, b) => a - b)
             

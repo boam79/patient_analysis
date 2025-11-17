@@ -29,7 +29,7 @@ export default function MapPage() {
     { latitude: 37.5500, longitude: 127.0500, value: 50 },
   ]
 
-  // 신환/재환 계산
+  // 신환/재환 계산 (이름+주소 기준)
   const patientTypeData = useMemo(() => {
     if (!isDataLoaded || rawData.length === 0) {
       return {
@@ -38,10 +38,12 @@ export default function MapPage() {
       }
     }
 
-    // 환자별 방문 횟수 계산
+    // 환자별 방문 횟수 계산 (이름+주소 기준)
+    const patientKey = (p: any) => `${p.name}|${p.address}`
     const patientVisits: Record<string, number> = {}
     rawData.forEach(patient => {
-      patientVisits[patient.patient_id] = (patientVisits[patient.patient_id] || 0) + 1
+      const key = patientKey(patient)
+      patientVisits[key] = (patientVisits[key] || 0) + 1
     })
 
     // 지역별 신환/재환 집계
@@ -49,7 +51,8 @@ export default function MapPage() {
     const regionReturningCount: Record<string, number> = {}
 
     rawData.forEach(patient => {
-      const isNew = patientVisits[patient.patient_id] === 1
+      const key = patientKey(patient)
+      const isNew = patientVisits[key] === 1
       if (isNew) {
         regionNewCount[patient.region] = (regionNewCount[patient.region] || 0) + 1
       } else {

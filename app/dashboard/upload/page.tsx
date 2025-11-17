@@ -87,6 +87,7 @@ export default function UploadPage() {
 
         return {
           patient_id: (row.patient_id || row['환자ID'] || row.id || Math.random().toString()).toString(),
+          name: (row.name || row['이름'] || '미상').toString(),
           visit_date: row.visit_date || row['방문일자'] || new Date().toISOString().split('T')[0],
           age,
           gender,
@@ -174,6 +175,9 @@ export default function UploadPage() {
                 <div>
                   <p className="text-sm font-medium">총 레코드</p>
                   <p className="text-2xl font-bold">{uploadedData.length.toLocaleString()}개</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    방문 기록 (재방문 포함)
+                  </p>
                 </div>
               </div>
               
@@ -216,9 +220,14 @@ export default function UploadPage() {
           <CardContent className="pt-6">
             <div className="flex items-center gap-2 text-positive">
               <CheckCircle2 className="h-5 w-5" />
-              <p className="font-medium">
-                데이터 처리가 완료되었습니다! 대시보드에서 분석을 시작할 수 있습니다.
-              </p>
+              <div>
+                <p className="font-medium">
+                  데이터 처리가 완료되었습니다!
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {uploadedData?.length.toLocaleString()}개 방문 레코드 처리 완료
+                </p>
+              </div>
             </div>
             <div className="mt-4">
               <Button asChild>
