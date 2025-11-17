@@ -25,6 +25,7 @@ export function InteractiveMap({
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const heatLayerRef = useRef<any>(null)
   const markerLayerRef = useRef<any>(null)
+  const markersRef = useRef<Map<string, any>>(new Map()) // 마커 참조 저장
   const [leafletLoaded, setLeafletLoaded] = useState(false)
   
   const { selectedH3Index, selectedRegions, setSelectedH3Index, addRegion, removeRegion, setSelectedChartData } =
@@ -82,7 +83,7 @@ export function InteractiveMap({
     }
   }, [])
 
-  // 데이터 렌더링 (히트맵 또는 마커)
+  // 데이터 렌더링 (히트맵 또는 마커) - data가 변경될 때만 실행
   useEffect(() => {
     if (!leafletLoaded || !mapRef.current || !data.length) return
 
@@ -97,6 +98,7 @@ export function InteractiveMap({
       map.removeLayer(markerLayerRef.current)
       markerLayerRef.current = null
     }
+    markersRef.current.clear()
 
     import('leaflet').then((L) => {
       if (!mapRef.current) return
@@ -131,7 +133,7 @@ export function InteractiveMap({
         const markerLayer = L.default.layerGroup()
 
         data.forEach((point) => {
-          // 지역이 선택되었는지 확인
+          // 초기 선택 상태 확인
           const isRegionSelected = point.region && selectedRegions.includes(point.region)
           const isH3Selected = selectedH3Index === point.h3Index
           const isSelected = isRegionSelected || isH3Selected
@@ -173,13 +175,44 @@ export function InteractiveMap({
           })
 
           marker.addTo(markerLayer)
+          
+          // 마커 참조 저장 (나중에 아이콘 업데이트용)
+          markersRef.current.set(point.h3Index, { marker, point })
         })
 
         markerLayer.addTo(map)
         markerLayerRef.current = markerLayer
       }
     })
-  }, [leafletLoaded, data, mode, selectedH3Index, selectedRegions, setSelectedH3Index, addRegion, removeRegion, setSelectedChartData])
+  }, [leafletLoaded, data, mode])
+
+  // 선택 상태가 변경될 때 마커 아이콘만 업데이트 (전체 재렌더링 방지)
+  useEffect(() => {
+    if (!leafletLoaded || mode !== 'markers' || markersRef.current.size === 0) return
+
+    import('leaflet').then((L) => {
+      markersRef.current.forEach(({ marker, point }) => {
+        const isRegionSelected = point.region && selectedRegions.includes(point.region)
+        const isH3Selected = selectedH3Index === point.h3Index
+        const isSelected = isRegionSelected || isH3Selected
+
+        const newIcon = L.default.divIcon({
+          className: 'custom-marker',
+          html: `<div style="
+            background-color: ${isSelected ? '#10B981' : '#3b82f6'};
+            width: ${isSelected ? '14px' : '12px'};
+            height: ${isSelected ? '14px' : '12px'};
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+          "></div>`,
+          iconSize: [isSelected ? 14 : 12, isSelected ? 14 : 12],
+        })
+
+        marker.setIcon(newIcon)
+      })
+    })
+  }, [leafletLoaded, mode, selectedH3Index, selectedRegions])
 
   return (
     <div className="relative w-full h-full">
