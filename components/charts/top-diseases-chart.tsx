@@ -1,5 +1,6 @@
 'use client'
 
+import { memo } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 
 // ColorBrewer Qualitative Set3 (질병 카테고리별 색상)
@@ -27,7 +28,7 @@ interface TopDiseasesChartProps {
   title?: string
 }
 
-export function TopDiseasesChart({ data, title = 'Top 10 질병' }: TopDiseasesChartProps) {
+export const TopDiseasesChart = memo(function TopDiseasesChart({ data, title = 'Top 10 질병' }: TopDiseasesChartProps) {
   return (
     <div className="space-y-2">
       <h3 className="text-sm font-semibold">{title}</h3>
@@ -60,5 +61,5 @@ export function TopDiseasesChart({ data, title = 'Top 10 질병' }: TopDiseasesC
       </ResponsiveContainer>
     </div>
   )
-}
+})
 

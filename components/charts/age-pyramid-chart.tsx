@@ -1,5 +1,6 @@
 'use client'
 
+import { memo, useMemo } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts'
 
 interface AgePyramidData {
@@ -12,13 +13,15 @@ interface AgePyramidChartProps {
   data: AgePyramidData[]
 }
 
-export function AgePyramidChart({ data }: AgePyramidChartProps) {
-  // 피라미드 형태를 위해 남성은 음수로 변환
-  const pyramidData = data.map((item) => ({
-    ageGroup: item.ageGroup,
-    male: -item.male,
-    female: item.female,
-  }))
+export const AgePyramidChart = memo(function AgePyramidChart({ data }: AgePyramidChartProps) {
+  // 피라미드 형태를 위해 남성은 음수로 변환 (useMemo로 최적화)
+  const pyramidData = useMemo(() => 
+    data.map((item) => ({
+      ageGroup: item.ageGroup,
+      male: -item.male,
+      female: item.female,
+    })), [data]
+  )
 
   return (
     <div className="space-y-2">
@@ -65,5 +68,5 @@ export function AgePyramidChart({ data }: AgePyramidChartProps) {
       </div>
     </div>
   )
-}
+})
 

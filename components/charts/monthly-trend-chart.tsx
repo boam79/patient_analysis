@@ -1,5 +1,6 @@
 'use client'
 
+import { memo } from 'react'
 import {
   LineChart,
   Line,
@@ -24,7 +25,7 @@ interface MonthlyTrendChartProps {
   data: MonthlyTrendData[]
 }
 
-export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
+export const MonthlyTrendChart = memo(function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
   return (
     <div className="space-y-2">
       <h3 className="text-sm font-semibold">월별 재방문율 추세</h3>
@@ -78,9 +79,9 @@ export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
       </ResponsiveContainer>
     </div>
   )
-}
+})
 
-export function NewVsReturningChart({ data }: MonthlyTrendChartProps) {
+export const NewVsReturningChart = memo(function NewVsReturningChart({ data }: MonthlyTrendChartProps) {
   return (
     <div className="space-y-2">
       <h3 className="text-sm font-semibold">신규 vs 재방문 환자</h3>
@@ -119,5 +120,5 @@ export function NewVsReturningChart({ data }: MonthlyTrendChartProps) {
       </ResponsiveContainer>
     </div>
   )
-}
+})
 

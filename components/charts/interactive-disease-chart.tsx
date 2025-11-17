@@ -42,18 +42,18 @@ export const InteractiveDiseaseChart = memo(function InteractiveDiseaseChart({ d
         <BarChart
           data={data}
           layout="vertical"
-          margin={{ top: 5, right: 20, left: 5, bottom: 5 }}
+          margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
           <XAxis type="number" />
           <YAxis 
             dataKey="name" 
             type="category" 
-            width={100} 
+            width={110} 
             fontSize={10}
             tick={{ 
-              textAnchor: 'end',
-              dx: -5
+              textAnchor: 'start',
+              dx: 0
             }}
             interval={0}
           />

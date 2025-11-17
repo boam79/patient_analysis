@@ -71,7 +71,7 @@ export default function ChartsPage() {
       .slice(0, 10)
   }, [isDataLoaded, rawData])
 
-  // 월별 추세 계산
+  // 월별 추세 계산 (성능 최적화)
   const monthlyTrend = useMemo(() => {
     if (!isDataLoaded || rawData.length === 0) {
       return SAMPLE_MONTHLY_TREND
@@ -80,7 +80,14 @@ export default function ChartsPage() {
     // 환자 키 생성 함수 (이름+주소)
     const patientKey = (p: any) => `${p.name}|${p.address}`
 
-    // 방문일자를 월별로 그룹화
+    // 1단계: 환자별 방문 횟수 미리 계산 (O(n))
+    const patientVisitCounts = new Map<string, number>()
+    rawData.forEach(patient => {
+      const key = patientKey(patient)
+      patientVisitCounts.set(key, (patientVisitCounts.get(key) || 0) + 1)
+    })
+
+    // 2단계: 월별 데이터 집계 (O(n))
     const monthlyData = rawData.reduce((acc, patient) => {
       const date = new Date(patient.visit_date)
       const month = `${date.getMonth() + 1}월`
@@ -89,9 +96,8 @@ export default function ChartsPage() {
         acc[month] = { newPatients: new Set(), returningPatients: new Set() }
       }
 
-      // 환자별 방문 횟수 계산 (이름+주소 기준)
       const key = patientKey(patient)
-      const isNew = rawData.filter(p => patientKey(p) === key).length === 1
+      const isNew = patientVisitCounts.get(key) === 1
       
       if (isNew) {
         acc[month].newPatients.add(key)
@@ -102,18 +108,24 @@ export default function ChartsPage() {
       return acc
     }, {} as Record<string, { newPatients: Set<string>; returningPatients: Set<string> }>)
 
-    return Object.entries(monthlyData).map(([month, data]) => {
-      const newCount = data.newPatients.size
-      const returningCount = data.returningPatients.size
-      const total = newCount + returningCount
-      
-      return {
-        month,
-        newPatients: newCount,
-        returningPatients: returningCount,
-        recurrenceRate: total > 0 ? (returningCount / total) * 100 : 0,
-      }
-    })
+    // 3단계: 월별 정렬 및 결과 생성
+    const monthOrder = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월']
+    
+    return monthOrder
+      .filter(month => monthlyData[month])
+      .map(month => {
+        const data = monthlyData[month]
+        const newCount = data.newPatients.size
+        const returningCount = data.returningPatients.size
+        const total = newCount + returningCount
+        
+        return {
+          month,
+          newPatients: newCount,
+          returningPatients: returningCount,
+          recurrenceRate: total > 0 ? (returningCount / total) * 100 : 0,
+        }
+      })
   }, [isDataLoaded, rawData])
 
   return (
