@@ -153,24 +153,26 @@ export function InteractiveMap({
 
           const marker = L.default.marker([point.latitude, point.longitude], { icon })
 
-          marker.bindPopup(`
-            <div style="min-width: 150px;">
-              <strong>값: ${point.value}</strong><br/>
-              ${point.region ? `지역: ${point.region}<br/>` : ''}
-              H3: ${point.h3Index.slice(0, 10)}...
-            </div>
-          `)
+          // 팝업 제거 - 클릭으로만 상호작용
 
-          // 각 마커에 고유한 클릭 핸들러 (클로저로 point 캡처)
+          // 각 마커에 고유한 클릭 핸들러 (토글 기능 포함)
           marker.on('click', ((capturedPoint) => {
             return () => {
               requestAnimationFrame(() => {
-                setSelectedH3Index(capturedPoint.h3Index)
-                setSelectedChartData('region', capturedPoint.region || capturedPoint.h3Index)
-                
                 const currentRegions = useFilterStore.getState().selectedRegions
-                if (capturedPoint.region && !currentRegions.includes(capturedPoint.region)) {
-                  addRegion(capturedPoint.region)
+                
+                // 이미 선택된 지역이면 제거 (토글)
+                if (capturedPoint.region && currentRegions.includes(capturedPoint.region)) {
+                  removeRegion(capturedPoint.region)
+                  setSelectedH3Index(null)
+                } else {
+                  // 선택되지 않은 지역이면 추가
+                  setSelectedH3Index(capturedPoint.h3Index)
+                  setSelectedChartData('region', capturedPoint.region || capturedPoint.h3Index)
+                  
+                  if (capturedPoint.region) {
+                    addRegion(capturedPoint.region)
+                  }
                 }
               })
             }
