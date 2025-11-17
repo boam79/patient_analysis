@@ -26,25 +26,29 @@ export const AgePyramidChart = memo(function AgePyramidChart({ data }: AgePyrami
   return (
     <div className="space-y-2">
       <h3 className="text-sm font-semibold">연령 피라미드</h3>
-      <div className="w-full" style={{ marginLeft: '-8px' }}>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart
-            data={pyramidData}
-            layout="vertical"
-            margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-            <XAxis
-              type="number"
-              tickFormatter={(value) => Math.abs(value).toString()}
-            />
-            <YAxis 
-              dataKey="ageGroup" 
-              type="category" 
-              width={60}
-              fontSize={11}
-              tick={{ textAnchor: 'start' }}
-            />
+      <ResponsiveContainer width="100%" height={300}>
+        <BarChart
+          data={pyramidData}
+          layout="vertical"
+          margin={{ top: 5, right: 20, left: 5, bottom: 5 }}
+        >
+          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+          <XAxis
+            type="number"
+            tickFormatter={(value) => Math.abs(value).toString()}
+          />
+          <YAxis 
+            dataKey="ageGroup" 
+            type="category" 
+            width={60}
+            fontSize={10}
+            tick={{ 
+              textAnchor: 'start',
+              dx: -55
+            }}
+            axisLine={false}
+            tickLine={false}
+          />
           <Tooltip
             contentStyle={{
               backgroundColor: 'hsl(var(--popover))',
@@ -63,7 +67,6 @@ export const AgePyramidChart = memo(function AgePyramidChart({ data }: AgePyrami
           <Bar dataKey="female" fill="#ec4899" radius={[0, 4, 4, 0]} stackId="stack" />
         </BarChart>
       </ResponsiveContainer>
-      </div>
       <div className="flex items-center justify-center gap-4 text-xs">
         <div className="flex items-center gap-1">
           <div className="w-3 h-3 bg-blue-500 rounded" />

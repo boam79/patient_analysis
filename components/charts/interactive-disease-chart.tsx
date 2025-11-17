@@ -38,26 +38,27 @@ export const InteractiveDiseaseChart = memo(function InteractiveDiseaseChart({ d
   return (
     <div className="space-y-2">
       <h3 className="text-sm font-semibold">{title}</h3>
-      <div className="w-full" style={{ marginLeft: '-8px' }}>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart
-            data={data}
-            layout="vertical"
-            margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-            <XAxis type="number" />
-            <YAxis 
-              dataKey="name" 
-              type="category" 
-              width={110} 
-              fontSize={10}
-              tick={{ 
-                textAnchor: 'start',
-                dx: 0
-              }}
-              interval={0}
-            />
+      <ResponsiveContainer width="100%" height={300}>
+        <BarChart
+          data={data}
+          layout="vertical"
+          margin={{ top: 5, right: 20, left: 5, bottom: 5 }}
+        >
+          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+          <XAxis type="number" />
+          <YAxis 
+            dataKey="name" 
+            type="category" 
+            width={90} 
+            fontSize={10}
+            tick={{ 
+              textAnchor: 'start',
+              dx: -85
+            }}
+            interval={0}
+            axisLine={false}
+            tickLine={false}
+          />
           <Tooltip
             contentStyle={{
               backgroundColor: 'hsl(var(--popover))',
@@ -89,7 +90,6 @@ export const InteractiveDiseaseChart = memo(function InteractiveDiseaseChart({ d
           </Bar>
         </BarChart>
       </ResponsiveContainer>
-      </div>
       {selectedDiseases.length > 0 && (
         <p className="text-xs text-muted-foreground">
           💡 클릭하여 필터 추가/제거 (현재 {selectedDiseases.length}개 선택)
