@@ -109,7 +109,97 @@ export default function DashboardPage() {
   const boundaryData = isDataLoaded && storeBoundaryData.length > 0 ? storeBoundaryData : SAMPLE_BOUNDARY_DATA
   const boxplotData = isDataLoaded && storeBoxplotData.length > 0 ? storeBoxplotData : SAMPLE_BOXPLOT_DATA
   const monthlyTrend = isDataLoaded && storeMonthlyTrend.length > 0 ? storeMonthlyTrend : SAMPLE_MONTHLY_TREND
-  
+
+  // 필터링된 rawData 계산 (Task 3.1)
+  const filteredRawData = useMemo(() => {
+    if (!isDataLoaded || rawData.length === 0) {
+      return []
+    }
+
+    let filtered = [...rawData]
+
+    // 기간 필터 (BUG FIX: dateRange 필터 추가)
+    if (dateRange.start && dateRange.end) {
+      filtered = filtered.filter(p => {
+        const visitDate = new Date(p.visit_date)
+        const startDate = new Date(dateRange.start)
+        const endDate = new Date(dateRange.end)
+        return visitDate >= startDate && visitDate <= endDate
+      })
+    }
+
+    // 질병 필터
+    if (selectedDiseases.length > 0) {
+      filtered = filtered.filter(p => selectedDiseases.includes(p.disease_name))
+    }
+
+    // 지역 필터
+    if (selectedRegions.length > 0) {
+      filtered = filtered.filter(p => selectedRegions.includes(p.region))
+    }
+
+    // 연령 필터
+    if (ageGroups.length > 0) {
+      filtered = filtered.filter(p => {
+        const age = p.age
+        if (age < 20) return ageGroups.includes('10대 이하')
+        if (age < 30) return ageGroups.includes('20대')
+        if (age < 40) return ageGroups.includes('30대')
+        if (age < 50) return ageGroups.includes('40대')
+        if (age < 60) return ageGroups.includes('50대')
+        if (age < 70) return ageGroups.includes('60대')
+        return ageGroups.includes('70대 이상')
+      })
+    }
+
+    // 성별 필터 (BUG FIX: 두 성별이 모두 선택된 경우는 필터링하지 않음)
+    if (genders.length > 0 && genders.length < 2) {
+      filtered = filtered.filter(p => 
+        p.gender === genders[0] || 
+        (genders[0] === '남성' && p.gender === 'M') ||
+        (genders[0] === '여성' && p.gender === 'F')
+      )
+    }
+
+    return filtered
+  }, [isDataLoaded, rawData, selectedDiseases, selectedRegions, ageGroups, genders, dateRange])
+
+  // 필터 적용된 질병 통계 재계산 (filteredRawData 기반)
+  const filteredDiseases = useMemo(() => {
+    // 필터가 적용되지 않았거나 데이터가 없으면 원본 사용
+    if (filteredRawData.length === 0 && isDataLoaded) {
+      return []
+    }
+    
+    // 필터가 하나라도 적용되었으면 filteredRawData로부터 재계산
+    const hasActiveFilter = 
+      selectedDiseases.length > 0 || 
+      selectedRegions.length > 0 || 
+      ageGroups.length > 0 || 
+      (genders.length > 0 && genders.length < 2)
+    
+    if (hasActiveFilter && filteredRawData.length > 0) {
+      // 필터링된 데이터로부터 질병 통계 재계산
+      const diseaseMap = new Map<string, number>()
+      filteredRawData.forEach((patient) => {
+        const count = diseaseMap.get(patient.disease_name) || 0
+        diseaseMap.set(patient.disease_name, count + 1)
+      })
+      
+      return Array.from(diseaseMap.entries())
+        .map(([name, count]) => ({
+          name,
+          count,
+          percentage: (count / filteredRawData.length) * 100,
+        }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10)
+    }
+    
+    // 필터가 없으면 원본 diseases 사용
+    return diseases
+  }, [diseases, filteredRawData, selectedDiseases, selectedRegions, ageGroups, genders, isDataLoaded])
+
   // 연령 피라미드도 필터링된 데이터로 재계산
   const filteredAgePyramid = useMemo(() => {
     const hasActiveFilter = 
@@ -218,96 +308,6 @@ export default function DashboardPage() {
 
     return { scatter, matrix, diseases: topDiseases }
   }, [isDataLoaded, rawData, diseases])
-
-  // 필터 적용된 질병 통계 재계산 (filteredRawData 기반)
-  const filteredDiseases = useMemo(() => {
-    // 필터가 적용되지 않았거나 데이터가 없으면 원본 사용
-    if (filteredRawData.length === 0 && isDataLoaded) {
-      return []
-    }
-    
-    // 필터가 하나라도 적용되었으면 filteredRawData로부터 재계산
-    const hasActiveFilter = 
-      selectedDiseases.length > 0 || 
-      selectedRegions.length > 0 || 
-      ageGroups.length > 0 || 
-      (genders.length > 0 && genders.length < 2)
-    
-    if (hasActiveFilter && filteredRawData.length > 0) {
-      // 필터링된 데이터로부터 질병 통계 재계산
-      const diseaseMap = new Map<string, number>()
-      filteredRawData.forEach((patient) => {
-        const count = diseaseMap.get(patient.disease_name) || 0
-        diseaseMap.set(patient.disease_name, count + 1)
-      })
-      
-      return Array.from(diseaseMap.entries())
-        .map(([name, count]) => ({
-          name,
-          count,
-          percentage: (count / filteredRawData.length) * 100,
-        }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 10)
-    }
-    
-    // 필터가 없으면 원본 diseases 사용
-    return diseases
-  }, [diseases, filteredRawData, selectedDiseases, selectedRegions, ageGroups, genders, isDataLoaded])
-
-  // 필터링된 rawData 계산 (Task 3.1)
-  const filteredRawData = useMemo(() => {
-    if (!isDataLoaded || rawData.length === 0) {
-      return []
-    }
-
-    let filtered = [...rawData]
-
-    // 기간 필터 (BUG FIX: dateRange 필터 추가)
-    if (dateRange.start && dateRange.end) {
-      filtered = filtered.filter(p => {
-        const visitDate = new Date(p.visit_date)
-        const startDate = new Date(dateRange.start)
-        const endDate = new Date(dateRange.end)
-        return visitDate >= startDate && visitDate <= endDate
-      })
-    }
-
-    // 질병 필터
-    if (selectedDiseases.length > 0) {
-      filtered = filtered.filter(p => selectedDiseases.includes(p.disease_name))
-    }
-
-    // 지역 필터
-    if (selectedRegions.length > 0) {
-      filtered = filtered.filter(p => selectedRegions.includes(p.region))
-    }
-
-    // 연령 필터
-    if (ageGroups.length > 0) {
-      filtered = filtered.filter(p => {
-        const age = p.age
-        if (age < 20) return ageGroups.includes('10대 이하')
-        if (age < 30) return ageGroups.includes('20대')
-        if (age < 40) return ageGroups.includes('30대')
-        if (age < 50) return ageGroups.includes('40대')
-        if (age < 60) return ageGroups.includes('50대')
-        if (age < 70) return ageGroups.includes('60대')
-        return ageGroups.includes('70대 이상')
-      })
-    }
-
-    // 성별 필터 (BUG FIX: 두 성별이 모두 선택된 경우는 필터링하지 않음)
-    if (genders.length > 0 && genders.length < 2) {
-      filtered = filtered.filter(p => 
-        p.gender === genders[0] || 
-        (genders[0] === '남성' && p.gender === 'M') ||
-        (genders[0] === '여성' && p.gender === 'F')
-      )
-    }
-
-    return filtered
-  }, [isDataLoaded, rawData, selectedDiseases, selectedRegions, ageGroups, genders, dateRange])
 
   // 필터링된 Boundary 데이터 계산
   const filteredBoundaryData = useMemo(() => {
