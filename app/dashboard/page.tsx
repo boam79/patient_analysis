@@ -85,7 +85,7 @@ const SAMPLE_SURGERY_MATRIX = [
 
 export default function DashboardPage() {
   const router = useRouter()
-  const { selectedDiseases, selectedRegions, ageGroups, genders } = useFilterStore()
+  const { selectedDiseases, selectedRegions, ageGroups, genders, dateRange, windowSize } = useFilterStore()
   const { 
     isDataLoaded, 
     diseases: storeDiseases, 
@@ -198,6 +198,16 @@ export default function DashboardPage() {
 
     let filtered = [...rawData]
 
+    // 기간 필터 (BUG FIX: dateRange 필터 추가)
+    if (dateRange.start && dateRange.end) {
+      filtered = filtered.filter(p => {
+        const visitDate = new Date(p.visit_date)
+        const startDate = new Date(dateRange.start)
+        const endDate = new Date(dateRange.end)
+        return visitDate >= startDate && visitDate <= endDate
+      })
+    }
+
     // 질병 필터
     if (selectedDiseases.length > 0) {
       filtered = filtered.filter(p => selectedDiseases.includes(p.disease_name))
@@ -222,7 +232,7 @@ export default function DashboardPage() {
       })
     }
 
-    // 성별 필터
+    // 성별 필터 (BUG FIX: 두 성별이 모두 선택된 경우는 필터링하지 않음)
     if (genders.length > 0 && genders.length < 2) {
       filtered = filtered.filter(p => 
         p.gender === genders[0] || 
@@ -232,7 +242,7 @@ export default function DashboardPage() {
     }
 
     return filtered
-  }, [isDataLoaded, rawData, selectedDiseases, selectedRegions, ageGroups, genders])
+  }, [isDataLoaded, rawData, selectedDiseases, selectedRegions, ageGroups, genders, dateRange])
 
   // 필터링된 Boundary 데이터 계산
   const filteredBoundaryData = useMemo(() => {

@@ -37,14 +37,14 @@ export function FilterPanel() {
   // 데이터 스토어에서 실제 데이터 가져오기
   const { rawData, isDataLoaded } = useDataStore()
 
-  // 활성 필터 계산
+  // 활성 필터 계산 (BUG FIX: 성별 필터 계산 수정)
   const activeFilters = useMemo(() => {
     const activeCount =
       (selectedDiseases.length > 0 ? 1 : 0) +
       (selectedSurgeries.length > 0 ? 1 : 0) +
       (ageGroups.length > 0 ? 1 : 0) +
       (selectedRegions.length > 0 ? 1 : 0) +
-      (genders.length < 2 ? 1 : 0)
+      (genders.length > 0 && genders.length < 2 ? 1 : 0) // 하나만 선택된 경우만 카운트
 
     return {
       count: activeCount,
@@ -179,13 +179,20 @@ export function FilterPanel() {
 
           {/* 연령 필터 */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">연령대</label>
+            <label className="text-sm font-medium">
+              연령대
+              {ageGroups.length > 0 && (
+                <span className="ml-2 text-xs text-muted-foreground">
+                  ({ageGroups.length}개 선택)
+                </span>
+              )}
+            </label>
             <div className="flex flex-wrap gap-2">
               {ageGroupOptions.map((age) => (
                 <Badge
                   key={age}
                   variant={ageGroups.includes(age) ? 'default' : 'outline'}
-                  className="cursor-pointer"
+                  className="cursor-pointer hover:scale-105 transition-transform"
                   onClick={() => toggleAgeGroup(age)}
                 >
                   {age}
@@ -196,18 +203,25 @@ export function FilterPanel() {
 
           {/* 성별 필터 */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">성별</label>
+            <label className="text-sm font-medium">
+              성별
+              {genders.length < 2 && (
+                <span className="ml-2 text-xs text-muted-foreground">
+                  ({genders[0]} 선택됨)
+                </span>
+              )}
+            </label>
             <div className="flex gap-2">
               <Badge
                 variant={genders.includes('남성') ? 'default' : 'outline'}
-                className="cursor-pointer"
+                className="cursor-pointer hover:scale-105 transition-transform"
                 onClick={() => toggleGender('남성')}
               >
                 남성
               </Badge>
               <Badge
                 variant={genders.includes('여성') ? 'default' : 'outline'}
-                className="cursor-pointer"
+                className="cursor-pointer hover:scale-105 transition-transform"
                 onClick={() => toggleGender('여성')}
               >
                 여성
@@ -226,14 +240,19 @@ export function FilterPanel() {
             >
               <CheckCircle className="h-4 w-4 mr-2" />
               질병 추가
+              {selectedDiseases.length > 0 && (
+                <span className="ml-auto text-xs bg-primary text-primary-foreground rounded-full px-2 py-0.5">
+                  {selectedDiseases.length}
+                </span>
+              )}
             </Button>
             {showDiseaseSelect && (
-              <div className="flex flex-wrap gap-2 p-2 border rounded-md">
+              <div className="flex flex-wrap gap-2 p-2 border rounded-md max-h-40 overflow-y-auto">
                 {diseaseOptions.map((disease) => (
                   <Badge
                     key={disease}
                     variant={selectedDiseases.includes(disease) ? 'default' : 'outline'}
-                    className="cursor-pointer"
+                    className="cursor-pointer hover:scale-105 transition-transform"
                     onClick={() => {
                       if (selectedDiseases.includes(disease)) {
                         removeDisease(disease)
@@ -260,14 +279,19 @@ export function FilterPanel() {
             >
               <CheckCircle className="h-4 w-4 mr-2" />
               지역 추가
+              {selectedRegions.length > 0 && (
+                <span className="ml-auto text-xs bg-primary text-primary-foreground rounded-full px-2 py-0.5">
+                  {selectedRegions.length}
+                </span>
+              )}
             </Button>
             {showRegionSelect && (
-              <div className="flex flex-wrap gap-2 p-2 border rounded-md">
+              <div className="flex flex-wrap gap-2 p-2 border rounded-md max-h-40 overflow-y-auto">
                 {regionOptions.map((region) => (
                   <Badge
                     key={region}
                     variant={selectedRegions.includes(region) ? 'default' : 'outline'}
-                    className="cursor-pointer"
+                    className="cursor-pointer hover:scale-105 transition-transform"
                     onClick={() => {
                       if (selectedRegions.includes(region)) {
                         removeRegion(region)
