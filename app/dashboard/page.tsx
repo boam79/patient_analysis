@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { FilterPanel } from '@/components/filter/filter-panel'
@@ -86,6 +86,8 @@ const SAMPLE_SURGERY_MATRIX = [
 export default function DashboardPage() {
   const router = useRouter()
   const { selectedDiseases, selectedRegions, ageGroups, genders, dateRange, windowSize } = useFilterStore()
+  const [isFilterApplying, setIsFilterApplying] = useState(false)
+  
   const { 
     isDataLoaded, 
     diseases: storeDiseases, 
@@ -104,10 +106,61 @@ export default function DashboardPage() {
   // 업로드된 데이터가 있으면 사용, 없으면 샘플 데이터 사용
   const diseases = isDataLoaded && storeDiseases.length > 0 ? storeDiseases : SAMPLE_DISEASES
   const mapData = isDataLoaded && storeMapData.length > 0 ? storeMapData : SAMPLE_MAP_DATA
-  const agePyramid = isDataLoaded && storeAgePyramid.length > 0 ? storeAgePyramid : SAMPLE_AGE_PYRAMID
   const boundaryData = isDataLoaded && storeBoundaryData.length > 0 ? storeBoundaryData : SAMPLE_BOUNDARY_DATA
   const boxplotData = isDataLoaded && storeBoxplotData.length > 0 ? storeBoxplotData : SAMPLE_BOXPLOT_DATA
   const monthlyTrend = isDataLoaded && storeMonthlyTrend.length > 0 ? storeMonthlyTrend : SAMPLE_MONTHLY_TREND
+  
+  // 연령 피라미드도 필터링된 데이터로 재계산
+  const filteredAgePyramid = useMemo(() => {
+    const hasActiveFilter = 
+      selectedDiseases.length > 0 || 
+      selectedRegions.length > 0 || 
+      ageGroups.length > 0 || 
+      (genders.length > 0 && genders.length < 2) ||
+      (dateRange.start !== '2024-01-01' || dateRange.end !== '2024-12-31')
+    
+    // 필터가 적용되고 데이터가 있으면 재계산
+    if (hasActiveFilter && filteredRawData.length > 0 && isDataLoaded) {
+      const ageGroupMap = new Map<string, { male: number; female: number }>()
+      
+      filteredRawData.forEach((patient) => {
+        const age = patient.age
+        let ageGroup = ''
+        if (age < 20) ageGroup = '10대 이하'
+        else if (age < 30) ageGroup = '20대'
+        else if (age < 40) ageGroup = '30대'
+        else if (age < 50) ageGroup = '40대'
+        else if (age < 60) ageGroup = '50대'
+        else if (age < 70) ageGroup = '60대'
+        else ageGroup = '70대 이상'
+
+        const existing = ageGroupMap.get(ageGroup) || { male: 0, female: 0 }
+        if (patient.gender === '남성' || patient.gender === 'M') {
+          existing.male++
+        } else {
+          existing.female++
+        }
+        ageGroupMap.set(ageGroup, existing)
+      })
+
+      return [
+        '70대 이상',
+        '60대',
+        '50대',
+        '40대',
+        '30대',
+        '20대',
+        '10대 이하',
+      ].map((ageGroup) => ({
+        ageGroup,
+        male: ageGroupMap.get(ageGroup)?.male || 0,
+        female: ageGroupMap.get(ageGroup)?.female || 0,
+      }))
+    }
+    
+    // 필터가 없으면 원본 사용
+    return isDataLoaded && storeAgePyramid.length > 0 ? storeAgePyramid : SAMPLE_AGE_PYRAMID
+  }, [filteredRawData, isDataLoaded, storeAgePyramid, selectedDiseases, selectedRegions, ageGroups, genders, dateRange])
 
   // 수술 데이터 계산 (useMemo로 최적화)
   const surgeryData = useMemo(() => {
@@ -166,29 +219,41 @@ export default function DashboardPage() {
     return { scatter, matrix, diseases: topDiseases }
   }, [isDataLoaded, rawData, diseases])
 
-  // 필터 적용된 데이터 계산 (useMemo로 최적화)
+  // 필터 적용된 질병 통계 재계산 (filteredRawData 기반)
   const filteredDiseases = useMemo(() => {
-    let filtered = [...diseases]
-    
-    // 질병 필터 적용
-    if (selectedDiseases.length > 0) {
-      filtered = filtered.filter(d => selectedDiseases.includes(d.name))
+    // 필터가 적용되지 않았거나 데이터가 없으면 원본 사용
+    if (filteredRawData.length === 0 && isDataLoaded) {
+      return []
     }
     
-    // 지역 필터는 질병 데이터에만 적용 (지도는 항상 모든 지역 표시)
-    if (selectedRegions.length > 0 && rawData.length > 0) {
-      // 선택된 지역의 질병 데이터만 필터링
-      filtered = filtered.filter(disease => {
-        // rawData에서 해당 질병이 선택된 지역에 있는지 확인
-        const diseaseInSelectedRegions = rawData.some(
-          p => p.disease_name === disease.name && selectedRegions.includes(p.region)
-        )
-        return diseaseInSelectedRegions
+    // 필터가 하나라도 적용되었으면 filteredRawData로부터 재계산
+    const hasActiveFilter = 
+      selectedDiseases.length > 0 || 
+      selectedRegions.length > 0 || 
+      ageGroups.length > 0 || 
+      (genders.length > 0 && genders.length < 2)
+    
+    if (hasActiveFilter && filteredRawData.length > 0) {
+      // 필터링된 데이터로부터 질병 통계 재계산
+      const diseaseMap = new Map<string, number>()
+      filteredRawData.forEach((patient) => {
+        const count = diseaseMap.get(patient.disease_name) || 0
+        diseaseMap.set(patient.disease_name, count + 1)
       })
+      
+      return Array.from(diseaseMap.entries())
+        .map(([name, count]) => ({
+          name,
+          count,
+          percentage: (count / filteredRawData.length) * 100,
+        }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10)
     }
     
-    return filtered
-  }, [diseases, selectedDiseases, selectedRegions, rawData])
+    // 필터가 없으면 원본 diseases 사용
+    return diseases
+  }, [diseases, filteredRawData, selectedDiseases, selectedRegions, ageGroups, genders, isDataLoaded])
 
   // 필터링된 rawData 계산 (Task 3.1)
   const filteredRawData = useMemo(() => {
@@ -483,20 +548,92 @@ export default function DashboardPage() {
     }
   }, [isDataLoaded, selectedRegions, rawData])
 
-  // KPI 계산
-  // 총 환자수는 필터와 무관하게 전체 rawData 기준 (고유 환자 수)
-  const totalPatients = isDataLoaded 
-    ? storeTotalPatients  // 전체 환자 수 (필터 무관)
-    : 1234
+  // KPI 계산 - 필터가 적용되면 filteredRawData 기반으로 재계산
+  const kpiData = useMemo(() => {
+    const hasActiveFilter = 
+      selectedDiseases.length > 0 || 
+      selectedRegions.length > 0 || 
+      ageGroups.length > 0 || 
+      (genders.length > 0 && genders.length < 2) ||
+      (dateRange.start !== '2024-01-01' || dateRange.end !== '2024-12-31')
     
-  const recurrenceRate = isDataLoaded
-    ? storeRecurrenceRate.toFixed(1)
-    : (mapData.length > 0 
-        ? (mapData.reduce((sum, d) => sum + d.value, 0) / mapData.length * 100).toFixed(1)
-        : "45.2")
+    // 필터가 적용되고 데이터가 있으면 filteredRawData로 재계산
+    if (hasActiveFilter && filteredRawData.length > 0 && isDataLoaded) {
+      const patientKey = (p: any) => `${p.name}|${p.address}`
+      
+      // 고유 환자 수
+      const patientVisitCounts: Record<string, number> = {}
+      filteredRawData.forEach((patient) => {
+        const key = patientKey(patient)
+        patientVisitCounts[key] = (patientVisitCounts[key] || 0) + 1
+      })
+      
+      const uniquePatients = Object.keys(patientVisitCounts).length
+      const returningPatients = Object.values(patientVisitCounts).filter(count => count > 1).length
+      const calculatedRecurrenceRate = uniquePatients > 0 ? (returningPatients / uniquePatients) * 100 : 0
+      
+      // 평균 재방문 간격
+      let totalIntervals = 0
+      let intervalCount = 0
+      
+      Object.keys(patientVisitCounts).forEach((key) => {
+        const patientVisits = filteredRawData
+          .filter(p => patientKey(p) === key)
+          .map(p => new Date(p.visit_date).getTime())
+          .sort((a, b) => a - b)
         
-  const avgInterval = isDataLoaded ? storeAvgInterval : (selectedRegions.length > 0 ? Math.floor(28 + Math.random() * 10) : 28)
-  const totalSurgery = isDataLoaded ? storeTotalSurgery : Math.floor(totalPatients * 0.15)
+        if (patientVisits.length > 1) {
+          for (let i = 1; i < patientVisits.length; i++) {
+            const interval = (patientVisits[i] - patientVisits[i-1]) / (1000 * 60 * 60 * 24)
+            totalIntervals += interval
+            intervalCount++
+          }
+        }
+      })
+      
+      const calculatedAvgInterval = intervalCount > 0 ? Math.round(totalIntervals / intervalCount) : 0
+      
+      // 수술 건수
+      const surgeryCount = filteredRawData.filter((p) => p.surgery_code).length
+      
+      return {
+        totalPatients: uniquePatients,
+        recurrenceRate: calculatedRecurrenceRate.toFixed(1),
+        avgInterval: calculatedAvgInterval,
+        totalSurgery: surgeryCount,
+      }
+    }
+    
+    // 필터가 없으면 전체 데이터의 KPI 사용
+    if (isDataLoaded) {
+      return {
+        totalPatients: storeTotalPatients,
+        recurrenceRate: storeRecurrenceRate.toFixed(1),
+        avgInterval: storeAvgInterval,
+        totalSurgery: storeTotalSurgery,
+      }
+    }
+    
+    // 샘플 데이터
+    return {
+      totalPatients: 1234,
+      recurrenceRate: "45.2",
+      avgInterval: 28,
+      totalSurgery: Math.floor(1234 * 0.15),
+    }
+  }, [
+    filteredRawData, 
+    isDataLoaded, 
+    selectedDiseases, 
+    selectedRegions, 
+    ageGroups, 
+    genders, 
+    dateRange,
+    storeTotalPatients,
+    storeRecurrenceRate,
+    storeAvgInterval,
+    storeTotalSurgery
+  ])
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-4" id="dashboard-main">
@@ -531,7 +668,7 @@ export default function DashboardPage() {
                  <div className="flex items-center justify-between">
                    <div>
                      <p className="text-xs text-muted-foreground">총 환자수</p>
-                     <p className="text-xl font-bold">{totalPatients.toLocaleString()}</p>
+                     <p className="text-xl font-bold">{kpiData.totalPatients.toLocaleString()}</p>
                      <p className="text-[10px] text-muted-foreground mt-0.5">
                        (고유 환자 ID)
                      </p>
@@ -545,7 +682,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-muted-foreground">재방문율</p>
-                <p className="text-xl font-bold">{recurrenceRate}%</p>
+                <p className="text-xl font-bold">{kpiData.recurrenceRate}%</p>
               </div>
               <TrendingUp className="h-6 w-6 text-positive" />
             </div>
@@ -556,7 +693,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-muted-foreground">평균 간격</p>
-                <p className="text-xl font-bold">{avgInterval}일</p>
+                <p className="text-xl font-bold">{kpiData.avgInterval}일</p>
               </div>
               <Clock className="h-6 w-6 text-muted-foreground" />
             </div>
@@ -567,7 +704,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-muted-foreground">총 수술 건수</p>
-                <p className="text-xl font-bold">{totalSurgery}건</p>
+                <p className="text-xl font-bold">{kpiData.totalSurgery}건</p>
               </div>
               <Activity className="h-6 w-6 text-muted-foreground" />
             </div>
@@ -592,7 +729,7 @@ export default function DashboardPage() {
               <CardTitle className="text-base">연령 분포</CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              <AgePyramidChart data={agePyramid} />
+              <AgePyramidChart data={filteredAgePyramid} />
             </CardContent>
           </Card>
         </div>
