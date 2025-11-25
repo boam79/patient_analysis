@@ -91,15 +91,15 @@
 
 ## 📝 다음 단계
 
-### 현재 작업: 차트 데이터 검증 및 수정 (Planner Mode)
+### 현재 작업: 필터 섹션 버그 재조사 (Planner Mode)
 
-**작업 시작일**: 2024-11-17
-**목표**: 대시보드의 모든 차트 컴포넌트가 실제 데이터를 제대로 반영하는지 순차적으로 검증하고 수정
+**작업 시작일**: 2024-11-25
+**목표**: 필터 섹션에 존재하는 새로운 버그를 재현/분석하고, 필터 변경 시 모든 KPI·차트·지표가 즉시 반영되도록 안정화 로드맵 수립
 
 ### 즉시 가능한 작업
-1. 로컬에서 기능 테스트
-2. 더미 데이터 업로드 및 시각화 검증
-3. Vercel 배포 진행
+1. 필터 변경 시 재현되는 이상 동작 기록 (예: 특정 필터 조합에서 수치 미변경, 지연 발생 등)
+2. Zustand `filter-store`/`data-store` 상호작용 추적
+3. 빌드 및 배포 상태 점검 (Vercel 로그 포함)
 
 ### 추후 작업 (선택사항)
 1. 인증 시스템 재구현
@@ -211,15 +211,17 @@
 | 수술-질병 연관 | surgery-chart.tsx | 계산됨 (surgeryData) | ✅ OK | useMemo로 계산 |
 | 데이터 테이블 | dashboard/page.tsx | filteredDiseases | ✅ OK | 필터 적용된 질병 |
 
-#### 3. 필터 적용 검증
+#### 3. 필터 적용 검증 (2024-11-25 업데이트)
 
-**필터 시스템**:
-- `filter-store.ts`: 질병, 지역, 연령, 성별 필터 관리
-- 현재 필터 적용 범위:
-  - ✅ Top 10 질병: `filteredDiseases` 사용
-  - ✅ 지도: 모든 지역 표시 (필터 무관)
-  - ✅ 선택 영역 정보: `selectedRegionStats` 계산
-  - ❌ Boundary/Boxplot/Trend 차트: 필터 미적용
+- 최신 커밋 이후 KPI·차트 모두 `filteredRawData`에 의존하도록 구성
+- 사용자 보고: "필터 적용 시 결과가 즉시 변하지 않음" 현상이 재발
+- 잠재 원인:
+  1. useMemo 의존성 누락/잘못된 순서로 인한 stale 데이터
+  2. Zustand selector 참조 시 shallow 비교 미적용 → 리렌더 미발생
+  3. 필터 상태 변경 후 연쇄 계산에 시간 지연 (Promise/async 로직?)
+  4. Vercel 빌드/서버 환경에서만 발생하는 hydration 불일치
+
+→ 재현 시나리오 수집 및 로깅이 필요
 
 #### 4. 계산 로직 누락 항목
 
@@ -241,10 +243,36 @@
    - **Note**: `/dashboard/charts/page.tsx`에는 계산 로직 있음 (line 74-129)
    - 메인 대시보드에 적용 필요
 
-### 고수준 작업 분해
+### 고수준 작업 분해 (필터 버그 재조사)
 
-#### Phase 1: 데이터 계산 로직 구현 ⏳
-**목표**: data-store.ts에 누락된 계산 로직 추가
+#### Phase A: 문제 재현 및 영향 범위 파악 ⏳
+**목표**: 필터 섹션의 최신 버그를 명확히 정의하고 재현 조건을 문서화**
+
+- [x] Task A1: 사용자 보고 기반 재현 시나리오 수집
+  - **관찰 1**: `windowSize`(재방문 윈도우) 필터는 어디에서도 사용되지 않음 → UI에서 값을 바꿔도 KPI/차트 불변
+    - 근거: `rg` 검색 결과 `windowSize`는 `filter-store.ts`와 `filter-panel.tsx` 외 참조 없음
+  - **관찰 2**: `selectedSurgeries` 필터도 filtering 계산에 미반영 → 수술 필터 조작 시 결과 불변
+    - 근거: `filteredRawData` 및 기타 useMemo에서 `selectedSurgeries` 사용 안 함
+  - **성공 기준**: 재현 조건 2건 이상 충족 ✅
+- [ ] Task A2: 상태 추적 로깅 추가/검토
+  - **파일**: `filter-store.ts`, `app/dashboard/page.tsx`
+  - **성과**: 필터 변경 → 관련 useMemo 재계산 순서를 콘솔/Profiler로 확인
+- [ ] Task A3: Vercel 및 로컬 환경 차이 확인
+  - **자료**: 최신 빌드 로그(추가 오류 여부), 환경 변수 비교
+
+#### Phase B: 원인 분석 및 수정 전략 수립 ⏳
+**목표**: 필터 미반영 원인을 코드 수준에서 식별하고 수정 방안을 정의**
+
+- [ ] Task B1: useMemo 의존성/선언 순서 검토
+- [ ] Task B2: Zustand store 업데이트가 비동기적으로 지연되는지 확인
+- [ ] Task B3: KPI/차트별 데이터 흐름 재도식화 (diagram)
+
+#### Phase C: 수정 항목 정의 및 검증 계획 ⏳
+**목표**: 실제 코드 변경 전, 필요한 수정 목록·테스트 항목 확정**
+
+- [ ] Task C1: 수정해야 할 파일/모듈 목록화
+- [ ] Task C2: TDD 관점에서 필요한 최소 테스트 정의
+- [ ] Task C3: 필터 적용 후 KPI/차트 값 검증 체크리스트 업데이트
 
 - [ ] Task 1.1: 지역별 통계 계산 함수 추가
   - **입력**: rawData
@@ -366,40 +394,33 @@
 
 ### 프로젝트 현황판 (Project Status Board)
 
-#### 🎯 전체 진행 상황
-- [x] Phase 1: 데이터 계산 로직 구현 (3/3 완료) ✅
-  - [x] Task 1.1: 지역별 통계 계산 ✅
-  - [x] Task 1.2: Boxplot 통계 계산 ✅
-  - [x] Task 1.3: 월별 트렌드 계산 ✅
-- [x] Phase 2: Dashboard 컴포넌트 연결 (3/3 완료) ✅
-  - [x] Task 2.1: 지역 비교 차트 연결 ✅
-  - [x] Task 2.2: Boxplot 차트 연결 ✅
-  - [x] Task 2.3: 월별 트렌드 차트 연결 ✅
-- [x] Phase 3: 필터 시스템 통합 (2/2 완료) ✅
-  - [x] Task 3.1: 필터링된 데이터 계산 ✅
-  - [x] Task 3.2: 성능 최적화 (useMemo 적용) ✅
+#### 🎯 전체 진행 상황 (업데이트)
+- [x] Phase 1: 데이터 계산 로직 구현 ✅
+- [x] Phase 2: Dashboard 컴포넌트 연결 ✅
+- [x] Phase 3: 필터 시스템 1차 통합 ✅
 - [ ] Phase 4: 테스트 및 검증 (0/3 완료)
+- [ ] Phase A: 필터 버그 재조사 (1/3 진행)
+- [ ] Phase B: 원인 분석 (0/3)
+- [ ] Phase C: 수정 계획 (0/3)
 
-**총 진행률**: 73% (8/11 작업)
+**총 진행률**: 62% (기존 73% → 새로운 Phase 추가 반영, Phase A 일부 완료)
 
-#### 📋 작업 우선순위
+#### 📋 작업 우선순위 (갱신)
 
-**High Priority** (차단 요소):
-1. Task 1.1: 지역별 통계 계산 → Task 2.1 차단
-2. Task 1.2: Boxplot 통계 계산 → Task 2.2 차단
-3. Task 1.3: 월별 트렌드 계산 → Task 2.3 차단
+**High Priority**
+1. Task A2: 상태 추적 로깅/Profiler 확인
+2. Task A3: 환경 차이 확인
+3. Task B1: useMemo 의존성 및 선언 순서 검토
 
-**Medium Priority** (핵심 기능):
-4. Task 2.1: 지역 비교 차트 연결
-5. Task 2.2: Boxplot 차트 연결
-6. Task 2.3: 월별 트렌드 차트 연결
+**Medium Priority**
+4. Task B2: Zustand 업데이트 지연 여부 조사
+5. Task B3: 데이터 흐름 재도식화
+6. Task C1: 수정 파일/모듈 목록화
 
-**Low Priority** (개선 사항):
-7. Task 3.1: 필터링된 데이터 계산
-8. Task 3.2: 성능 최적화
-9. Task 4.1: 단위 테스트
-10. Task 4.2: 통합 테스트
-11. Task 4.3: 성능 테스트
+**Low Priority**
+7. Task C2: 테스트 케이스 정의
+8. Task C3: 체크리스트 업데이트
+9. Phase 4: 테스트/성능 검증 (TBD)
 
 ### Executor의 피드백 또는 지원 요청
 
@@ -445,6 +466,15 @@
    - 모든 계산 로직에 useMemo 적용
    - 의존성 배열 최적화
    - 필터 변경 시에만 재계산
+
+#### 2024-11-25 - Executor 모드 (필터 버그 재조사)
+- `windowSize`(재방문 윈도우) 필터가 어떤 계산에도 사용되지 않음을 확인 → 필터 UI 조작 시 결과값 미변경
+- `selectedSurgeries` 필터 또한 `filteredRawData` 및 KPI/차트 계산 로직에 미반영 → 수술 필터는 상태만 바뀌고 데이터는 그대로
+- 후속 조치: Task A2(A3) 진행 전, 위 두 항목을 해결 대상으로 명시
+- 구현 현황: 
+  - `app/dashboard/page.tsx`에서 `selectedSurgeries` 기반 필터링 및 모든 useMemo 의존성 보강
+  - `windowSize`를 KPI/Boundary/Boxplot/Monthly Trend 계산에 반영 (재방문 간격 <= window 기준)
+  - Helper 함수(`getPatientKey`, `calculateIntervalsWithinWindow`) 도입 및 방문 그룹화 useMemo 추가
 
 **코드 변경 사항**:
 - `stores/data-store.ts`: 

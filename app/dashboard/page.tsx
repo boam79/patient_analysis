@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { FilterPanel } from '@/components/filter/filter-panel'
@@ -12,7 +12,7 @@ import { BoundaryComparisonChart, BoxplotChart } from '@/components/charts/bound
 import { SurgeryScatterChart, SurgeryDiseaseMatrix } from '@/components/charts/surgery-chart'
 import { ExportMenu } from '@/components/export/export-menu'
 import { useFilterStore } from '@/stores/filter-store'
-import { useDataStore } from '@/stores/data-store'
+import { PatientData, useDataStore } from '@/stores/data-store'
 import { Users, TrendingUp, Clock, Activity, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
@@ -83,10 +83,39 @@ const SAMPLE_SURGERY_MATRIX = [
   { surgery: '어깨관절경수술', '무릎관절증': 5, '척추관협착증': 7, '고혈압': 18 },
 ]
 
+const DEFAULT_WINDOW_SIZE = 90
+const MS_PER_DAY = 1000 * 60 * 60 * 24
+
+const getPatientKey = (patient: Pick<PatientData, 'name' | 'address'>) =>
+  `${patient.name}|${patient.address}`
+
+const calculateIntervalsWithinWindow = (visits: PatientData[], windowSize: number) => {
+  const intervals: number[] = []
+
+  for (let i = 1; i < visits.length; i++) {
+    const current = new Date(visits[i].visit_date).getTime()
+    const previous = new Date(visits[i - 1].visit_date).getTime()
+    const interval = (current - previous) / MS_PER_DAY
+
+    if (interval <= windowSize) {
+      intervals.push(interval)
+    }
+  }
+
+  return intervals
+}
+
 export default function DashboardPage() {
   const router = useRouter()
-  const { selectedDiseases, selectedRegions, ageGroups, genders, dateRange, windowSize } = useFilterStore()
-  const [isFilterApplying, setIsFilterApplying] = useState(false)
+  const {
+    selectedDiseases,
+    selectedRegions,
+    selectedSurgeries,
+    ageGroups,
+    genders,
+    dateRange,
+    windowSize,
+  } = useFilterStore()
   
   const { 
     isDataLoaded, 
@@ -133,6 +162,13 @@ export default function DashboardPage() {
       filtered = filtered.filter(p => selectedDiseases.includes(p.disease_name))
     }
 
+    // 수술 필터
+    if (selectedSurgeries.length > 0) {
+      filtered = filtered.filter(
+        (p) => p.surgery_name && selectedSurgeries.includes(p.surgery_name)
+      )
+    }
+
     // 지역 필터
     if (selectedRegions.length > 0) {
       filtered = filtered.filter(p => selectedRegions.includes(p.region))
@@ -162,7 +198,40 @@ export default function DashboardPage() {
     }
 
     return filtered
-  }, [isDataLoaded, rawData, selectedDiseases, selectedRegions, ageGroups, genders, dateRange])
+  }, [
+    isDataLoaded,
+    rawData,
+    selectedDiseases,
+    selectedSurgeries,
+    selectedRegions,
+    ageGroups,
+    genders,
+    dateRange,
+  ])
+
+  const patientVisitsByKey = useMemo(() => {
+    const map = new Map<string, PatientData[]>()
+
+    if (!isDataLoaded || filteredRawData.length === 0) {
+      return map
+    }
+
+    filteredRawData.forEach((visit) => {
+      const key = getPatientKey(visit)
+      const visits = map.get(key) ?? []
+      visits.push(visit)
+      map.set(key, visits)
+    })
+
+    map.forEach((visits) => {
+      visits.sort(
+        (a, b) =>
+          new Date(a.visit_date).getTime() - new Date(b.visit_date).getTime()
+      )
+    })
+
+    return map
+  }, [filteredRawData, isDataLoaded])
 
   // 필터 적용된 질병 통계 재계산 (filteredRawData 기반)
   const filteredDiseases = useMemo(() => {
@@ -174,6 +243,7 @@ export default function DashboardPage() {
     // 필터가 하나라도 적용되었으면 filteredRawData로부터 재계산
     const hasActiveFilter = 
       selectedDiseases.length > 0 || 
+      selectedSurgeries.length > 0 ||
       selectedRegions.length > 0 || 
       ageGroups.length > 0 || 
       (genders.length > 0 && genders.length < 2)
@@ -198,16 +268,18 @@ export default function DashboardPage() {
     
     // 필터가 없으면 원본 diseases 사용
     return diseases
-  }, [diseases, filteredRawData, selectedDiseases, selectedRegions, ageGroups, genders, isDataLoaded])
+  }, [diseases, filteredRawData, selectedDiseases, selectedSurgeries, selectedRegions, ageGroups, genders, isDataLoaded])
 
   // 연령 피라미드도 필터링된 데이터로 재계산
   const filteredAgePyramid = useMemo(() => {
     const hasActiveFilter = 
       selectedDiseases.length > 0 || 
+      selectedSurgeries.length > 0 ||
       selectedRegions.length > 0 || 
       ageGroups.length > 0 || 
       (genders.length > 0 && genders.length < 2) ||
-      (dateRange.start !== '2024-01-01' || dateRange.end !== '2024-12-31')
+      (dateRange.start !== '2024-01-01' || dateRange.end !== '2024-12-31') ||
+      windowSize !== DEFAULT_WINDOW_SIZE
     
     // 필터가 적용되고 데이터가 있으면 재계산
     if (hasActiveFilter && filteredRawData.length > 0 && isDataLoaded) {
@@ -250,7 +322,18 @@ export default function DashboardPage() {
     
     // 필터가 없으면 원본 사용
     return isDataLoaded && storeAgePyramid.length > 0 ? storeAgePyramid : SAMPLE_AGE_PYRAMID
-  }, [filteredRawData, isDataLoaded, storeAgePyramid, selectedDiseases, selectedRegions, ageGroups, genders, dateRange])
+  }, [
+    filteredRawData,
+    isDataLoaded,
+    storeAgePyramid,
+    selectedDiseases,
+    selectedSurgeries,
+    selectedRegions,
+    ageGroups,
+    genders,
+    dateRange,
+    windowSize,
+  ])
 
   // 수술 데이터 계산 (useMemo로 최적화)
   const surgeryData = useMemo(() => {
@@ -315,47 +398,61 @@ export default function DashboardPage() {
       return boundaryData // 필터 없으면 원본 사용
     }
 
-    const patientKey = (p: any) => `${p.name}|${p.address}`
-    
-    const regionStatsMap = new Map<string, {
-      patientKeys: Set<string>
-      ages: number[]
-    }>()
+    const regionStatsMap = new Map<
+      string,
+      {
+        patientKeys: Set<string>
+        ages: number[]
+        visitsByPatient: Map<string, number[]>
+      }
+    >()
 
     filteredRawData.forEach((patient) => {
-      if (patient.region && patient.region !== '미분류') {
-        const key = patientKey(patient)
-        
-        if (!regionStatsMap.has(patient.region)) {
-          regionStatsMap.set(patient.region, {
-            patientKeys: new Set(),
-            ages: [],
-          })
-        }
-        
-        const stats = regionStatsMap.get(patient.region)!
-        stats.patientKeys.add(key)
-        stats.ages.push(patient.age)
+      if (!patient.region || patient.region === '미분류') {
+        return
       }
+
+      if (!regionStatsMap.has(patient.region)) {
+        regionStatsMap.set(patient.region, {
+          patientKeys: new Set(),
+          ages: [],
+          visitsByPatient: new Map(),
+        })
+      }
+
+      const stats = regionStatsMap.get(patient.region)!
+      const key = getPatientKey(patient)
+      stats.patientKeys.add(key)
+      stats.ages.push(patient.age)
+
+      const visitList = stats.visitsByPatient.get(key) ?? []
+      visitList.push(new Date(patient.visit_date).getTime())
+      stats.visitsByPatient.set(key, visitList)
     })
 
     return Array.from(regionStatsMap.entries())
       .map(([region, stats]) => {
         const uniquePatients = stats.patientKeys.size
-        const avgAge = stats.ages.reduce((sum, age) => sum + age, 0) / stats.ages.length
-        
-        // 지역별 재방문율 계산
-        const regionPatientVisits: Record<string, number> = {}
-        filteredRawData.forEach((p) => {
-          if (p.region === region) {
-            const key = patientKey(p)
-            regionPatientVisits[key] = (regionPatientVisits[key] || 0) + 1
+        const avgAge =
+          stats.ages.length > 0
+            ? stats.ages.reduce((sum, age) => sum + age, 0) / stats.ages.length
+            : 0
+
+        let returningPatients = 0
+        stats.visitsByPatient.forEach((timestamps) => {
+          timestamps.sort((a, b) => a - b)
+          for (let i = 1; i < timestamps.length; i++) {
+            const interval = (timestamps[i] - timestamps[i - 1]) / MS_PER_DAY
+            if (interval <= windowSize) {
+              returningPatients++
+              break
+            }
           }
         })
-        
-        const returningInRegion = Object.values(regionPatientVisits).filter(count => count > 1).length
-        const recurrenceRate = uniquePatients > 0 ? (returningInRegion / uniquePatients) * 100 : 0
-        
+
+        const recurrenceRate =
+          uniquePatients > 0 ? (returningPatients / uniquePatients) * 100 : 0
+
         return {
           region,
           patients: uniquePatients,
@@ -365,7 +462,7 @@ export default function DashboardPage() {
       })
       .sort((a, b) => b.patients - a.patients)
       .slice(0, 10)
-  }, [isDataLoaded, filteredRawData, boundaryData])
+  }, [isDataLoaded, filteredRawData, boundaryData, windowSize])
 
   // 필터링된 Boxplot 데이터 계산
   const filteredBoxplotData = useMemo(() => {
@@ -422,10 +519,14 @@ export default function DashboardPage() {
           }
           
           for (let i = 1; i < patientVisits.length; i++) {
-            const interval = (new Date(patientVisits[i].visit_date).getTime() - 
-                             new Date(patientVisits[i-1].visit_date).getTime()) / 
-                             (1000 * 60 * 60 * 24)
-            regionIntervalsMap.get(region)!.push(interval)
+            const interval =
+              (new Date(patientVisits[i].visit_date).getTime() -
+                new Date(patientVisits[i - 1].visit_date).getTime()) /
+              MS_PER_DAY
+
+            if (interval <= windowSize) {
+              regionIntervalsMap.get(region)!.push(interval)
+            }
           }
         }
       }
@@ -442,53 +543,75 @@ export default function DashboardPage() {
       })
       .sort((a, b) => b.median - a.median)
       .slice(0, 10)
-  }, [isDataLoaded, filteredRawData, boxplotData])
+  }, [isDataLoaded, filteredRawData, boxplotData, windowSize])
 
   // 필터링된 월별 트렌드 계산
   const filteredMonthlyTrend = useMemo(() => {
-    if (!isDataLoaded || filteredRawData.length === 0) {
+    if (
+      !isDataLoaded ||
+      filteredRawData.length === 0 ||
+      patientVisitsByKey.size === 0
+    ) {
       return monthlyTrend // 필터 없으면 원본 사용
     }
 
-    const patientKey = (p: any) => `${p.name}|${p.address}`
-    
-    // 환자별 방문 횟수 계산
-    const patientVisitCounts: Record<string, number> = {}
-    filteredRawData.forEach((patient) => {
-      const key = patientKey(patient)
-      patientVisitCounts[key] = (patientVisitCounts[key] || 0) + 1
+    const monthlyData = new Map<
+      string,
+      { newPatients: Set<string>; returningPatients: Set<string> }
+    >()
+
+    patientVisitsByKey.forEach((visits, key) => {
+      visits.forEach((visit, index) => {
+        const date = new Date(visit.visit_date)
+        const month = `${date.getMonth() + 1}월`
+
+        if (!monthlyData.has(month)) {
+          monthlyData.set(month, {
+            newPatients: new Set(),
+            returningPatients: new Set(),
+          })
+        }
+
+        const bucket = monthlyData.get(month)!
+
+        if (index === 0) {
+          bucket.newPatients.add(key)
+        } else {
+          const prevDate = new Date(visits[index - 1].visit_date)
+          const interval = (date.getTime() - prevDate.getTime()) / MS_PER_DAY
+
+          if (interval <= windowSize) {
+            bucket.returningPatients.add(key)
+          } else {
+            bucket.newPatients.add(key)
+          }
+        }
+      })
     })
 
-    const monthlyData = filteredRawData.reduce((acc, patient) => {
-      const date = new Date(patient.visit_date)
-      const month = `${date.getMonth() + 1}월`
-      
-      if (!acc[month]) {
-        acc[month] = { newPatients: new Set(), returningPatients: new Set() }
-      }
+    const monthOrder = [
+      '1월',
+      '2월',
+      '3월',
+      '4월',
+      '5월',
+      '6월',
+      '7월',
+      '8월',
+      '9월',
+      '10월',
+      '11월',
+      '12월',
+    ]
 
-      const key = patientKey(patient)
-      const isNew = patientVisitCounts[key] === 1
-      
-      if (isNew) {
-        acc[month].newPatients.add(key)
-      } else {
-        acc[month].returningPatients.add(key)
-      }
-
-      return acc
-    }, {} as Record<string, { newPatients: Set<string>; returningPatients: Set<string> }>)
-
-    const monthOrder = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월']
-    
     return monthOrder
-      .filter(month => monthlyData[month])
-      .map(month => {
-        const data = monthlyData[month]
+      .filter((month) => monthlyData.has(month))
+      .map((month) => {
+        const data = monthlyData.get(month)!
         const newCount = data.newPatients.size
         const returningCount = data.returningPatients.size
         const total = newCount + returningCount
-        
+
         return {
           month,
           newPatients: newCount,
@@ -496,16 +619,18 @@ export default function DashboardPage() {
           recurrenceRate: total > 0 ? (returningCount / total) * 100 : 0,
         }
       })
-  }, [isDataLoaded, filteredRawData, monthlyTrend])
+  }, [isDataLoaded, filteredRawData, monthlyTrend, patientVisitsByKey, windowSize])
 
   // 선택된 지역의 Top 5 질병/수술 계산
   const selectedRegionStats = useMemo(() => {
-    if (!isDataLoaded || selectedRegions.length === 0 || rawData.length === 0) {
+    if (!isDataLoaded || selectedRegions.length === 0 || filteredRawData.length === 0) {
       return { diseases: [], surgeries: [], patientCount: 0 }
     }
 
-    // 선택된 지역의 환자 데이터 필터링
-    const regionPatients = rawData.filter(p => selectedRegions.includes(p.region))
+    // 선택된 지역의 환자 데이터 필터링 (다른 필터 조건을 모두 반영한 filteredRawData 사용)
+    const regionPatients = filteredRawData.filter((p) =>
+      selectedRegions.includes(p.region)
+    )
     
     if (regionPatients.length === 0) {
       return { diseases: [], surgeries: [], patientCount: 0 }
@@ -546,64 +671,60 @@ export default function DashboardPage() {
       patientCount: uniquePatientKeys.size,
       totalRecords: regionPatients.length,
     }
-  }, [isDataLoaded, selectedRegions, rawData])
+  }, [isDataLoaded, selectedRegions, filteredRawData])
 
   // KPI 계산 - 필터가 적용되면 filteredRawData 기반으로 재계산
   const kpiData = useMemo(() => {
-    const hasActiveFilter = 
-      selectedDiseases.length > 0 || 
-      selectedRegions.length > 0 || 
-      ageGroups.length > 0 || 
+    const hasActiveFilter =
+      selectedDiseases.length > 0 ||
+      selectedSurgeries.length > 0 ||
+      selectedRegions.length > 0 ||
+      ageGroups.length > 0 ||
       (genders.length > 0 && genders.length < 2) ||
-      (dateRange.start !== '2024-01-01' || dateRange.end !== '2024-12-31')
-    
-    // 필터가 적용되고 데이터가 있으면 filteredRawData로 재계산
-    if (hasActiveFilter && filteredRawData.length > 0 && isDataLoaded) {
-      const patientKey = (p: any) => `${p.name}|${p.address}`
-      
-      // 고유 환자 수
-      const patientVisitCounts: Record<string, number> = {}
-      filteredRawData.forEach((patient) => {
-        const key = patientKey(patient)
-        patientVisitCounts[key] = (patientVisitCounts[key] || 0) + 1
-      })
-      
-      const uniquePatients = Object.keys(patientVisitCounts).length
-      const returningPatients = Object.values(patientVisitCounts).filter(count => count > 1).length
-      const calculatedRecurrenceRate = uniquePatients > 0 ? (returningPatients / uniquePatients) * 100 : 0
-      
-      // 평균 재방문 간격
-      let totalIntervals = 0
-      let intervalCount = 0
-      
-      Object.keys(patientVisitCounts).forEach((key) => {
-        const patientVisits = filteredRawData
-          .filter(p => patientKey(p) === key)
-          .map(p => new Date(p.visit_date).getTime())
-          .sort((a, b) => a - b)
-        
-        if (patientVisits.length > 1) {
-          for (let i = 1; i < patientVisits.length; i++) {
-            const interval = (patientVisits[i] - patientVisits[i-1]) / (1000 * 60 * 60 * 24)
-            totalIntervals += interval
-            intervalCount++
-          }
+      (dateRange.start !== '2024-01-01' || dateRange.end !== '2024-12-31') ||
+      windowSize !== DEFAULT_WINDOW_SIZE
+
+    if (
+      isDataLoaded &&
+      filteredRawData.length > 0 &&
+      patientVisitsByKey.size > 0 &&
+      hasActiveFilter
+    ) {
+      const uniquePatients = patientVisitsByKey.size
+      let returningPatients = 0
+      const intervalsWithinWindow: number[] = []
+
+      patientVisitsByKey.forEach((visits) => {
+        const intervals = calculateIntervalsWithinWindow(visits, windowSize)
+        if (intervals.length > 0) {
+          returningPatients++
+          intervalsWithinWindow.push(...intervals)
         }
       })
-      
-      const calculatedAvgInterval = intervalCount > 0 ? Math.round(totalIntervals / intervalCount) : 0
-      
-      // 수술 건수
+
+      const recurrenceRate =
+        uniquePatients > 0 ? (returningPatients / uniquePatients) * 100 : 0
+
+      const avgInterval =
+        intervalsWithinWindow.length > 0
+          ? Math.round(
+              intervalsWithinWindow.reduce(
+                (sum, interval) => sum + interval,
+                0
+              ) / intervalsWithinWindow.length
+            )
+          : 0
+
       const surgeryCount = filteredRawData.filter((p) => p.surgery_code).length
-      
+
       return {
         totalPatients: uniquePatients,
-        recurrenceRate: calculatedRecurrenceRate.toFixed(1),
-        avgInterval: calculatedAvgInterval,
+        recurrenceRate: recurrenceRate.toFixed(1),
+        avgInterval,
         totalSurgery: surgeryCount,
       }
     }
-    
+
     // 필터가 없으면 전체 데이터의 KPI 사용
     if (isDataLoaded) {
       return {
@@ -613,26 +734,29 @@ export default function DashboardPage() {
         totalSurgery: storeTotalSurgery,
       }
     }
-    
+
     // 샘플 데이터
     return {
       totalPatients: 1234,
-      recurrenceRate: "45.2",
+      recurrenceRate: '45.2',
       avgInterval: 28,
       totalSurgery: Math.floor(1234 * 0.15),
     }
   }, [
-    filteredRawData, 
-    isDataLoaded, 
-    selectedDiseases, 
-    selectedRegions, 
-    ageGroups, 
-    genders, 
+    filteredRawData,
+    isDataLoaded,
+    patientVisitsByKey,
+    selectedDiseases,
+    selectedSurgeries,
+    selectedRegions,
+    ageGroups,
+    genders,
     dateRange,
+    windowSize,
     storeTotalPatients,
     storeRecurrenceRate,
     storeAvgInterval,
-    storeTotalSurgery
+    storeTotalSurgery,
   ])
 
   return (
