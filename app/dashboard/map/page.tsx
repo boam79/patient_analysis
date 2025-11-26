@@ -901,6 +901,7 @@ export default function MapPage() {
                           side="bottom" 
                           align="start"
                           sideOffset={4}
+                          collisionPadding={{ top: 200, bottom: 8, left: 8, right: 8 }}
                         >
                           {diseaseOptions.map((disease) => (
                             <SelectItem key={disease} value={disease}>

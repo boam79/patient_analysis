@@ -267,7 +267,20 @@ export function LeafletMap({
       }
 
       const createHeatLayer = (L: any) => {
-        if (!mapRef.current) return
+        if (!mapRef.current || mode !== 'heatmap') {
+          console.log('히트맵 생성 취소:', { hasMap: !!mapRef.current, currentMode: mode })
+          return
+        }
+
+        // 기존 히트맵 레이어가 있으면 제거
+        if (heatLayerRef.current) {
+          try {
+            mapRef.current.removeLayer(heatLayerRef.current)
+          } catch (e) {
+            console.warn('기존 히트맵 제거 중 오류:', e)
+          }
+          heatLayerRef.current = null
+        }
 
         // 최대값 동적 계산
         const maxValue = Math.max(...validData.map(d => d.value), 1)
@@ -379,7 +392,23 @@ export function LeafletMap({
       }
 
       const createClusterLayer = (L: any) => {
-        if (!mapRef.current) return
+        if (!mapRef.current || mode !== 'cluster') {
+          console.log('클러스터 생성 취소:', { hasMap: !!mapRef.current, currentMode: mode })
+          return
+        }
+
+        // 기존 클러스터 레이어가 있으면 제거
+        if (clusterLayerRef.current) {
+          try {
+            mapRef.current.removeLayer(clusterLayerRef.current)
+            if (clusterLayerRef.current.clearLayers) {
+              clusterLayerRef.current.clearLayers()
+            }
+          } catch (e) {
+            console.warn('기존 클러스터 제거 중 오류:', e)
+          }
+          clusterLayerRef.current = null
+        }
 
         // MarkerClusterGroup 찾기 (여러 방법 시도)
         let MarkerClusterGroup: any = null
@@ -446,6 +475,19 @@ export function LeafletMap({
         return
       }
 
+      // 기존 마커 레이어가 있으면 제거
+      if (markerLayerRef.current) {
+        try {
+          mapRef.current.removeLayer(markerLayerRef.current)
+          if (markerLayerRef.current.clearLayers) {
+            markerLayerRef.current.clearLayers()
+          }
+        } catch (e) {
+          console.warn('기존 마커 레이어 제거 중 오류:', e)
+        }
+        markerLayerRef.current = null
+      }
+
       // 마커 레이어
       const markerLayer = L.layerGroup()
 
@@ -476,6 +518,19 @@ export function LeafletMap({
       if (!L) {
         console.error('window.L을 찾을 수 없습니다.')
         return
+      }
+
+      // 기존 원형 레이어가 있으면 제거
+      if (circleLayerRef.current) {
+        try {
+          mapRef.current.removeLayer(circleLayerRef.current)
+          if (circleLayerRef.current.clearLayers) {
+            circleLayerRef.current.clearLayers()
+          }
+        } catch (e) {
+          console.warn('기존 원형 레이어 제거 중 오류:', e)
+        }
+        circleLayerRef.current = null
       }
 
       // 원형 마커 모드 (크기로 값 표현)
@@ -533,7 +588,7 @@ export function LeafletMap({
       circleLayer.addTo(mapRef.current)
       circleLayerRef.current = circleLayer
     }
-  }, [leafletLoaded, data, mode, onLocationSelect])
+  }, [leafletLoaded, data, mode, onLocationSelect, center, zoom])
 
   // 지도 중심 변경
   useEffect(() => {
