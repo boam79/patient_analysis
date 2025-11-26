@@ -74,6 +74,9 @@ export function LeafletMap({
         maxZoom: 19,
       }).addTo(map)
 
+      // window.L에 Leaflet 객체 저장 (플러그인들이 사용할 수 있도록)
+      ;(window as any).L = L
+
       mapRef.current = map
       setLeafletLoaded(true)
       setIsLoading(false)
@@ -154,55 +157,66 @@ export function LeafletMap({
     }
 
     if (mode === 'heatmap') {
-      // 히트맵 모드: leaflet과 leaflet.heat를 함께 로드
-      // leaflet.heat는 import하면 자동으로 window.L.heatLayer를 추가합니다
-      Promise.all([
-        import('leaflet'),
-        import('leaflet.heat')
-      ]).then(([leafletModule]) => {
+      // 히트맵 모드: leaflet.heat를 로드
+      // leaflet은 이미 로드되어 있고 window.L에 저장되어 있음
+      import('leaflet.heat').then(() => {
         if (!mapRef.current) return
 
         // leaflet.heat를 import하면 window.L.heatLayer가 자동으로 추가됩니다
         const Leaflet = (window as any).L
         
-        if (!Leaflet || !Leaflet.heatLayer) {
-          console.error('L.heatLayer를 찾을 수 없습니다. window.L:', (window as any).L)
+        if (!Leaflet) {
+          console.error('window.L을 찾을 수 없습니다. Leaflet이 로드되지 않았습니다.')
           return
         }
 
-        // 최대값 동적 계산
-        const maxValue = Math.max(...validData.map(d => d.value), 1)
+        // heatLayer가 없으면 잠시 대기 후 다시 시도
+        if (!Leaflet.heatLayer) {
+          // leaflet.heat가 아직 등록되지 않았을 수 있으므로 약간 대기
+          setTimeout(() => {
+            if (!Leaflet.heatLayer) {
+              console.error('L.heatLayer를 찾을 수 없습니다. leaflet.heat가 제대로 로드되지 않았습니다.')
+              return
+            }
+            createHeatLayer(Leaflet)
+          }, 100)
+        } else {
+          createHeatLayer(Leaflet)
+        }
 
-        const heatData = validData.map((point) => [
-          point.latitude,
-          point.longitude,
-          maxValue > 0 ? point.value / maxValue : 0, // 정규화 (0-1)
-        ])
+        function createHeatLayer(L: any) {
+          // 최대값 동적 계산
+          const maxValue = Math.max(...validData.map(d => d.value), 1)
 
-        const heatLayer = Leaflet.heatLayer(heatData, {
-          radius: 25,
-          blur: 15,
-          maxZoom: 17,
-          max: 1.0,
-          minOpacity: 0.2,
-          gradient: {
-            0.0: '#3b82f6', // 파란색 (낮음)
-            0.5: '#f59e0b', // 주황색 (중간)
-            1.0: '#ef4444', // 빨간색 (높음)
-          },
-        })
+          const heatData = validData.map((point) => [
+            point.latitude,
+            point.longitude,
+            maxValue > 0 ? point.value / maxValue : 0, // 정규화 (0-1)
+          ])
 
-        heatLayer.addTo(mapRef.current)
-        heatLayerRef.current = heatLayer
+          const heatLayer = L.heatLayer(heatData, {
+            radius: 25,
+            blur: 15,
+            maxZoom: 17,
+            max: 1.0,
+            minOpacity: 0.2,
+            gradient: {
+              0.0: '#3b82f6', // 파란색 (낮음)
+              0.5: '#f59e0b', // 주황색 (중간)
+              1.0: '#ef4444', // 빨간색 (높음)
+            },
+          })
+
+          heatLayer.addTo(mapRef.current)
+          heatLayerRef.current = heatLayer
+        }
       }).catch(err => {
         console.error('Leaflet.heat 로드 실패:', err)
       })
     } else if (mode === 'cluster') {
-      // 클러스터 모드: leaflet과 leaflet.markercluster를 함께 로드
-      Promise.all([
-        import('leaflet'),
-        import('leaflet.markercluster')
-      ]).then(([leafletModule, clusterModule]) => {
+      // 클러스터 모드: leaflet.markercluster를 로드
+      // leaflet은 이미 로드되어 있고 window.L에 저장되어 있음
+      import('leaflet.markercluster').then((clusterModule) => {
         if (!mapRef.current) return
 
         // MarkerClusterGroup CSS 동적 로드
@@ -214,7 +228,12 @@ export function LeafletMap({
           document.head.appendChild(link)
         }
 
-        const Leaflet = (window as any).L || leafletModule.default || leafletModule
+        const Leaflet = (window as any).L
+        
+        if (!Leaflet) {
+          console.error('window.L을 찾을 수 없습니다. Leaflet이 로드되지 않았습니다.')
+          return
+        }
         
         // MarkerClusterGroup 가져오기 - 여러 방법 시도
         let MarkerClusterGroup: any = clusterModule.default
