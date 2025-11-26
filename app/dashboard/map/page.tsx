@@ -878,7 +878,7 @@ export default function MapPage() {
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="질병을 선택하세요" />
                         </SelectTrigger>
-                        <SelectContent className="z-[10000]">
+                        <SelectContent className="z-[10000]" side="bottom" align="start">
                           {diseaseOptions.map((disease) => (
                             <SelectItem key={disease} value={disease}>
                               {disease}
@@ -976,7 +976,7 @@ export default function MapPage() {
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="수술을 선택하세요" />
                         </SelectTrigger>
-                        <SelectContent className="z-[10000]">
+                        <SelectContent className="z-[10000]" side="bottom" align="start">
                           {surgeryOptions.map((surgery) => (
                             <SelectItem key={surgery} value={surgery}>
                               {surgery}
@@ -1074,7 +1074,7 @@ export default function MapPage() {
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="연령대를 선택하세요" />
                         </SelectTrigger>
-                        <SelectContent className="z-[10000]">
+                        <SelectContent className="z-[10000]" side="bottom" align="start">
                           {ageGroupOptions.map((ageGroup) => (
                             <SelectItem key={ageGroup} value={ageGroup}>
                               {ageGroup}
