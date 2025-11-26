@@ -6,15 +6,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Map, Layers, Users, Activity, Upload } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Map, Layers, Users, Activity, Upload, Flame, Circle, Grid3x3 } from 'lucide-react'
 import { useDataStore } from '@/stores/data-store'
 import { useRouter } from 'next/navigation'
+
+type VisualizationMode = 'markers' | 'heatmap' | 'cluster' | 'circle'
+type AnalysisTab = 'new' | 'returning' | 'patients' | 'recurrence' | 'disease' | 'surgery'
 
 export default function MapPage() {
   const router = useRouter()
   const { mapData, isDataLoaded, rawData, totalPatients } = useDataStore()
   const [selectedLocation, setSelectedLocation] = useState<any>(null)
-  const [activeTab, setActiveTab] = useState<'new' | 'returning' | 'patients' | 'recurrence'>('patients')
+  const [activeTab, setActiveTab] = useState<AnalysisTab>('patients')
+  const [visualizationMode, setVisualizationMode] = useState<VisualizationMode>('markers')
+  const [selectedDisease, setSelectedDisease] = useState<string>('')
+  const [selectedSurgery, setSelectedSurgery] = useState<string>('')
 
   const handleLocationSelect = (h3Index: string, data: any) => {
     setSelectedLocation({ h3Index, data })
@@ -107,6 +114,86 @@ export default function MapPage() {
     })
   }, [isDataLoaded, mapData, patientTypeData])
 
+  // 질병별 분포 데이터 계산
+  const diseaseData = useMemo(() => {
+    if (!isDataLoaded || rawData.length === 0 || !selectedDisease) {
+      return []
+    }
+
+    // 선택된 질병의 지역별 집계
+    const regionCounts: Record<string, number> = {}
+    rawData.forEach(patient => {
+      if (patient.disease_name === selectedDisease && patient.region && patient.region !== '미분류') {
+        regionCounts[patient.region] = (regionCounts[patient.region] || 0) + 1
+      }
+    })
+
+    // mapData와 매핑
+    return mapData.map(m => ({
+      ...m,
+      value: regionCounts[m.region] || 0,
+    }))
+  }, [isDataLoaded, rawData, mapData, selectedDisease])
+
+  // 수술별 분포 데이터 계산
+  const surgeryData = useMemo(() => {
+    if (!isDataLoaded || rawData.length === 0 || !selectedSurgery) {
+      return []
+    }
+
+    // 선택된 수술의 지역별 집계
+    const regionCounts: Record<string, number> = {}
+    rawData.forEach(patient => {
+      if (patient.surgery_name === selectedSurgery && patient.region && patient.region !== '미분류') {
+        regionCounts[patient.region] = (regionCounts[patient.region] || 0) + 1
+      }
+    })
+
+    // mapData와 매핑
+    return mapData.map(m => ({
+      ...m,
+      value: regionCounts[m.region] || 0,
+    }))
+  }, [isDataLoaded, rawData, mapData, selectedSurgery])
+
+  // 질병 목록 추출 (Top 20)
+  const diseaseOptions = useMemo(() => {
+    if (!isDataLoaded || rawData.length === 0) {
+      return []
+    }
+
+    const diseaseCounts: Record<string, number> = {}
+    rawData.forEach(patient => {
+      if (patient.disease_name) {
+        diseaseCounts[patient.disease_name] = (diseaseCounts[patient.disease_name] || 0) + 1
+      }
+    })
+
+    return Object.entries(diseaseCounts)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 20)
+      .map(([name]) => name)
+  }, [isDataLoaded, rawData])
+
+  // 수술 목록 추출 (Top 20)
+  const surgeryOptions = useMemo(() => {
+    if (!isDataLoaded || rawData.length === 0) {
+      return []
+    }
+
+    const surgeryCounts: Record<string, number> = {}
+    rawData.forEach(patient => {
+      if (patient.surgery_name) {
+        surgeryCounts[patient.surgery_name] = (surgeryCounts[patient.surgery_name] || 0) + 1
+      }
+    })
+
+    return Object.entries(surgeryCounts)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 20)
+      .map(([name]) => name)
+  }, [isDataLoaded, rawData])
+
   // 각 탭에 맞는 데이터 생성
   const getDataForTab = () => {
     if (!isDataLoaded) {
@@ -120,6 +207,9 @@ export default function MapPage() {
           return SAMPLE_DATA
         case 'recurrence':
           return SAMPLE_DATA.map(d => ({ ...d, value: 45 }))
+        case 'disease':
+        case 'surgery':
+          return []
         default:
           return SAMPLE_DATA
       }
@@ -135,6 +225,10 @@ export default function MapPage() {
         return mapData
       case 'recurrence':
         return recurrenceData
+      case 'disease':
+        return diseaseData
+      case 'surgery':
+        return surgeryData
       default:
         return mapData
     }
@@ -159,7 +253,22 @@ export default function MapPage() {
     const max = data.length > 0 ? Math.max(...data.map(d => d.value)) : 0
 
     return { total, avg, max }
-  }, [activeTab, isDataLoaded, mapData, patientTypeData, recurrenceData])
+  }, [activeTab, isDataLoaded, mapData, patientTypeData, recurrenceData, diseaseData, surgeryData])
+
+  // Top 5 지역 리스트
+  const topRegions = useMemo(() => {
+    const data = getDataForTab()
+    if (data.length === 0) return []
+
+    return [...data]
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5)
+      .map((item: any, index) => ({
+        rank: index + 1,
+        region: item.region || '미분류',
+        value: item.value,
+      }))
+  }, [activeTab, isDataLoaded, mapData, patientTypeData, recurrenceData, diseaseData, surgeryData])
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-6">
@@ -189,8 +298,49 @@ export default function MapPage() {
         </div>
       </div>
 
+      {/* 시각화 모드 선택 */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium">시각화 모드:</span>
+          <div className="flex gap-2">
+            <Button
+              variant={visualizationMode === 'markers' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setVisualizationMode('markers')}
+            >
+              <Map className="h-4 w-4 mr-1" />
+              마커
+            </Button>
+            <Button
+              variant={visualizationMode === 'heatmap' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setVisualizationMode('heatmap')}
+            >
+              <Flame className="h-4 w-4 mr-1" />
+              히트맵
+            </Button>
+            <Button
+              variant={visualizationMode === 'cluster' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setVisualizationMode('cluster')}
+            >
+              <Grid3x3 className="h-4 w-4 mr-1" />
+              클러스터
+            </Button>
+            <Button
+              variant={visualizationMode === 'circle' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setVisualizationMode('circle')}
+            >
+              <Circle className="h-4 w-4 mr-1" />
+              원형
+            </Button>
+          </div>
+        </div>
+      </div>
+
       <Tabs value={activeTab} onValueChange={(v: any) => setActiveTab(v)} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 mb-6">
+        <TabsList className="grid w-full grid-cols-6 mb-6">
           <TabsTrigger value="new">
             <Users className="h-4 w-4 mr-2" />
             신환
@@ -207,6 +357,14 @@ export default function MapPage() {
             <Activity className="h-4 w-4 mr-2" />
             재방문율
           </TabsTrigger>
+          <TabsTrigger value="disease">
+            <Layers className="h-4 w-4 mr-2" />
+            질병별
+          </TabsTrigger>
+          <TabsTrigger value="surgery">
+            <Activity className="h-4 w-4 mr-2" />
+            수술별
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="new" className="mt-6">
@@ -221,7 +379,7 @@ export default function MapPage() {
                   center={[37.5665, 126.9780]}
                   zoom={11}
                   data={getDataForTab()}
-                  mode="markers"
+                  mode={visualizationMode}
                   onLocationSelect={handleLocationSelect}
                 />
               </CardContent>
@@ -246,6 +404,23 @@ export default function MapPage() {
                     <p className="text-sm font-medium">최대 신환수</p>
                     <p className="text-2xl font-bold">{stats.max.toLocaleString()}명</p>
                   </div>
+                  
+                  {/* Top 5 지역 리스트 */}
+                  {topRegions.length > 0 && (
+                    <div className="pt-4 border-t">
+                      <p className="text-sm font-medium mb-2">Top 5 지역</p>
+                      <div className="space-y-2">
+                        {topRegions.map((item) => (
+                          <div key={item.region} className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">
+                              {item.rank}. {item.region}
+                            </span>
+                            <span className="font-medium">{item.value.toLocaleString()}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -264,7 +439,7 @@ export default function MapPage() {
                   center={[37.5665, 126.9780]}
                   zoom={11}
                   data={getDataForTab()}
-                  mode="markers"
+                  mode={visualizationMode}
                   onLocationSelect={handleLocationSelect}
                 />
               </CardContent>
@@ -307,7 +482,7 @@ export default function MapPage() {
                   center={[37.5665, 126.9780]}
                   zoom={11}
                   data={getDataForTab()}
-                  mode="markers"
+                  mode={visualizationMode}
                   onLocationSelect={handleLocationSelect}
                 />
               </CardContent>
@@ -350,7 +525,7 @@ export default function MapPage() {
                   center={[37.5665, 126.9780]}
                   zoom={11}
                   data={getDataForTab()}
-                  mode="markers"
+                  mode={visualizationMode}
                   onLocationSelect={handleLocationSelect}
                 />
               </CardContent>
@@ -376,6 +551,198 @@ export default function MapPage() {
                     <p className="text-2xl font-bold">{getDataForTab().length}개</p>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="disease" className="mt-6">
+          <div className="grid grid-cols-12 gap-4">
+            <Card className="col-span-12 lg:col-span-9">
+              <CardHeader>
+                <CardTitle>질병별 분포</CardTitle>
+                <CardDescription>선택한 질병의 지역별 분포</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {isDataLoaded && diseaseOptions.length > 0 ? (
+                  <>
+                    <Select value={selectedDisease} onValueChange={setSelectedDisease}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="질병을 선택하세요" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {diseaseOptions.map((disease) => (
+                          <SelectItem key={disease} value={disease}>
+                            {disease}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {selectedDisease && diseaseData.length > 0 ? (
+                      <LeafletMap
+                        center={[37.5665, 126.9780]}
+                        zoom={11}
+                        data={diseaseData}
+                        mode={visualizationMode}
+                        onLocationSelect={handleLocationSelect}
+                      />
+                    ) : (
+                      <div className="h-[500px] flex items-center justify-center text-muted-foreground">
+                        {selectedDisease ? '해당 질병의 데이터가 없습니다' : '위에서 질병을 선택하세요'}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="h-[500px] flex items-center justify-center text-muted-foreground">
+                    데이터를 업로드하세요
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="col-span-12 lg:col-span-3">
+              <CardHeader>
+                <CardTitle>통계</CardTitle>
+                <CardDescription>질병별 통계</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {selectedDisease ? (
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-sm font-medium">선택 질병</p>
+                      <p className="text-lg font-bold">{selectedDisease}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">총 환자수</p>
+                      <p className="text-2xl font-bold">{stats.total.toLocaleString()}명</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">평균 환자수/지역</p>
+                      <p className="text-2xl font-bold">{stats.avg.toLocaleString()}명</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">최대 환자수</p>
+                      <p className="text-2xl font-bold">{stats.max.toLocaleString()}명</p>
+                    </div>
+                    
+                    {/* Top 5 지역 리스트 */}
+                    {topRegions.length > 0 && (
+                      <div className="pt-4 border-t">
+                        <p className="text-sm font-medium mb-2">Top 5 지역</p>
+                        <div className="space-y-2">
+                          {topRegions.map((item) => (
+                            <div key={item.region} className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">
+                                {item.rank}. {item.region}
+                              </span>
+                              <span className="font-medium">{item.value.toLocaleString()}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground">
+                    질병을 선택하면 통계가 표시됩니다
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="surgery" className="mt-6">
+          <div className="grid grid-cols-12 gap-4">
+            <Card className="col-span-12 lg:col-span-9">
+              <CardHeader>
+                <CardTitle>수술별 분포</CardTitle>
+                <CardDescription>선택한 수술의 지역별 분포</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {isDataLoaded && surgeryOptions.length > 0 ? (
+                  <>
+                    <Select value={selectedSurgery} onValueChange={setSelectedSurgery}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="수술을 선택하세요" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {surgeryOptions.map((surgery) => (
+                          <SelectItem key={surgery} value={surgery}>
+                            {surgery}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {selectedSurgery && surgeryData.length > 0 ? (
+                      <LeafletMap
+                        center={[37.5665, 126.9780]}
+                        zoom={11}
+                        data={surgeryData}
+                        mode={visualizationMode}
+                        onLocationSelect={handleLocationSelect}
+                      />
+                    ) : (
+                      <div className="h-[500px] flex items-center justify-center text-muted-foreground">
+                        {selectedSurgery ? '해당 수술의 데이터가 없습니다' : '위에서 수술을 선택하세요'}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="h-[500px] flex items-center justify-center text-muted-foreground">
+                    데이터를 업로드하세요
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="col-span-12 lg:col-span-3">
+              <CardHeader>
+                <CardTitle>통계</CardTitle>
+                <CardDescription>수술별 통계</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {selectedSurgery ? (
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-sm font-medium">선택 수술</p>
+                      <p className="text-lg font-bold">{selectedSurgery}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">총 수술 건수</p>
+                      <p className="text-2xl font-bold">{stats.total.toLocaleString()}건</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">평균 수술/지역</p>
+                      <p className="text-2xl font-bold">{stats.avg.toLocaleString()}건</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">최대 수술 건수</p>
+                      <p className="text-2xl font-bold">{stats.max.toLocaleString()}건</p>
+                    </div>
+                    
+                    {/* Top 5 지역 리스트 */}
+                    {topRegions.length > 0 && (
+                      <div className="pt-4 border-t">
+                        <p className="text-sm font-medium mb-2">Top 5 지역</p>
+                        <div className="space-y-2">
+                          {topRegions.map((item) => (
+                            <div key={item.region} className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">
+                                {item.rank}. {item.region}
+                              </span>
+                              <span className="font-medium">{item.value.toLocaleString()}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground">
+                    수술을 선택하면 통계가 표시됩니다
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

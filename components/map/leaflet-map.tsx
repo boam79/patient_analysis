@@ -9,8 +9,10 @@ interface LeafletMapProps {
     latitude: number
     longitude: number
     value: number
+    region?: string
+    h3Index?: string
   }[]
-  mode?: 'heatmap' | 'markers'
+  mode?: 'heatmap' | 'markers' | 'cluster' | 'circle'
   onLocationSelect?: (h3Index: string, data: any) => void
 }
 
@@ -25,6 +27,8 @@ export function LeafletMap({
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const heatLayerRef = useRef<any>(null)
   const markerLayerRef = useRef<any>(null)
+  const clusterLayerRef = useRef<any>(null)
+  const circleLayerRef = useRef<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [leafletLoaded, setLeafletLoaded] = useState(false)
 
@@ -102,6 +106,14 @@ export function LeafletMap({
       map.removeLayer(markerLayerRef.current)
       markerLayerRef.current = null
     }
+    if (clusterLayerRef.current) {
+      map.removeLayer(clusterLayerRef.current)
+      clusterLayerRef.current = null
+    }
+    if (circleLayerRef.current) {
+      map.removeLayer(circleLayerRef.current)
+      circleLayerRef.current = null
+    }
 
     import('leaflet').then((L) => {
       if (!mapRef.current) return
@@ -159,6 +171,85 @@ export function LeafletMap({
 
         markerLayer.addTo(map)
         markerLayerRef.current = markerLayer
+      } else if (mode === 'cluster') {
+        // 클러스터 모드
+        import('leaflet.markercluster').then((MarkerClusterGroup) => {
+          if (!mapRef.current) return
+
+          // MarkerClusterGroup CSS 동적 로드
+          if (!document.getElementById('leaflet-markercluster-css')) {
+            const link = document.createElement('link')
+            link.id = 'leaflet-markercluster-css'
+            link.rel = 'stylesheet'
+            link.href = 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css'
+            document.head.appendChild(link)
+          }
+
+          const markers = new MarkerClusterGroup.default({
+            chunkedLoading: true,
+            animateAddingMarkers: true,
+            singleMarkerMode: false,
+            showCoverageOnHover: true,
+            zoomToBoundsOnClick: true,
+          })
+
+          data.forEach((point) => {
+            const marker = L.default.marker([point.latitude, point.longitude])
+            
+            const popupContent = point.region 
+              ? `<div><strong>${point.region}</strong><br/>값: ${point.value}</div>`
+              : `<div><strong>값: ${point.value}</strong></div>`
+            
+            marker.bindPopup(popupContent)
+
+            marker.on('click', () => {
+              if (onLocationSelect) {
+                onLocationSelect(point.h3Index || 'temp_h3_index', point)
+              }
+            })
+
+            markers.addLayer(marker)
+          })
+
+          markers.addTo(map)
+          clusterLayerRef.current = markers
+        }).catch(err => {
+          console.error('Leaflet.markercluster 로드 실패:', err)
+        })
+      } else if (mode === 'circle') {
+        // 원형 마커 모드 (크기로 값 표현)
+        const circleLayer = L.default.layerGroup()
+
+        data.forEach((point) => {
+          // 값에 따라 반지름 계산 (최소 5px, 최대 50px)
+          const maxValue = Math.max(...data.map(d => d.value), 1)
+          const radius = Math.max(5, Math.min(50, (point.value / maxValue) * 50))
+
+          const circle = L.default.circleMarker([point.latitude, point.longitude], {
+            radius,
+            fillColor: '#3b82f6',
+            color: '#1e40af',
+            weight: 2,
+            fillOpacity: 0.6,
+          })
+
+          const popupContent = point.region 
+            ? `<div><strong>${point.region}</strong><br/>값: ${point.value}</div>`
+            : `<div><strong>값: ${point.value}</strong></div>`
+          
+          circle.bindPopup(popupContent)
+
+          circle.on('click', () => {
+            if (onLocationSelect) {
+              onLocationSelect(point.h3Index || 'temp_h3_index', point)
+            }
+          })
+
+          circle.addTo(circleLayer)
+        })
+
+        circleLayer.addTo(map)
+        circleLayerRef.current = circleLayer
       }
     }).catch(err => {
       console.error('Leaflet 로드 실패:', err)
