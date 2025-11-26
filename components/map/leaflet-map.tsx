@@ -97,10 +97,14 @@ export function LeafletMap({
 
   // 데이터 렌더링 (히트맵 또는 마커)
   useEffect(() => {
-    if (!leafletLoaded || !mapRef.current) return
+    if (!leafletLoaded || !mapRef.current) {
+      console.log('지도 렌더링 대기:', { leafletLoaded, hasMap: !!mapRef.current })
+      return
+    }
 
     // 데이터가 비어있으면 기존 레이어만 제거
     if (!data || data.length === 0) {
+      console.log('데이터가 비어있어 레이어 제거')
       const map = mapRef.current
       if (heatLayerRef.current) {
         map.removeLayer(heatLayerRef.current)
@@ -120,6 +124,8 @@ export function LeafletMap({
       }
       return
     }
+    
+    console.log('지도 데이터 렌더링 시작:', { mode, dataLength: data.length })
 
     const map = mapRef.current
 
@@ -153,9 +159,14 @@ export function LeafletMap({
     )
 
     if (validData.length === 0) {
-      console.warn('유효한 데이터가 없습니다.')
+      console.warn('유효한 데이터가 없습니다.', { 
+        originalLength: data.length,
+        filtered: data.filter(p => p.latitude == null || p.longitude == null).length
+      })
       return
     }
+    
+    console.log('유효한 데이터:', { validDataLength: validData.length, mode })
 
     if (mode === 'heatmap') {
       // 히트맵 모드: leaflet.heat 플러그인 동적 로드

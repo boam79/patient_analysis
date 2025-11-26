@@ -369,8 +369,26 @@ export default function MapPage() {
 
   // 연령대별 분포 데이터 계산
   const ageGroupData = useMemo(() => {
-    if (!isDataLoaded || filteredRawData.length === 0 || !selectedAgeGroup) {
+    if (!isDataLoaded || filteredRawData.length === 0) {
       return []
+    }
+    
+    // 선택된 연령대가 없으면 전체 데이터 표시
+    if (!selectedAgeGroup) {
+      // 전체 연령대의 지역별 집계
+      const regionCounts: Record<string, number> = {}
+      filteredRawData.forEach(patient => {
+        if (patient.region && patient.region !== '미분류') {
+          regionCounts[patient.region] = (regionCounts[patient.region] || 0) + 1
+        }
+      })
+      
+      return mapData
+        .filter(m => m.latitude != null && m.longitude != null)
+        .map(m => ({
+          ...m,
+          value: regionCounts[m.region] || 0,
+        }))
     }
 
     // 선택된 연령대의 지역별 집계 (필터 적용된 데이터 사용)
@@ -1098,7 +1116,7 @@ export default function MapPage() {
                         </SelectContent>
                       </Select>
                     </div>
-                    {selectedAgeGroup && ageGroupData.length > 0 ? (
+                    {ageGroupData.length > 0 ? (
                       <LeafletMap
                         center={[37.5665, 126.9780]}
                         zoom={11}
@@ -1108,7 +1126,7 @@ export default function MapPage() {
                       />
                     ) : (
                       <div className="h-[500px] flex items-center justify-center text-muted-foreground">
-                        {selectedAgeGroup ? '해당 연령대의 데이터가 없습니다' : '위에서 연령대를 선택하세요'}
+                        데이터가 없습니다
                       </div>
                     )}
                   </>
@@ -1126,47 +1144,43 @@ export default function MapPage() {
                 <CardDescription>연령대별 통계</CardDescription>
               </CardHeader>
               <CardContent>
-                {selectedAgeGroup ? (
-                  <div className="space-y-4">
+                <div className="space-y-4">
+                  {selectedAgeGroup && (
                     <div>
                       <p className="text-sm font-medium">선택 연령대</p>
                       <p className="text-lg font-bold">{selectedAgeGroup}</p>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium">총 환자수</p>
-                      <p className="text-2xl font-bold">{stats.total.toLocaleString()}명</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">평균 환자수/지역</p>
-                      <p className="text-2xl font-bold">{stats.avg.toLocaleString()}명</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">최대 환자수</p>
-                      <p className="text-2xl font-bold">{stats.max.toLocaleString()}명</p>
-                    </div>
-                    
-                    {/* Top 5 지역 리스트 */}
-                    {topRegions.length > 0 && (
-                      <div className="pt-4 border-t">
-                        <p className="text-sm font-medium mb-2">Top 5 지역</p>
-                        <div className="space-y-2">
-                          {topRegions.map((item) => (
-                            <div key={item.region} className="flex items-center justify-between text-sm">
-                              <span className="text-muted-foreground">
-                                {item.rank}. {item.region}
-                              </span>
-                              <span className="font-medium">{item.value.toLocaleString()}</span>
-                            </div>
-                          ))}
-                        </div>
+                  )}
+                  <div>
+                    <p className="text-sm font-medium">총 환자수</p>
+                    <p className="text-2xl font-bold">{stats.total.toLocaleString()}명</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">평균 환자수/지역</p>
+                    <p className="text-2xl font-bold">{stats.avg.toLocaleString()}명</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">최대 환자수</p>
+                    <p className="text-2xl font-bold">{stats.max.toLocaleString()}명</p>
+                  </div>
+                  
+                  {/* Top 5 지역 리스트 */}
+                  {topRegions.length > 0 && (
+                    <div className="pt-4 border-t">
+                      <p className="text-sm font-medium mb-2">Top 5 지역</p>
+                      <div className="space-y-2">
+                        {topRegions.map((item) => (
+                          <div key={item.region} className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">
+                              {item.rank}. {item.region}
+                            </span>
+                            <span className="font-medium">{item.value.toLocaleString()}</span>
+                          </div>
+                        ))}
                       </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-sm text-muted-foreground">
-                    연령대를 선택하면 통계가 표시됩니다
-                  </div>
-                )}
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>
