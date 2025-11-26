@@ -332,7 +332,7 @@ export function LeafletMap({
       <div
         ref={mapContainerRef}
         className="w-full h-full rounded-lg"
-        style={{ minHeight: '500px' }}
+        style={{ minHeight: '500px', zIndex: 0 }}
       />
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-background/80">

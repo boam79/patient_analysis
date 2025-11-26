@@ -104,7 +104,7 @@ export default function MapPage() {
 
   // 선택된 지역의 상세 통계 계산
   const locationDetails = useMemo(() => {
-    if (!selectedLocation || !isDataLoaded || rawData.length === 0) {
+    if (!selectedLocation || !isDataLoaded || filteredRawData.length === 0) {
       return null
     }
 
@@ -238,16 +238,20 @@ export default function MapPage() {
       }
     })
 
-    // 지도 데이터와 매핑
-    const newPatients = mapData.map(m => ({
-      ...m,
-      value: regionNewPatients[m.region]?.size || 0,
-    }))
+    // 지도 데이터와 매핑 (좌표가 있는 데이터만)
+    const newPatients = mapData
+      .filter(m => m.latitude != null && m.longitude != null)
+      .map(m => ({
+        ...m,
+        value: regionNewPatients[m.region]?.size || 0,
+      }))
 
-    const returningPatients = mapData.map(m => ({
-      ...m,
-      value: regionReturningPatients[m.region]?.size || 0,
-    }))
+    const returningPatients = mapData
+      .filter(m => m.latitude != null && m.longitude != null)
+      .map(m => ({
+        ...m,
+        value: regionReturningPatients[m.region]?.size || 0,
+      }))
 
     return { newPatients, returningPatients }
   }, [isDataLoaded, filteredRawData, mapData])
@@ -255,30 +259,33 @@ export default function MapPage() {
   // 재방문율 계산 (지역별)
   const recurrenceData = useMemo(() => {
     if (!isDataLoaded || mapData.length === 0) {
-      return SAMPLE_DATA.map(d => ({ ...d, value: d.value * 0.45 }))
+      return SAMPLE_DATA.map(d => ({ ...d, value: d.value * 0.45, region: '샘플' }))
     }
 
-    return mapData.map(m => {
-      // 타입 안전성을 위해 region 체크
-      const region = m.region || ''
-      if (!region) {
-        return { ...m, value: 0 }
-      }
-      
-      const newCount = patientTypeData.newPatients.find((p: any) => p.region === region)?.value || 0
-      const returningCount = patientTypeData.returningPatients.find((p: any) => p.region === region)?.value || 0
-      const total = newCount + returningCount
-      
-      return {
-        ...m,
-        value: total > 0 ? (returningCount / total) * 100 : 0, // 지역별 재방문율 %
-      }
-    })
+    // 좌표가 있는 데이터만 필터링
+    return mapData
+      .filter(m => m.latitude != null && m.longitude != null)
+      .map(m => {
+        // 타입 안전성을 위해 region 체크
+        const region = m.region || ''
+        if (!region) {
+          return { ...m, value: 0 }
+        }
+        
+        const newCount = patientTypeData.newPatients.find((p: any) => p.region === region)?.value || 0
+        const returningCount = patientTypeData.returningPatients.find((p: any) => p.region === region)?.value || 0
+        const total = newCount + returningCount
+        
+        return {
+          ...m,
+          value: total > 0 ? (returningCount / total) * 100 : 0, // 지역별 재방문율 %
+        }
+      })
   }, [isDataLoaded, mapData, patientTypeData])
 
   // 질병별 분포 데이터 계산
   const diseaseData = useMemo(() => {
-    if (!isDataLoaded || rawData.length === 0 || !selectedDisease) {
+    if (!isDataLoaded || filteredRawData.length === 0 || !selectedDisease) {
       return []
     }
 
@@ -301,7 +308,7 @@ export default function MapPage() {
 
   // 수술별 분포 데이터 계산
   const surgeryData = useMemo(() => {
-    if (!isDataLoaded || rawData.length === 0 || !selectedSurgery) {
+    if (!isDataLoaded || filteredRawData.length === 0 || !selectedSurgery) {
       return []
     }
 
@@ -324,7 +331,7 @@ export default function MapPage() {
 
   // 질병 목록 추출 (Top 20)
   const diseaseOptions = useMemo(() => {
-    if (!isDataLoaded || rawData.length === 0) {
+    if (!isDataLoaded || filteredRawData.length === 0) {
       return []
     }
 
@@ -362,7 +369,7 @@ export default function MapPage() {
 
   // 연령대별 분포 데이터 계산
   const ageGroupData = useMemo(() => {
-    if (!isDataLoaded || rawData.length === 0 || !selectedAgeGroup) {
+    if (!isDataLoaded || filteredRawData.length === 0 || !selectedAgeGroup) {
       return []
     }
 
@@ -397,7 +404,7 @@ export default function MapPage() {
 
   // 성별 분포 데이터 계산
   const genderData = useMemo(() => {
-    if (!isDataLoaded || rawData.length === 0) {
+    if (!isDataLoaded || filteredRawData.length === 0) {
       return []
     }
 
@@ -866,18 +873,20 @@ export default function MapPage() {
               <CardContent className="space-y-4">
                 {isDataLoaded && diseaseOptions.length > 0 ? (
                   <>
-                    <Select value={selectedDisease} onValueChange={setSelectedDisease}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="질병을 선택하세요" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {diseaseOptions.map((disease) => (
-                          <SelectItem key={disease} value={disease}>
-                            {disease}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="relative z-[10000]">
+                      <Select value={selectedDisease} onValueChange={setSelectedDisease}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="질병을 선택하세요" />
+                        </SelectTrigger>
+                        <SelectContent className="z-[10000]">
+                          {diseaseOptions.map((disease) => (
+                            <SelectItem key={disease} value={disease}>
+                              {disease}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     {selectedDisease && diseaseData.length > 0 ? (
                       <LeafletMap
                         center={[37.5665, 126.9780]}
@@ -962,18 +971,20 @@ export default function MapPage() {
               <CardContent className="space-y-4">
                 {isDataLoaded && surgeryOptions.length > 0 ? (
                   <>
-                    <Select value={selectedSurgery} onValueChange={setSelectedSurgery}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="수술을 선택하세요" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {surgeryOptions.map((surgery) => (
-                          <SelectItem key={surgery} value={surgery}>
-                            {surgery}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="relative z-[10000]">
+                      <Select value={selectedSurgery} onValueChange={setSelectedSurgery}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="수술을 선택하세요" />
+                        </SelectTrigger>
+                        <SelectContent className="z-[10000]">
+                          {surgeryOptions.map((surgery) => (
+                            <SelectItem key={surgery} value={surgery}>
+                              {surgery}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     {selectedSurgery && surgeryData.length > 0 ? (
                       <LeafletMap
                         center={[37.5665, 126.9780]}
@@ -1058,18 +1069,20 @@ export default function MapPage() {
               <CardContent className="space-y-4">
                 {isDataLoaded && ageGroupOptions.length > 0 ? (
                   <>
-                    <Select value={selectedAgeGroup} onValueChange={setSelectedAgeGroup}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="연령대를 선택하세요" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ageGroupOptions.map((ageGroup) => (
-                          <SelectItem key={ageGroup} value={ageGroup}>
-                            {ageGroup}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="relative z-[10000]">
+                      <Select value={selectedAgeGroup} onValueChange={setSelectedAgeGroup}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="연령대를 선택하세요" />
+                        </SelectTrigger>
+                        <SelectContent className="z-[10000]">
+                          {ageGroupOptions.map((ageGroup) => (
+                            <SelectItem key={ageGroup} value={ageGroup}>
+                              {ageGroup}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     {selectedAgeGroup && ageGroupData.length > 0 ? (
                       <LeafletMap
                         center={[37.5665, 126.9780]}
