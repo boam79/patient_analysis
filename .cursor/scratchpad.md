@@ -524,8 +524,86 @@
 
 ---
 
-**최종 업데이트**: 2024-11-25 (지도 분석 Phase 1 완료)
-**프로젝트 상태**: ✅ 지도 분석 고도화 Phase 1 완료
+**최종 업데이트**: 2024-12-XX (인증/관리자 시스템 제안)
+**프로젝트 상태**: ✅ 지도 분석 고도화 Phase 1 완료 | 📋 인증/관리자 시스템 제안 완료
+
+---
+
+## 🔐 인증/인가 시스템 및 관리자 페이지 구현 (2024-12-XX)
+
+### 배경 및 동기
+
+**사용자 요구사항**:
+1. 회원 가입 또는 승인된 사용자만 접근 가능
+   - 자동 회원 가입은 가능하지만, 관리자 승인 후에만 대시보드 사용 가능
+   - 또는 관리자가 직접 사용자를 생성하고 초대
+
+2. 제작자 전용 관리자 페이지
+   - 사용자 관리 (생성, 수정, 삭제, 승인)
+   - 권한 관리 (역할 부여, 권한 할당)
+   - 시스템 설정
+   - 감사 로그 조회
+   - 데이터 업로드 이력 관리
+
+**현재 상태**:
+- ✅ Next-Auth v5 설치됨 (임시 비활성화)
+- ✅ Prisma 스키마에 User, Account, Session, Permission, UserRole 정의됨
+- ✅ RBAC 시스템 설계 완료 (ADMIN, ANALYST, VIEWER, USER)
+- ✅ `lib/rbac.ts` 권한 체크 함수 구현됨
+- ✅ `auth.config.ts` 기본 설정 파일 존재
+- ⚠️ 실제 인증 로직 미구현 (임시 비활성화 상태)
+
+**제안서 문서**: `/docs/AUTH_ADMIN_PROPOSAL.md` (Supabase 기반으로 업데이트됨)
+
+### 고수준 작업 분해
+
+#### Phase 0: Supabase 프로젝트 설정 (필수) - 1일
+- [ ] Task 0.1: Supabase 프로젝트 생성 및 설정
+- [ ] Task 0.2: Supabase 클라이언트 설치 및 설정
+
+#### Phase 1: 데이터베이스 스키마 설계 및 생성 (필수) - 2일
+- [ ] Task 1.1: Supabase Database 스키마 설계
+- [ ] Task 1.2: Supabase Database에 테이블 생성
+- [ ] Task 1.3: 초기 데이터 시드
+
+#### Phase 2: 인증 시스템 구현 (필수) - 1주
+- [ ] Task 2.1: 회원 가입 페이지 (Supabase Auth)
+- [ ] Task 2.2: 로그인 페이지 (Supabase Auth)
+- [ ] Task 2.3: Middleware 보호 강화 (승인된 사용자만 접근)
+- [ ] Task 2.4: 로그아웃 기능
+
+#### Phase 3: 관리자 페이지 구현 (핵심) - 2주
+- [ ] Task 2.1: 관리자 레이아웃 생성
+- [ ] Task 2.2: 사용자 관리 페이지 (목록, 승인, 수정, 삭제)
+- [ ] Task 2.3: 권한 관리 페이지 (역할별 권한, 사용자별 권한)
+- [ ] Task 2.4: 시스템 설정 페이지 (일반/보안/데이터 설정)
+- [ ] Task 2.5: 감사 로그 페이지 (활동 기록 조회)
+
+#### Phase 4: 감사 로깅 통합 (권장) - 1주
+- [ ] Task 4.1: Audit Log Helper 함수 (모든 중요 액션 로깅)
+
+#### Phase 5: UI/UX 개선 (선택사항) - 1주
+- [ ] Task 5.1: 승인 대기 페이지
+- [ ] Task 5.2: 프로필 페이지
+- [ ] Task 5.3: 관리자 대시보드 홈
+
+### 주요 기술 스택
+- **인증**: Supabase Auth
+- **비밀번호 암호화**: Supabase 자동 처리 (bcrypt 내장)
+- **권한 관리**: RBAC (Role-Based Access Control)
+- **데이터베이스**: Supabase (PostgreSQL)
+- **유효성 검사**: Zod
+- **보안**: RLS (Row Level Security)
+
+### 보안 고려사항
+- ✅ 비밀번호 bcrypt 해시 저장
+- ✅ HttpOnly, Secure 쿠키
+- ✅ Middleware + Server Actions 이중 권한 체크
+- ✅ Prisma ORM으로 SQL Injection 방지
+- ✅ CSRF 보호 (Next-Auth 기본)
+
+### 다음 단계
+사용자 승인 후 Executor 모드로 Phase 1부터 순차 구현
 
 ---
 

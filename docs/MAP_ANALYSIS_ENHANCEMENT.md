@@ -287,15 +287,133 @@ components/map/
 
 ## 🚀 다음 단계
 
-1. **사용자 피드백 수집**: 어떤 기능이 가장 필요한지 확인
-2. **프로토타입 제작**: Phase 1 기능부터 구현
-3. **성능 테스트**: 대용량 데이터 처리 검증
-4. **점진적 배포**: 기능별로 단계적 출시
+1. **사용자 피드백 수집**: 어떤 기능이 가장 필요한지 확인  
+2. **프로토타입 제작**: Phase 1 기능부터 구현  
+3. **성능 테스트**: 대용량 데이터 처리 검증  
+4. **점진적 배포**: 기능별로 단계적 출시  
+
+---
+
+## 📦 전년/전월 비교 분석을 위한 DB 설계 메모
+
+지도·차트 분석을 “한 번 업로드해서 보는” 수준이 아니라, **전년/전월 비교·장기 추세 분석까지 확장**하기 위해서는 업로드 데이터를 DB에 누적 저장해야 한다.  
+이 섹션은 그를 위한 **최소 스키마와 업로드 파이프라인 설계**를 정리한 문서이다.
+
+> 개인정보 보호를 위해 **CSV에는 이름을 제외**하는 것을 전제로 한다.
+
+### 1. 전체 구조 개요
+
+- `upload_batches` : 업로드 배치(파일) 단위 메타데이터
+- `patients` : *익명화된* 환자 단위 식별 정보
+- `visits` : 환자 방문(내원) 기록 – **모든 분석의 중심**
+
+이 3개 테이블만으로:
+- 전년/전월 비교
+- 질병/수술/지역별 통계
+- 재방문률·리텐션 분석
+- 지도(지역/H3) 기반 공간 분석  
+을 모두 커버할 수 있다.
+
+### 2. CSV 컬럼 기본 가정 (이름 제외)
+
+CSV에 최소 다음과 같은 컬럼을 가진다고 가정한다:
+
+- `visit_date` : 방문일
+- `birth_year` 또는 `age` : 출생 연도 또는 나이
+- `gender` : 성별 (예: 'M','F' 또는 '남성','여성')
+- `address` 또는 `region` : 주소/지역(구 단위 정도)
+- `disease_name` : 진단명
+- `surgery_name` : 수술명(없을 수 있음)
+
+> **이름은 CSV에 포함하지 않는다.**  
+> 환자 식별은 CSV에서 만들어낸 익명 키(`patient_key`)로 대체한다.
+
+### 3. 테이블 설계
+
+#### 3.1 `upload_batches` – 업로드 배치 메타
+
+- **목적**:  
+  - “이 데이터는 2025년 3월 진료분” 같은 스냅샷 구분  
+  - 나중에 특정 배치를 롤백/재적재 가능하게 하기 위함
+
+- **필드 예시**  
+  - `id` (PK, uuid or bigint)  
+  - `uploaded_at` (timestamp) – 업로드 시각  
+  - `source_filename` (text) – 원본 파일명  
+  - `note` (text, nullable) – 메모(예: `2025-03 월간 진료 데이터`)  
+  - `record_count` (int) – 이 배치에서 적재한 `visits` 행 수  
+
+#### 3.2 `patients` – 익명 환자 마스터
+
+- **핵심 아이디어**:  
+  - 이름 없이도 `출생연도 + 성별 + 지역 + 내부 일련번호` 등으로 **익명 환자 키**를 만들 수 있다.  
+  - 현재 코드에서 사용하는 `name|address` 조합 대신, CSV에 없는 이름은 제외하고 다음과 같이 구성:
+
+- **patient_key 생성 예시 (CSV 기준)**  
+  - 업로드 시점에 다음 필드를 사용해 문자열 생성:  
+    - `birth_year` (또는 age에서 역산)  
+    - `gender`  
+    - `region`  
+  - 예: `patient_key_raw = \`\${birth_year}|\\${gender}|\\${region}\``  
+  - 필요하면 여기에 **행 번호나 해시**를 붙여 충돌을 줄인다:  
+    - `patient_key = SHA256(patient_key_raw + row_index)`
+
+- **필드 예시**  
+  - `id` (PK)  
+  - `patient_key` (text, unique) – 위에서 생성한 익명 키  
+  - `birth_year` (int, nullable)  
+  - `gender` (text or enum: 'M','F','U')  
+  - `region` (text, nullable) – 대표 지역(구/시 단위)  
+  - `created_at` (timestamp, default now)  
+
+> 실제 이름, 상세 주소 등 식별 가능한 정보는 저장하지 않는다.  
+> 분석에 필요한 최소 정보만 보존한다.
+
+#### 3.3 `visits` – 방문(내원) 팩트 테이블
+
+모든 분석이 이 테이블을 기준으로 이뤄진다.
+
+- **필드 예시**  
+  - `id` (PK)  
+  - `patient_id` (FK → `patients.id`)  
+  - `upload_batch_id` (FK → `upload_batches.id`)  
+  - `visit_date` (date or timestamp)  
+  - `disease_name` (text)  
+  - `surgery_name` (text, nullable)  
+  - `age` (int, nullable) – 업로드 시점 나이  
+  - `gender` (text) – 당시 데이터 그대로  
+  - `region` (text) – 방문 지역 (지도/차트에서 사용)  
+  - `h3_index` (text, nullable) – 공간 분석용 인덱스가 있다면 저장  
+  - `created_at` (timestamp, default now)  
+
+> 추후 필요 시 `is_first_visit` 같은 파생 컬럼은 ETL 시점에 계산해 채울 수 있다.
+
+### 4. 업로드 → DB 적재 플로우
+
+1. **CSV 업로드 및 파싱 (현재 프론트 로직 그대로)**  
+2. **`upload_batches`에 새 배치 레코드 생성**  
+   - API: `POST /api/upload-batch` → `batch_id` 반환  
+3. **행 단위로 `patient_key` 생성 & `patients` upsert**  
+   - `INSERT ... ON CONFLICT (patient_key) DO UPDATE ...`  
+   - 그 결과의 `id`를 `patient_id`로 사용  
+4. **`visits`에 방문 기록 insert**  
+   - 각 CSV 행마다 `patient_id`, `upload_batch_id` 포함  
+5. **차트/지도는 DB에서 SELECT**  
+   - 기존 `useDataStore` 초기화 로직을 “DB 조회 → Zustand에 주입” 방식으로 변경  
+
+### 5. 전년/전월 비교 예시 쿼리
+
+- **전월 대비 총 환자 수**  
+  - `SELECT DATE_TRUNC('month', visit_date) AS month, COUNT(*) FROM visits GROUP BY month`
+- **전년 동월 대비 특정 질병 환자 수**  
+  - `WHERE disease_name = '무릎관절증' AND visit_date BETWEEN '2025-03-01' AND '2025-03-31'`  
+  - vs `2024-03-01 ~ 2024-03-31` 집계 비교
+
+이 구조를 도입하면, 현재 구현된 모든 지도/차트 분석에 더해 **전년·전월 비교와 장기 추세 분석**을 자연스럽게 확장할 수 있다.
 
 ---
 
 **작성일**: 2024-11-25  
 **작성자**: Executor  
-**상태**: 제안 단계
-
+**상태**: 제안 + 설계 메모 반영 완료
 
