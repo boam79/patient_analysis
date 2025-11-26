@@ -236,6 +236,9 @@ export function LeafletMap({
     })
     clearAllLayers()
     console.log('기존 레이어 제거 완료')
+    
+    // 레이어 제거 후 충분한 지연 시간 확보 (Leaflet 내부 정리 시간)
+    // 이 지연은 플러그인이 이미 로드된 경우에도 적용되어 레이어 재생성 보장
 
     // 유효한 데이터만 필터링 (좌표가 있는 경우만)
     const validData = data.filter(
@@ -308,16 +311,24 @@ export function LeafletMap({
             return
           }
 
-          // 기존 히트맵 레이어가 있으면 제거
+          // 기존 히트맵 레이어가 있으면 제거 (이중 체크)
           if (heatLayerRef.current) {
-            console.log('기존 히트맵 레이어 제거 시작')
+            console.log('기존 히트맵 레이어 제거 시작 (createHeatLayer 내부)')
             try {
-              mapRef.current.removeLayer(heatLayerRef.current)
-              console.log('기존 히트맵 레이어 제거 성공')
+              // 지도에서 레이어 제거
+              if (mapRef.current && mapRef.current.hasLayer && mapRef.current.hasLayer(heatLayerRef.current)) {
+                mapRef.current.removeLayer(heatLayerRef.current)
+                console.log('기존 히트맵 레이어 지도에서 제거 성공')
+              } else {
+                console.log('기존 히트맵 레이어가 이미 지도에서 제거됨')
+              }
             } catch (e) {
               console.error('기존 히트맵 제거 중 오류:', e)
             }
             heatLayerRef.current = null
+            console.log('히트맵 레이어 ref 초기화 완료')
+          } else {
+            console.log('기존 히트맵 레이어 없음 (정상)')
           }
 
           // 데이터 유효성 확인
@@ -424,24 +435,45 @@ export function LeafletMap({
         })
 
         if (isHeatPluginLoaded) {
-          // 플러그인이 이미 로드되어 있으면 즉시 레이어 생성 (탭 전환 시 데이터 변경 반영)
-          console.log('✅ leaflet.heat 플러그인 이미 로드됨, 레이어 즉시 생성 시작', {
+          // 플러그인이 이미 로드되어 있으면 레이어 생성 (탭 전환 시 데이터 변경 반영)
+          // 중요: clearAllLayers() 후 충분한 지연 시간을 두어 레이어 제거가 완료되도록 보장
+          console.log('✅ leaflet.heat 플러그인 이미 로드됨, 레이어 재생성 시작', {
             validDataLength: validData.length,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            previousHeatLayer: !!heatLayerRef.current
           })
+          
+          // 레이어 제거 후 충분한 지연 시간 확보 (200ms)
           safeSetTimeout(() => {
             console.log('히트맵 레이어 생성 setTimeout 실행:', {
               signalAborted: signal.aborted,
               hasMap: !!mapRef.current,
               currentMode: currentModeRef.current,
-              expectedMode: 'heatmap'
+              expectedMode: 'heatmap',
+              stillHasHeatLayer: !!heatLayerRef.current
             })
+            
+            // 추가 안전 체크: 이전 레이어가 완전히 제거되었는지 확인
+            if (heatLayerRef.current) {
+              console.warn('⚠️ 이전 히트맵 레이어가 아직 존재함, 강제 제거')
+              try {
+                if (mapRef.current) {
+                  mapRef.current.removeLayer(heatLayerRef.current)
+                }
+              } catch (e) {
+                console.warn('이전 히트맵 레이어 강제 제거 중 오류:', e)
+              }
+              heatLayerRef.current = null
+            }
+            
             if (signal.aborted || !mapRef.current || currentModeRef.current !== 'heatmap') {
               console.warn('히트맵 레이어 생성 취소 (setTimeout 내부)')
               return
             }
+            
+            console.log('히트맵 레이어 생성 함수 호출 시작')
             createHeatLayer(L, validData)
-          }, 100)
+          }, 200) // 100ms -> 200ms로 증가하여 레이어 제거 완료 보장
         } else if (!pluginLoadingRef.current.heat) {
           console.log('히트맵 플러그인 로드 필요, 스크립트 확인 시작')
           // 스크립트가 이미 로드 중이면 대기
@@ -557,19 +589,29 @@ export function LeafletMap({
             return
           }
 
-          // 기존 클러스터 레이어가 있으면 제거
+          // 기존 클러스터 레이어가 있으면 제거 (이중 체크)
           if (clusterLayerRef.current) {
-            console.log('기존 클러스터 레이어 제거 시작')
+            console.log('기존 클러스터 레이어 제거 시작 (createClusterLayer 내부)')
             try {
-              mapRef.current.removeLayer(clusterLayerRef.current)
+              // 지도에서 레이어 제거
+              if (mapRef.current && mapRef.current.hasLayer && mapRef.current.hasLayer(clusterLayerRef.current)) {
+                mapRef.current.removeLayer(clusterLayerRef.current)
+                console.log('기존 클러스터 레이어 지도에서 제거 성공')
+              } else {
+                console.log('기존 클러스터 레이어가 이미 지도에서 제거됨')
+              }
+              // 클러스터 내부 레이어 정리
               if (clusterLayerRef.current.clearLayers) {
                 clusterLayerRef.current.clearLayers()
+                console.log('클러스터 내부 레이어 정리 완료')
               }
-              console.log('기존 클러스터 레이어 제거 성공')
             } catch (e) {
               console.error('기존 클러스터 제거 중 오류:', e)
             }
             clusterLayerRef.current = null
+            console.log('클러스터 레이어 ref 초기화 완료')
+          } else {
+            console.log('기존 클러스터 레이어 없음 (정상)')
           }
 
           // 데이터 유효성 확인
@@ -703,24 +745,48 @@ export function LeafletMap({
         })
 
         if (isClusterPluginLoaded) {
-          // 플러그인이 이미 로드되어 있으면 즉시 레이어 생성 (탭 전환 시 데이터 변경 반영)
-          console.log('✅ leaflet.markercluster 플러그인 이미 로드됨, 레이어 즉시 생성 시작', {
+          // 플러그인이 이미 로드되어 있으면 레이어 생성 (탭 전환 시 데이터 변경 반영)
+          // 중요: clearAllLayers() 후 충분한 지연 시간을 두어 레이어 제거가 완료되도록 보장
+          console.log('✅ leaflet.markercluster 플러그인 이미 로드됨, 레이어 재생성 시작', {
             validDataLength: validData.length,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            previousClusterLayer: !!clusterLayerRef.current
           })
+          
+          // 레이어 제거 후 충분한 지연 시간 확보 (200ms)
           safeSetTimeout(() => {
             console.log('클러스터 레이어 생성 setTimeout 실행:', {
               signalAborted: signal.aborted,
               hasMap: !!mapRef.current,
               currentMode: currentModeRef.current,
-              expectedMode: 'cluster'
+              expectedMode: 'cluster',
+              stillHasClusterLayer: !!clusterLayerRef.current
             })
+            
+            // 추가 안전 체크: 이전 레이어가 완전히 제거되었는지 확인
+            if (clusterLayerRef.current) {
+              console.warn('⚠️ 이전 클러스터 레이어가 아직 존재함, 강제 제거')
+              try {
+                if (mapRef.current) {
+                  mapRef.current.removeLayer(clusterLayerRef.current)
+                  if (clusterLayerRef.current.clearLayers) {
+                    clusterLayerRef.current.clearLayers()
+                  }
+                }
+              } catch (e) {
+                console.warn('이전 클러스터 레이어 강제 제거 중 오류:', e)
+              }
+              clusterLayerRef.current = null
+            }
+            
             if (signal.aborted || !mapRef.current || currentModeRef.current !== 'cluster') {
               console.warn('클러스터 레이어 생성 취소 (setTimeout 내부)')
               return
             }
+            
+            console.log('클러스터 레이어 생성 함수 호출 시작')
             createClusterLayer(L, validData)
-          }, 100)
+          }, 200) // 100ms -> 200ms로 증가하여 레이어 제거 완료 보장
         } else if (!pluginLoadingRef.current.cluster) {
           console.log('클러스터 플러그인 로드 필요, 스크립트 확인 시작')
           // 스크립트가 이미 로드 중이면 대기
