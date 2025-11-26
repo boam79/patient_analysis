@@ -102,7 +102,7 @@ export function LeafletMap({
         // MarkerClusterGroup이 이미 등록되어 있는지 확인 (여러 방법)
         const checkCluster = () => {
           const L = (window as any).L
-          if (L && (L.markerClusterGroup || L.MarkerClusterGroup || (window as any).MarkerClusterGroup)) {
+          if (L && (L.markerClusterGroup || L.MarkerClusterGroup)) {
             return true
           }
           return false
@@ -343,11 +343,11 @@ export function LeafletMap({
         let MarkerClusterGroup: any = null
         
         if (L.markerClusterGroup) {
+          // L.markerClusterGroup은 함수이므로 직접 사용
           MarkerClusterGroup = L.markerClusterGroup
         } else if (L.MarkerClusterGroup) {
+          // L.MarkerClusterGroup은 클래스이므로 new로 생성
           MarkerClusterGroup = L.MarkerClusterGroup
-        } else if ((window as any).MarkerClusterGroup) {
-          MarkerClusterGroup = (window as any).MarkerClusterGroup
         }
 
         if (!MarkerClusterGroup) {
@@ -359,7 +359,16 @@ export function LeafletMap({
           return
         }
 
-        const markers = new MarkerClusterGroup({
+        // markerClusterGroup이 함수인지 클래스인지 확인
+        const markers = typeof MarkerClusterGroup === 'function' && !MarkerClusterGroup.prototype
+          ? MarkerClusterGroup({
+              chunkedLoading: true,
+              animateAddingMarkers: true,
+              singleMarkerMode: false,
+              showCoverageOnHover: true,
+              zoomToBoundsOnClick: true,
+            })
+          : new MarkerClusterGroup({
           chunkedLoading: true,
           animateAddingMarkers: true,
           singleMarkerMode: false,
