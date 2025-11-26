@@ -342,28 +342,29 @@ export function LeafletMap({
           })
         }
 
-        // 이미 로드되어 있으면 바로 생성
-        waitForHeatPlugin(5).then((loaded) => {
-          if (loaded && !signal.aborted && mapRef.current && currentModeRef.current === 'heatmap') {
-            safeSetTimeout(() => {
-              if (signal.aborted || !mapRef.current || currentModeRef.current !== 'heatmap') return
-              createHeatLayer(L, validData)
-            }, 200)
-          } else if (!loaded && !pluginLoadingRef.current.heat) {
-            // 스크립트가 이미 로드 중이면 대기
-            const existingScript = document.getElementById('leaflet-heat-script')
-            if (existingScript) {
-              console.log('leaflet.heat 스크립트 로드 대기 중...')
-              waitForHeatPlugin(50).then((loaded) => {
-                if (loaded && !signal.aborted && mapRef.current && currentModeRef.current === 'heatmap') {
-                  createHeatLayer(L, validData)
-                } else if (!loaded) {
-                  console.error('leaflet.heat 플러그인 로드 실패 - 스크립트는 있지만 플러그인이 등록되지 않음')
-                }
-              })
-              return
-            }
+        // 플러그인이 이미 로드되어 있는지 즉시 확인
+        const isHeatPluginLoaded = L.heatLayer || (window as any).L?.heatLayer || (L as any).heat?.Layer
 
+        if (isHeatPluginLoaded) {
+          // 플러그인이 이미 로드되어 있으면 즉시 레이어 생성 (탭 전환 시 데이터 변경 반영)
+          console.log('leaflet.heat 플러그인 이미 로드됨, 레이어 즉시 생성')
+          safeSetTimeout(() => {
+            if (signal.aborted || !mapRef.current || currentModeRef.current !== 'heatmap') return
+            createHeatLayer(L, validData)
+          }, 100)
+        } else if (!pluginLoadingRef.current.heat) {
+          // 스크립트가 이미 로드 중이면 대기
+          const existingScript = document.getElementById('leaflet-heat-script')
+          if (existingScript) {
+            console.log('leaflet.heat 스크립트 로드 대기 중...')
+            waitForHeatPlugin(50).then((loaded) => {
+              if (loaded && !signal.aborted && mapRef.current && currentModeRef.current === 'heatmap') {
+                createHeatLayer(L, validData)
+              } else if (!loaded) {
+                console.error('leaflet.heat 플러그인 로드 실패 - 스크립트는 있지만 플러그인이 등록되지 않음')
+              }
+            })
+          } else {
             // 스크립트 태그로 플러그인 로드
             pluginLoadingRef.current.heat = true
             const script = document.createElement('script')
@@ -387,7 +388,7 @@ export function LeafletMap({
             }
             document.head.appendChild(script)
           }
-        })
+        }
       }
 
       loadAndCreateHeatmap()
@@ -531,28 +532,31 @@ export function LeafletMap({
           document.head.appendChild(link)
         }
 
-        // 이미 로드되어 있으면 바로 생성
-        waitForClusterPlugin(5).then((loaded) => {
-          if (loaded && !signal.aborted && mapRef.current && currentModeRef.current === 'cluster') {
-            safeSetTimeout(() => {
-              if (signal.aborted || !mapRef.current || currentModeRef.current !== 'cluster') return
-              createClusterLayer(L, validData)
-            }, 200)
-          } else if (!loaded && !pluginLoadingRef.current.cluster) {
-            // 스크립트가 이미 로드 중이면 대기
-            const existingScript = document.getElementById('leaflet-markercluster-script')
-            if (existingScript) {
-              console.log('leaflet.markercluster 스크립트 로드 대기 중...')
-              waitForClusterPlugin(50).then((loaded) => {
-                if (loaded && !signal.aborted && mapRef.current && currentModeRef.current === 'cluster') {
-                  createClusterLayer(L, validData)
-                } else if (!loaded) {
-                  console.error('leaflet.markercluster 플러그인 로드 실패 - 스크립트는 있지만 플러그인이 등록되지 않음')
-                }
-              })
-              return
-            }
+        // 플러그인이 이미 로드되어 있는지 즉시 확인
+        const isClusterPluginLoaded = L.markerClusterGroup || L.MarkerClusterGroup || 
+          (window as any).L?.markerClusterGroup || (window as any).L?.MarkerClusterGroup ||
+          (L as any).markerCluster?.Group
 
+        if (isClusterPluginLoaded) {
+          // 플러그인이 이미 로드되어 있으면 즉시 레이어 생성 (탭 전환 시 데이터 변경 반영)
+          console.log('leaflet.markercluster 플러그인 이미 로드됨, 레이어 즉시 생성')
+          safeSetTimeout(() => {
+            if (signal.aborted || !mapRef.current || currentModeRef.current !== 'cluster') return
+            createClusterLayer(L, validData)
+          }, 100)
+        } else if (!pluginLoadingRef.current.cluster) {
+          // 스크립트가 이미 로드 중이면 대기
+          const existingScript = document.getElementById('leaflet-markercluster-script')
+          if (existingScript) {
+            console.log('leaflet.markercluster 스크립트 로드 대기 중...')
+            waitForClusterPlugin(50).then((loaded) => {
+              if (loaded && !signal.aborted && mapRef.current && currentModeRef.current === 'cluster') {
+                createClusterLayer(L, validData)
+              } else if (!loaded) {
+                console.error('leaflet.markercluster 플러그인 로드 실패 - 스크립트는 있지만 플러그인이 등록되지 않음')
+              }
+            })
+          } else {
             // 스크립트 태그로 플러그인 로드
             pluginLoadingRef.current.cluster = true
             const script = document.createElement('script')
@@ -576,7 +580,7 @@ export function LeafletMap({
             }
             document.head.appendChild(script)
           }
-        })
+        }
       }
 
       loadAndCreateCluster()
