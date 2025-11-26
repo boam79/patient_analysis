@@ -93,7 +93,29 @@ export function LeafletMap({
 
   // 데이터 렌더링 (히트맵 또는 마커)
   useEffect(() => {
-    if (!leafletLoaded || !mapRef.current || !data.length) return
+    if (!leafletLoaded || !mapRef.current) return
+
+    // 데이터가 비어있으면 기존 레이어만 제거
+    if (!data || data.length === 0) {
+      const map = mapRef.current
+      if (heatLayerRef.current) {
+        map.removeLayer(heatLayerRef.current)
+        heatLayerRef.current = null
+      }
+      if (markerLayerRef.current) {
+        map.removeLayer(markerLayerRef.current)
+        markerLayerRef.current = null
+      }
+      if (clusterLayerRef.current) {
+        map.removeLayer(clusterLayerRef.current)
+        clusterLayerRef.current = null
+      }
+      if (circleLayerRef.current) {
+        map.removeLayer(circleLayerRef.current)
+        circleLayerRef.current = null
+      }
+      return
+    }
 
     const map = mapRef.current
 
@@ -118,15 +140,35 @@ export function LeafletMap({
     import('leaflet').then((L) => {
       if (!mapRef.current) return
 
+      // 유효한 데이터만 필터링 (좌표가 있는 경우만)
+      const validData = data.filter(
+        (point) => 
+          point.latitude != null && 
+          point.longitude != null && 
+          !isNaN(point.latitude) && 
+          !isNaN(point.longitude) &&
+          point.value != null &&
+          !isNaN(point.value)
+      )
+
+      if (validData.length === 0) {
+        console.warn('유효한 데이터가 없습니다.')
+        return
+      }
+
       if (mode === 'heatmap') {
         // Leaflet.heat 동적 로드
         import('leaflet.heat').then(() => {
           if (!mapRef.current) return
 
-          const heatData = data.map((point) => [
+          // 최대값 동적 계산
+          const maxValue = Math.max(...validData.map(d => d.value), 1)
+          const minValue = Math.min(...validData.map(d => d.value), 0)
+
+          const heatData = validData.map((point) => [
             point.latitude,
             point.longitude,
-            point.value,
+            maxValue > 0 ? point.value / maxValue : 0, // 정규화 (0-1)
           ])
 
           // @ts-ignore - leaflet.heat 타입 이슈
@@ -135,6 +177,7 @@ export function LeafletMap({
             blur: 15,
             maxZoom: 17,
             max: 1.0,
+            minOpacity: 0.2,
             gradient: {
               0.0: '#3b82f6', // 파란색 (낮음)
               0.5: '#f59e0b', // 주황색 (중간)
@@ -151,18 +194,18 @@ export function LeafletMap({
         // 마커 레이어
         const markerLayer = L.default.layerGroup()
 
-        data.forEach((point) => {
+        validData.forEach((point) => {
           const marker = L.default.marker([point.latitude, point.longitude])
           
-          marker.bindPopup(`
-            <div>
-              <strong>값: ${point.value}</strong>
-            </div>
-          `)
+          const popupContent = point.region 
+            ? `<div><strong>${point.region}</strong><br/>값: ${point.value.toLocaleString()}</div>`
+            : `<div><strong>값: ${point.value.toLocaleString()}</strong></div>`
+          
+          marker.bindPopup(popupContent)
 
           marker.on('click', () => {
             if (onLocationSelect) {
-              onLocationSelect('temp_h3_index', point)
+              onLocationSelect(point.h3Index || 'temp_h3_index', point)
             }
           })
 
@@ -193,12 +236,12 @@ export function LeafletMap({
             zoomToBoundsOnClick: true,
           })
 
-          data.forEach((point) => {
+          validData.forEach((point) => {
             const marker = L.default.marker([point.latitude, point.longitude])
             
             const popupContent = point.region 
-              ? `<div><strong>${point.region}</strong><br/>값: ${point.value}</div>`
-              : `<div><strong>값: ${point.value}</strong></div>`
+              ? `<div><strong>${point.region}</strong><br/>값: ${point.value.toLocaleString()}</div>`
+              : `<div><strong>값: ${point.value.toLocaleString()}</strong></div>`
             
             marker.bindPopup(popupContent)
 
@@ -220,22 +263,43 @@ export function LeafletMap({
         // 원형 마커 모드 (크기로 값 표현)
         const circleLayer = L.default.layerGroup()
 
-        data.forEach((point) => {
+        // 최대값과 최소값 계산
+        const maxValue = Math.max(...validData.map(d => d.value), 1)
+        const minValue = Math.min(...validData.map(d => d.value), 0)
+
+        validData.forEach((point) => {
           // 값에 따라 반지름 계산 (최소 5px, 최대 50px)
-          const maxValue = Math.max(...data.map(d => d.value), 1)
-          const radius = Math.max(5, Math.min(50, (point.value / maxValue) * 50))
+          // 값이 0인 경우 최소 반지름 사용
+          let radius = 5
+          if (point.value > 0 && maxValue > 0) {
+            const normalizedValue = (point.value - minValue) / (maxValue - minValue || 1)
+            radius = Math.max(5, Math.min(50, 5 + normalizedValue * 45))
+          }
+
+          // 값에 따라 색상 결정
+          let fillColor = '#94a3b8' // 회색 (값이 0인 경우)
+          if (point.value > 0) {
+            const normalizedValue = maxValue > 0 ? point.value / maxValue : 0
+            if (normalizedValue < 0.33) {
+              fillColor = '#3b82f6' // 파란색 (낮음)
+            } else if (normalizedValue < 0.66) {
+              fillColor = '#f59e0b' // 주황색 (중간)
+            } else {
+              fillColor = '#ef4444' // 빨간색 (높음)
+            }
+          }
 
           const circle = L.default.circleMarker([point.latitude, point.longitude], {
             radius,
-            fillColor: '#3b82f6',
+            fillColor,
             color: '#1e40af',
             weight: 2,
-            fillOpacity: 0.6,
+            fillOpacity: 0.7,
           })
 
           const popupContent = point.region 
-            ? `<div><strong>${point.region}</strong><br/>값: ${point.value}</div>`
-            : `<div><strong>값: ${point.value}</strong></div>`
+            ? `<div><strong>${point.region}</strong><br/>값: ${point.value.toLocaleString()}</div>`
+            : `<div><strong>값: ${point.value.toLocaleString()}</strong></div>`
           
           circle.bindPopup(popupContent)
 

@@ -200,17 +200,17 @@ export default function MapPage() {
 
   // 신환/재환 계산 (이름+주소 기준)
   const patientTypeData = useMemo(() => {
-    if (!isDataLoaded || rawData.length === 0) {
+    if (!isDataLoaded || filteredRawData.length === 0) {
       return {
-        newPatients: SAMPLE_DATA.map(d => ({ ...d, value: d.value * 0.6 })),
-        returningPatients: SAMPLE_DATA.map(d => ({ ...d, value: d.value * 0.4 })),
+        newPatients: SAMPLE_DATA.map(d => ({ ...d, value: d.value * 0.6, region: '샘플' })),
+        returningPatients: SAMPLE_DATA.map(d => ({ ...d, value: d.value * 0.4, region: '샘플' })),
       }
     }
 
     // 환자별 방문 횟수 계산 (이름+주소 기준)
     const patientKey = (p: any) => `${p.name}|${p.address}`
     const patientVisits: Record<string, number> = {}
-    rawData.forEach(patient => {
+    filteredRawData.forEach(patient => {
       const key = patientKey(patient)
       patientVisits[key] = (patientVisits[key] || 0) + 1
     })
@@ -219,7 +219,7 @@ export default function MapPage() {
     const regionNewPatients: Record<string, Set<string>> = {}
     const regionReturningPatients: Record<string, Set<string>> = {}
 
-    rawData.forEach(patient => {
+    filteredRawData.forEach(patient => {
       const key = patientKey(patient)
       const isNew = patientVisits[key] === 1
       
@@ -250,7 +250,7 @@ export default function MapPage() {
     }))
 
     return { newPatients, returningPatients }
-  }, [isDataLoaded, rawData, mapData])
+  }, [isDataLoaded, filteredRawData, mapData])
 
   // 재방문율 계산 (지역별)
   const recurrenceData = useMemo(() => {
@@ -290,11 +290,13 @@ export default function MapPage() {
       }
     })
 
-    // mapData와 매핑
-    return mapData.map(m => ({
-      ...m,
-      value: regionCounts[m.region] || 0,
-    }))
+    // mapData와 매핑 (좌표가 있는 데이터만)
+    return mapData
+      .filter(m => m.latitude != null && m.longitude != null)
+      .map(m => ({
+        ...m,
+        value: regionCounts[m.region] || 0,
+      }))
   }, [isDataLoaded, filteredRawData, mapData, selectedDisease])
 
   // 수술별 분포 데이터 계산
@@ -311,11 +313,13 @@ export default function MapPage() {
       }
     })
 
-    // mapData와 매핑
-    return mapData.map(m => ({
-      ...m,
-      value: regionCounts[m.region] || 0,
-    }))
+    // mapData와 매핑 (좌표가 있는 데이터만)
+    return mapData
+      .filter(m => m.latitude != null && m.longitude != null)
+      .map(m => ({
+        ...m,
+        value: regionCounts[m.region] || 0,
+      }))
   }, [isDataLoaded, filteredRawData, mapData, selectedSurgery])
 
   // 질병 목록 추출 (Top 20)
@@ -344,7 +348,7 @@ export default function MapPage() {
     }
 
     const surgeryCounts: Record<string, number> = {}
-    rawData.forEach(patient => {
+    filteredRawData.forEach(patient => {
       if (patient.surgery_name) {
         surgeryCounts[patient.surgery_name] = (surgeryCounts[patient.surgery_name] || 0) + 1
       }
@@ -382,11 +386,13 @@ export default function MapPage() {
       }
     })
 
-    // mapData와 매핑
-    return mapData.map(m => ({
-      ...m,
-      value: regionCounts[m.region] || 0,
-    }))
+    // mapData와 매핑 (좌표가 있는 데이터만)
+    return mapData
+      .filter(m => m.latitude != null && m.longitude != null)
+      .map(m => ({
+        ...m,
+        value: regionCounts[m.region] || 0,
+      }))
   }, [isDataLoaded, filteredRawData, mapData, selectedAgeGroup])
 
   // 성별 분포 데이터 계산
@@ -421,7 +427,7 @@ export default function MapPage() {
         totalCount: counts.total,
       }
     })
-  }, [isDataLoaded, rawData, mapData])
+  }, [isDataLoaded, filteredRawData, mapData])
 
   // 연령대 옵션
   const ageGroupOptions = [
@@ -464,7 +470,7 @@ export default function MapPage() {
       case 'returning':
         return patientTypeData.returningPatients
       case 'patients':
-        return mapData
+        return mapData.filter(m => m.latitude != null && m.longitude != null)
       case 'recurrence':
         return recurrenceData
       case 'disease':
