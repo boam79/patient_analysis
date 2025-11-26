@@ -129,21 +129,49 @@ export function LeafletMap({
 
     const map = mapRef.current
 
-    // 기존 레이어 제거
+    // 기존 레이어 완전히 제거 (모드 전환 시 재생성 보장)
     if (heatLayerRef.current) {
-      map.removeLayer(heatLayerRef.current)
+      try {
+        map.removeLayer(heatLayerRef.current)
+        if (heatLayerRef.current.clearLayers) {
+          heatLayerRef.current.clearLayers()
+        }
+      } catch (e) {
+        console.warn('히트맵 레이어 제거 중 오류:', e)
+      }
       heatLayerRef.current = null
     }
     if (markerLayerRef.current) {
-      map.removeLayer(markerLayerRef.current)
+      try {
+        map.removeLayer(markerLayerRef.current)
+        if (markerLayerRef.current.clearLayers) {
+          markerLayerRef.current.clearLayers()
+        }
+      } catch (e) {
+        console.warn('마커 레이어 제거 중 오류:', e)
+      }
       markerLayerRef.current = null
     }
     if (clusterLayerRef.current) {
-      map.removeLayer(clusterLayerRef.current)
+      try {
+        map.removeLayer(clusterLayerRef.current)
+        if (clusterLayerRef.current.clearLayers) {
+          clusterLayerRef.current.clearLayers()
+        }
+      } catch (e) {
+        console.warn('클러스터 레이어 제거 중 오류:', e)
+      }
       clusterLayerRef.current = null
     }
     if (circleLayerRef.current) {
-      map.removeLayer(circleLayerRef.current)
+      try {
+        map.removeLayer(circleLayerRef.current)
+        if (circleLayerRef.current.clearLayers) {
+          circleLayerRef.current.clearLayers()
+        }
+      } catch (e) {
+        console.warn('원형 레이어 제거 중 오류:', e)
+      }
       circleLayerRef.current = null
     }
 
@@ -180,9 +208,14 @@ export function LeafletMap({
           return
         }
 
-        // 이미 로드되어 있으면 바로 생성
+        // 이미 로드되어 있으면 바로 생성 (기존 레이어는 이미 제거됨)
         if (L.heatLayer) {
-          createHeatLayer(L)
+          // 약간의 지연을 두어 이전 레이어가 완전히 제거되도록 보장
+          setTimeout(() => {
+            if (mapRef.current && mode === 'heatmap') {
+              createHeatLayer(L)
+            }
+          }, 100)
           return
         }
 
@@ -246,15 +279,18 @@ export function LeafletMap({
         ])
 
         const heatLayer = L.heatLayer(heatData, {
-          radius: 25,
-          blur: 15,
+          radius: 30, // 반경 증가 (더 넓은 영역 표시)
+          blur: 20, // 블러 증가 (더 부드러운 그라데이션)
           maxZoom: 17,
           max: 1.0,
-          minOpacity: 0.2,
+          minOpacity: 0.4, // 최소 투명도 증가 (더 선명하게)
           gradient: {
-            0.0: '#3b82f6', // 파란색 (낮음)
-            0.5: '#f59e0b', // 주황색 (중간)
-            1.0: '#ef4444', // 빨간색 (높음)
+            0.0: '#1e40af', // 진한 파란색 (낮음) - 대비 증가
+            0.3: '#3b82f6', // 파란색
+            0.5: '#10b981', // 초록색 (중간)
+            0.7: '#f59e0b', // 주황색
+            0.9: '#f97316', // 진한 주황색
+            1.0: '#dc2626', // 진한 빨간색 (높음) - 대비 증가
           },
         })
 
@@ -275,9 +311,14 @@ export function LeafletMap({
           return
         }
 
-        // 이미 로드되어 있으면 바로 생성
+        // 이미 로드되어 있으면 바로 생성 (기존 레이어는 이미 제거됨)
         if (L.markerClusterGroup || L.MarkerClusterGroup) {
-          createClusterLayer(L)
+          // 약간의 지연을 두어 이전 레이어가 완전히 제거되도록 보장
+          setTimeout(() => {
+            if (mapRef.current && mode === 'cluster') {
+              createClusterLayer(L)
+            }
+          }, 100)
           return
         }
 
