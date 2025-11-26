@@ -385,94 +385,101 @@ export function LeafletMap({
       }
 
       loadAndCreateCluster()
-    } else {
-      // 마커 및 원형 모드: leaflet만 로드
-      import('leaflet').then((L) => {
-        if (!mapRef.current) return
+    } else if (mode === 'markers') {
+      // 마커 모드: window.L 사용
+      const L = (window as any).L
+      
+      if (!L) {
+        console.error('window.L을 찾을 수 없습니다.')
+        return
+      }
 
-        if (mode === 'markers') {
-          // 마커 레이어
-          const markerLayer = L.default.layerGroup()
+      // 마커 레이어
+      const markerLayer = L.layerGroup()
 
-          validData.forEach((point) => {
-            const marker = L.default.marker([point.latitude, point.longitude])
-            
-            const popupContent = point.region 
-              ? `<div><strong>${point.region}</strong><br/>값: ${point.value.toLocaleString()}</div>`
-              : `<div><strong>값: ${point.value.toLocaleString()}</strong></div>`
-            
-            marker.bindPopup(popupContent)
+      validData.forEach((point) => {
+        const marker = L.marker([point.latitude, point.longitude])
+        
+        const popupContent = point.region 
+          ? `<div><strong>${point.region}</strong><br/>값: ${point.value.toLocaleString()}</div>`
+          : `<div><strong>값: ${point.value.toLocaleString()}</strong></div>`
+        
+        marker.bindPopup(popupContent)
 
-            marker.on('click', () => {
-              if (onLocationSelect) {
-                onLocationSelect(point.h3Index || 'temp_h3_index', point)
-              }
-            })
+        marker.on('click', () => {
+          if (onLocationSelect) {
+            onLocationSelect(point.h3Index || 'temp_h3_index', point)
+          }
+        })
 
-            marker.addTo(markerLayer)
-          })
-
-          markerLayer.addTo(mapRef.current)
-          markerLayerRef.current = markerLayer
-        } else if (mode === 'circle') {
-          // 원형 마커 모드 (크기로 값 표현)
-          const circleLayer = L.default.layerGroup()
-
-          // 최대값과 최소값 계산
-          const maxValue = Math.max(...validData.map(d => d.value), 1)
-          const minValue = Math.min(...validData.map(d => d.value), 0)
-
-          validData.forEach((point) => {
-            // 값에 따라 반지름 계산 (최소 5px, 최대 50px)
-            // 값이 0인 경우 최소 반지름 사용
-            let radius = 5
-            if (point.value > 0 && maxValue > 0) {
-              const normalizedValue = (point.value - minValue) / (maxValue - minValue || 1)
-              radius = Math.max(5, Math.min(50, 5 + normalizedValue * 45))
-            }
-
-            // 값에 따라 색상 결정
-            let fillColor = '#94a3b8' // 회색 (값이 0인 경우)
-            if (point.value > 0) {
-              const normalizedValue = maxValue > 0 ? point.value / maxValue : 0
-              if (normalizedValue < 0.33) {
-                fillColor = '#3b82f6' // 파란색 (낮음)
-              } else if (normalizedValue < 0.66) {
-                fillColor = '#f59e0b' // 주황색 (중간)
-              } else {
-                fillColor = '#ef4444' // 빨간색 (높음)
-              }
-            }
-
-            const circle = L.default.circleMarker([point.latitude, point.longitude], {
-              radius,
-              fillColor,
-              color: '#1e40af',
-              weight: 2,
-              fillOpacity: 0.7,
-            })
-
-            const popupContent = point.region 
-              ? `<div><strong>${point.region}</strong><br/>값: ${point.value.toLocaleString()}</div>`
-              : `<div><strong>값: ${point.value.toLocaleString()}</strong></div>`
-            
-            circle.bindPopup(popupContent)
-
-            circle.on('click', () => {
-              if (onLocationSelect) {
-                onLocationSelect(point.h3Index || 'temp_h3_index', point)
-              }
-            })
-
-            circle.addTo(circleLayer)
-          })
-
-          circleLayer.addTo(mapRef.current)
-          circleLayerRef.current = circleLayer
-        }
-      }).catch(err => {
-        console.error('Leaflet 로드 실패:', err)
+        marker.addTo(markerLayer)
       })
+
+      markerLayer.addTo(mapRef.current)
+      markerLayerRef.current = markerLayer
+    } else if (mode === 'circle') {
+      // 원형 마커 모드: window.L 사용
+      const L = (window as any).L
+      
+      if (!L) {
+        console.error('window.L을 찾을 수 없습니다.')
+        return
+      }
+
+      // 원형 마커 모드 (크기로 값 표현)
+      const circleLayer = L.layerGroup()
+
+      // 최대값과 최소값 계산
+      const maxValue = Math.max(...validData.map(d => d.value), 1)
+      const minValue = Math.min(...validData.map(d => d.value), 0)
+
+      validData.forEach((point) => {
+        // 값에 따라 반지름 계산 (최소 5px, 최대 50px)
+        // 값이 0인 경우 최소 반지름 사용
+        let radius = 5
+        if (point.value > 0 && maxValue > 0) {
+          const normalizedValue = (point.value - minValue) / (maxValue - minValue || 1)
+          radius = Math.max(5, Math.min(50, 5 + normalizedValue * 45))
+        }
+
+        // 값에 따라 색상 결정
+        let fillColor = '#94a3b8' // 회색 (값이 0인 경우)
+        if (point.value > 0) {
+          const normalizedValue = maxValue > 0 ? point.value / maxValue : 0
+          if (normalizedValue < 0.33) {
+            fillColor = '#3b82f6' // 파란색 (낮음)
+          } else if (normalizedValue < 0.66) {
+            fillColor = '#f59e0b' // 주황색 (중간)
+          } else {
+            fillColor = '#ef4444' // 빨간색 (높음)
+          }
+        }
+
+        const circle = L.circleMarker([point.latitude, point.longitude], {
+          radius,
+          fillColor,
+          color: '#1e40af',
+          weight: 2,
+          fillOpacity: 0.7,
+        })
+
+        const popupContent = point.region 
+          ? `<div><strong>${point.region}</strong><br/>값: ${point.value.toLocaleString()}</div>`
+          : `<div><strong>값: ${point.value.toLocaleString()}</strong></div>`
+        
+        circle.bindPopup(popupContent)
+
+        circle.on('click', () => {
+          if (onLocationSelect) {
+            onLocationSelect(point.h3Index || 'temp_h3_index', point)
+          }
+        })
+
+        circle.addTo(circleLayer)
+      })
+
+      circleLayer.addTo(mapRef.current)
+      circleLayerRef.current = circleLayer
     }
   }, [leafletLoaded, data, mode, onLocationSelect])
 

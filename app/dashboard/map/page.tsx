@@ -878,7 +878,12 @@ export default function MapPage() {
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="질병을 선택하세요" />
                         </SelectTrigger>
-                        <SelectContent className="z-[10000]" side="bottom" align="start">
+                        <SelectContent 
+                          className="z-[10000]" 
+                          side="bottom" 
+                          align="start"
+                          sideOffset={4}
+                        >
                           {diseaseOptions.map((disease) => (
                             <SelectItem key={disease} value={disease}>
                               {disease}
@@ -976,7 +981,12 @@ export default function MapPage() {
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="수술을 선택하세요" />
                         </SelectTrigger>
-                        <SelectContent className="z-[10000]" side="bottom" align="start">
+                        <SelectContent 
+                          className="z-[10000]" 
+                          side="bottom" 
+                          align="start"
+                          sideOffset={4}
+                        >
                           {surgeryOptions.map((surgery) => (
                             <SelectItem key={surgery} value={surgery}>
                               {surgery}
@@ -1074,7 +1084,12 @@ export default function MapPage() {
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="연령대를 선택하세요" />
                         </SelectTrigger>
-                        <SelectContent className="z-[10000]" side="bottom" align="start">
+                        <SelectContent 
+                          className="z-[10000]" 
+                          side="bottom" 
+                          align="start"
+                          sideOffset={4}
+                        >
                           {ageGroupOptions.map((ageGroup) => (
                             <SelectItem key={ageGroup} value={ageGroup}>
                               {ageGroup}
