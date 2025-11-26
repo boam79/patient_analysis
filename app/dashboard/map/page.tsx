@@ -7,13 +7,13 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Map, Layers, Users, Activity, Upload, Flame, Circle, Grid3x3, Filter, X } from 'lucide-react'
+import { Map, Layers, Users, Activity, Upload, Circle, Filter, X } from 'lucide-react'
 import { useDataStore } from '@/stores/data-store'
 import { useRouter } from 'next/navigation'
 import { FilterPanel } from '@/components/filter/filter-panel'
 import { useFilterStore } from '@/stores/filter-store'
 
-type VisualizationMode = 'markers' | 'heatmap' | 'cluster' | 'circle'
+type VisualizationMode = 'markers' | 'circle'
 type AnalysisTab = 'new' | 'returning' | 'patients' | 'recurrence' | 'disease' | 'surgery' | 'age' | 'gender'
 
 export default function MapPage() {
@@ -627,22 +627,6 @@ export default function MapPage() {
             >
               <Map className="h-4 w-4 mr-1" />
               마커
-            </Button>
-            <Button
-              variant={visualizationMode === 'heatmap' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setVisualizationMode('heatmap')}
-            >
-              <Flame className="h-4 w-4 mr-1" />
-              히트맵
-            </Button>
-            <Button
-              variant={visualizationMode === 'cluster' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setVisualizationMode('cluster')}
-            >
-              <Grid3x3 className="h-4 w-4 mr-1" />
-              클러스터
             </Button>
             <Button
               variant={visualizationMode === 'circle' ? 'default' : 'outline'}
