@@ -29,6 +29,8 @@ export function LeafletMap({
   const markerLayerRef = useRef<any>(null)
   const clusterLayerRef = useRef<any>(null)
   const circleLayerRef = useRef<any>(null)
+  const currentModeRef = useRef<string>(mode) // 현재 모드 추적
+  const abortControllerRef = useRef<AbortController | null>(null) // 비동기 작업 취소용
   const [isLoading, setIsLoading] = useState(true)
   const [leafletLoaded, setLeafletLoaded] = useState(false)
 
@@ -95,41 +97,11 @@ export function LeafletMap({
     }
   }, [center, zoom])
 
-  // 데이터 렌더링 (히트맵 또는 마커)
-  useEffect(() => {
-    if (!leafletLoaded || !mapRef.current) {
-      console.log('지도 렌더링 대기:', { leafletLoaded, hasMap: !!mapRef.current })
-      return
-    }
-
-    // 데이터가 비어있으면 기존 레이어만 제거
-    if (!data || data.length === 0) {
-      console.log('데이터가 비어있어 레이어 제거')
-      const map = mapRef.current
-      if (heatLayerRef.current) {
-        map.removeLayer(heatLayerRef.current)
-        heatLayerRef.current = null
-      }
-      if (markerLayerRef.current) {
-        map.removeLayer(markerLayerRef.current)
-        markerLayerRef.current = null
-      }
-      if (clusterLayerRef.current) {
-        map.removeLayer(clusterLayerRef.current)
-        clusterLayerRef.current = null
-      }
-      if (circleLayerRef.current) {
-        map.removeLayer(circleLayerRef.current)
-        circleLayerRef.current = null
-      }
-      return
-    }
-    
-    console.log('지도 데이터 렌더링 시작:', { mode, dataLength: data.length })
-
+  // 모든 레이어 제거 헬퍼 함수
+  const clearAllLayers = () => {
     const map = mapRef.current
+    if (!map) return
 
-    // 기존 레이어 완전히 제거 (모드 전환 시 재생성 보장)
     if (heatLayerRef.current) {
       try {
         map.removeLayer(heatLayerRef.current)
@@ -174,6 +146,36 @@ export function LeafletMap({
       }
       circleLayerRef.current = null
     }
+  }
+
+  // 데이터 렌더링 (히트맵 또는 마커)
+  useEffect(() => {
+    if (!leafletLoaded || !mapRef.current) {
+      console.log('지도 렌더링 대기:', { leafletLoaded, hasMap: !!mapRef.current })
+      return
+    }
+
+    // 이전 비동기 작업 취소
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    abortControllerRef.current = new AbortController()
+    const signal = abortControllerRef.current.signal
+
+    // 현재 모드 업데이트
+    currentModeRef.current = mode
+
+    // 데이터가 비어있으면 기존 레이어만 제거
+    if (!data || data.length === 0) {
+      console.log('데이터가 비어있어 레이어 제거')
+      clearAllLayers()
+      return
+    }
+    
+    console.log('지도 데이터 렌더링 시작:', { mode, dataLength: data.length })
+
+    // 기존 레이어 완전히 제거 (모드 전환 시 재생성 보장)
+    clearAllLayers()
 
     // 유효한 데이터만 필터링 (좌표가 있는 경우만)
     const validData = data.filter(
@@ -212,7 +214,8 @@ export function LeafletMap({
         if (L.heatLayer) {
           // 약간의 지연을 두어 이전 레이어가 완전히 제거되도록 보장
           setTimeout(() => {
-            if (mapRef.current && mode === 'heatmap') {
+            if (signal.aborted) return
+            if (mapRef.current && currentModeRef.current === 'heatmap') {
               createHeatLayer(L)
             }
           }, 100)
@@ -222,6 +225,10 @@ export function LeafletMap({
         // 스크립트가 이미 로드 중이면 대기
         if (document.getElementById('leaflet-heat-script')) {
           const checkInterval = setInterval(() => {
+            if (signal.aborted) {
+              clearInterval(checkInterval)
+              return
+            }
             if (L.heatLayer) {
               clearInterval(checkInterval)
               createHeatLayer(L)
@@ -229,6 +236,7 @@ export function LeafletMap({
           }, 100)
           setTimeout(() => {
             clearInterval(checkInterval)
+            if (signal.aborted) return
             if (L.heatLayer) {
               createHeatLayer(L)
             } else {
@@ -246,6 +254,10 @@ export function LeafletMap({
         script.onload = () => {
           // 플러그인이 등록될 때까지 대기
           const checkInterval = setInterval(() => {
+            if (signal.aborted) {
+              clearInterval(checkInterval)
+              return
+            }
             if (L.heatLayer) {
               clearInterval(checkInterval)
               createHeatLayer(L)
@@ -253,6 +265,7 @@ export function LeafletMap({
           }, 100)
           setTimeout(() => {
             clearInterval(checkInterval)
+            if (signal.aborted) return
             if (L.heatLayer) {
               createHeatLayer(L)
             } else {
@@ -267,8 +280,15 @@ export function LeafletMap({
       }
 
       const createHeatLayer = (L: any) => {
-        if (!mapRef.current || mode !== 'heatmap') {
-          console.log('히트맵 생성 취소:', { hasMap: !!mapRef.current, currentMode: mode })
+        // AbortSignal 확인
+        if (signal.aborted) {
+          console.log('히트맵 생성 취소: 작업이 중단됨')
+          return
+        }
+
+        // 현재 모드 재확인 (클로저 문제 방지)
+        if (!mapRef.current || currentModeRef.current !== 'heatmap') {
+          console.log('히트맵 생성 취소:', { hasMap: !!mapRef.current, currentMode: currentModeRef.current, expectedMode: 'heatmap' })
           return
         }
 
@@ -328,7 +348,8 @@ export function LeafletMap({
         if (L.markerClusterGroup || L.MarkerClusterGroup) {
           // 약간의 지연을 두어 이전 레이어가 완전히 제거되도록 보장
           setTimeout(() => {
-            if (mapRef.current && mode === 'cluster') {
+            if (signal.aborted) return
+            if (mapRef.current && currentModeRef.current === 'cluster') {
               createClusterLayer(L)
             }
           }, 100)
@@ -347,6 +368,10 @@ export function LeafletMap({
         // 스크립트가 이미 로드 중이면 대기
         if (document.getElementById('leaflet-markercluster-script')) {
           const checkInterval = setInterval(() => {
+            if (signal.aborted) {
+              clearInterval(checkInterval)
+              return
+            }
             if (L.markerClusterGroup || L.MarkerClusterGroup) {
               clearInterval(checkInterval)
               createClusterLayer(L)
@@ -354,6 +379,7 @@ export function LeafletMap({
           }, 100)
           setTimeout(() => {
             clearInterval(checkInterval)
+            if (signal.aborted) return
             if (L.markerClusterGroup || L.MarkerClusterGroup) {
               createClusterLayer(L)
             } else {
@@ -371,6 +397,10 @@ export function LeafletMap({
         script.onload = () => {
           // 플러그인이 등록될 때까지 대기
           const checkInterval = setInterval(() => {
+            if (signal.aborted) {
+              clearInterval(checkInterval)
+              return
+            }
             if (L.markerClusterGroup || L.MarkerClusterGroup) {
               clearInterval(checkInterval)
               createClusterLayer(L)
@@ -378,6 +408,7 @@ export function LeafletMap({
           }, 100)
           setTimeout(() => {
             clearInterval(checkInterval)
+            if (signal.aborted) return
             if (L.markerClusterGroup || L.MarkerClusterGroup) {
               createClusterLayer(L)
             } else {
@@ -392,8 +423,15 @@ export function LeafletMap({
       }
 
       const createClusterLayer = (L: any) => {
-        if (!mapRef.current || mode !== 'cluster') {
-          console.log('클러스터 생성 취소:', { hasMap: !!mapRef.current, currentMode: mode })
+        // AbortSignal 확인
+        if (signal.aborted) {
+          console.log('클러스터 생성 취소: 작업이 중단됨')
+          return
+        }
+
+        // 현재 모드 재확인 (클로저 문제 방지)
+        if (!mapRef.current || currentModeRef.current !== 'cluster') {
+          console.log('클러스터 생성 취소:', { hasMap: !!mapRef.current, currentMode: currentModeRef.current, expectedMode: 'cluster' })
           return
         }
 
@@ -467,6 +505,18 @@ export function LeafletMap({
 
       loadAndCreateCluster()
     } else if (mode === 'markers') {
+      // AbortSignal 확인
+      if (signal.aborted) {
+        console.log('마커 생성 취소: 작업이 중단됨')
+        return
+      }
+
+      // 현재 모드 재확인
+      if (currentModeRef.current !== 'markers') {
+        console.log('마커 생성 취소: 모드가 변경됨', { currentMode: currentModeRef.current })
+        return
+      }
+
       // 마커 모드: window.L 사용
       const L = (window as any).L
       
@@ -512,6 +562,18 @@ export function LeafletMap({
       markerLayer.addTo(mapRef.current)
       markerLayerRef.current = markerLayer
     } else if (mode === 'circle') {
+      // AbortSignal 확인
+      if (signal.aborted) {
+        console.log('원형 생성 취소: 작업이 중단됨')
+        return
+      }
+
+      // 현재 모드 재확인
+      if (currentModeRef.current !== 'circle') {
+        console.log('원형 생성 취소: 모드가 변경됨', { currentMode: currentModeRef.current })
+        return
+      }
+
       // 원형 마커 모드: window.L 사용
       const L = (window as any).L
       
@@ -587,6 +649,13 @@ export function LeafletMap({
 
       circleLayer.addTo(mapRef.current)
       circleLayerRef.current = circleLayer
+    }
+
+    // 클린업 함수: 컴포넌트 언마운트 또는 의존성 변경 시 실행
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
     }
   }, [leafletLoaded, data, mode, onLocationSelect, center, zoom])
 
