@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 
 interface LeafletMapProps {
   center?: [number, number]
@@ -31,74 +31,13 @@ export function LeafletMap({
   const circleLayerRef = useRef<any>(null)
   const currentModeRef = useRef<string>(mode) // 현재 모드 추적
   const abortControllerRef = useRef<AbortController | null>(null) // 비동기 작업 취소용
+  const intervalRefsRef = useRef<Set<NodeJS.Timeout>>(new Set()) // 모든 interval 추적
+  const timeoutRefsRef = useRef<Set<NodeJS.Timeout>>(new Set()) // 모든 timeout 추적
   const [isLoading, setIsLoading] = useState(true)
   const [leafletLoaded, setLeafletLoaded] = useState(false)
 
-  // Leaflet 동적 로드 및 지도 초기화
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    if (!mapContainerRef.current || mapRef.current) return
-
-    // Leaflet CSS 동적 로드
-    if (!document.getElementById('leaflet-css')) {
-      const link = document.createElement('link')
-      link.id = 'leaflet-css'
-      link.rel = 'stylesheet'
-      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
-      link.integrity = 'sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY='
-      link.crossOrigin = ''
-      document.head.appendChild(link)
-    }
-
-
-    // Leaflet 라이브러리 동적 로드
-    import('leaflet').then((L) => {
-      if (!mapContainerRef.current || mapRef.current) return
-
-      // Leaflet 아이콘 설정
-      delete (L.Icon.Default.prototype as any)._getIconUrl
-      L.Icon.Default.mergeOptions({
-        iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-        iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-      })
-
-      // window.L에 Leaflet 객체 저장 (플러그인들이 사용할 수 있도록)
-      ;(window as any).L = L
-
-      // Leaflet 지도 생성
-      const map = L.map(mapContainerRef.current, {
-        center,
-        zoom,
-        zoomControl: true,
-        attributionControl: true,
-      })
-
-      // OpenStreetMap 타일 레이어 추가
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        maxZoom: 19,
-      }).addTo(map)
-
-      mapRef.current = map
-      setLeafletLoaded(true)
-      setIsLoading(false)
-    }).catch(err => {
-      console.error('Leaflet 로드 실패:', err)
-      setIsLoading(false)
-    })
-
-    // 클린업
-    return () => {
-      if (mapRef.current) {
-        mapRef.current.remove()
-        mapRef.current = null
-      }
-    }
-  }, [center, zoom])
-
-  // 모든 레이어 제거 헬퍼 함수
-  const clearAllLayers = () => {
+  // 모든 레이어 제거 헬퍼 함수 (useCallback으로 최적화)
+  const clearAllLayers = useCallback(() => {
     const map = mapRef.current
     if (!map) return
 
@@ -146,7 +85,103 @@ export function LeafletMap({
       }
       circleLayerRef.current = null
     }
-  }
+  }, [])
+
+  // 모든 interval/timeout 정리 헬퍼 함수
+  const clearAllTimers = useCallback(() => {
+    intervalRefsRef.current.forEach(interval => {
+      clearInterval(interval)
+    })
+    intervalRefsRef.current.clear()
+
+    timeoutRefsRef.current.forEach(timeout => {
+      clearTimeout(timeout)
+    })
+    timeoutRefsRef.current.clear()
+  }, [])
+
+  // 안전한 setInterval (자동 추적)
+  const safeSetInterval = useCallback((callback: () => void, delay: number) => {
+    const interval = setInterval(() => {
+      callback()
+    }, delay)
+    intervalRefsRef.current.add(interval)
+    return interval
+  }, [])
+
+  // 안전한 setTimeout (자동 추적)
+  const safeSetTimeout = useCallback((callback: () => void, delay: number) => {
+    const timeout = setTimeout(() => {
+      timeoutRefsRef.current.delete(timeout)
+      callback()
+    }, delay)
+    timeoutRefsRef.current.add(timeout)
+    return timeout
+  }, [])
+
+  // Leaflet 동적 로드 및 지도 초기화
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (!mapContainerRef.current || mapRef.current) return
+
+    // Leaflet CSS 동적 로드
+    if (!document.getElementById('leaflet-css')) {
+      const link = document.createElement('link')
+      link.id = 'leaflet-css'
+      link.rel = 'stylesheet'
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
+      link.integrity = 'sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY='
+      link.crossOrigin = ''
+      document.head.appendChild(link)
+    }
+
+    // Leaflet 라이브러리 동적 로드
+    import('leaflet').then((L) => {
+      if (!mapContainerRef.current || mapRef.current) return
+
+      // Leaflet 아이콘 설정
+      delete (L.Icon.Default.prototype as any)._getIconUrl
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+        iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+      })
+
+      // window.L에 Leaflet 객체 저장 (플러그인들이 사용할 수 있도록)
+      ;(window as any).L = L
+
+      // Leaflet 지도 생성
+      const map = L.map(mapContainerRef.current, {
+        center,
+        zoom,
+        zoomControl: true,
+        attributionControl: true,
+      })
+
+      // OpenStreetMap 타일 레이어 추가
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19,
+      }).addTo(map)
+
+      mapRef.current = map
+      setLeafletLoaded(true)
+      setIsLoading(false)
+    }).catch(err => {
+      console.error('Leaflet 로드 실패:', err)
+      setIsLoading(false)
+    })
+
+    // 클린업
+    return () => {
+      clearAllTimers()
+      clearAllLayers()
+      if (mapRef.current) {
+        mapRef.current.remove()
+        mapRef.current = null
+      }
+    }
+  }, [center, zoom, clearAllLayers, clearAllTimers])
 
   // 데이터 렌더링 (히트맵 또는 마커)
   useEffect(() => {
@@ -155,10 +190,12 @@ export function LeafletMap({
       return
     }
 
-    // 이전 비동기 작업 취소
+    // 이전 비동기 작업 취소 및 타이머 정리
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
     }
+    clearAllTimers()
+    
     abortControllerRef.current = new AbortController()
     const signal = abortControllerRef.current.signal
 
@@ -213,47 +250,98 @@ export function LeafletMap({
           return
         }
 
-        // 이미 로드되어 있으면 바로 생성 (기존 레이어는 이미 제거됨)
+        const createHeatLayer = (L: any, dataToUse: typeof validData) => {
+          // AbortSignal 확인
+          if (signal.aborted) {
+            console.log('히트맵 생성 취소: 작업이 중단됨')
+            return
+          }
+
+          // 현재 모드 및 지도 인스턴스 재확인
+          if (!mapRef.current) {
+            console.warn('히트맵 생성 취소: 지도 인스턴스가 없습니다')
+            return
+          }
+
+          if (currentModeRef.current !== 'heatmap') {
+            console.log('히트맵 생성 취소: 모드가 변경됨', { currentMode: currentModeRef.current, expectedMode: 'heatmap' })
+            return
+          }
+
+          // 기존 히트맵 레이어가 있으면 제거
+          if (heatLayerRef.current) {
+            try {
+              mapRef.current.removeLayer(heatLayerRef.current)
+            } catch (e) {
+              console.warn('기존 히트맵 제거 중 오류:', e)
+            }
+            heatLayerRef.current = null
+          }
+
+          // 데이터 유효성 확인
+          if (!dataToUse || dataToUse.length === 0) {
+            console.warn('히트맵 생성 취소: 데이터가 없습니다')
+            return
+          }
+
+          // 최대값 동적 계산
+          const maxValue = Math.max(...dataToUse.map(d => d.value), 1)
+
+          const heatData = dataToUse.map((point) => [
+            point.latitude,
+            point.longitude,
+            maxValue > 0 ? point.value / maxValue : 0, // 정규화 (0-1)
+          ])
+
+          const heatLayer = L.heatLayer(heatData, {
+            radius: 30,
+            blur: 20,
+            maxZoom: 17,
+            max: 1.0,
+            minOpacity: 0.4,
+            gradient: {
+              0.0: '#1e40af',
+              0.3: '#3b82f6',
+              0.5: '#10b981',
+              0.7: '#f59e0b',
+              0.9: '#f97316',
+              1.0: '#dc2626',
+            },
+          })
+
+          heatLayer.addTo(mapRef.current)
+          heatLayerRef.current = heatLayer
+          console.log('히트맵 레이어 생성 완료')
+        }
+
+        // 이미 로드되어 있으면 바로 생성
         if (L.heatLayer) {
-          // 약간의 지연을 두어 이전 레이어가 완전히 제거되도록 보장
-          setTimeout(() => {
-            if (signal.aborted) {
-              console.log('히트맵 생성 취소: 작업이 중단됨 (setTimeout)')
-              return
-            }
-            if (!mapRef.current) {
-              console.warn('히트맵 생성 취소: 지도 인스턴스가 없습니다 (setTimeout)')
-              return
-            }
-            if (currentModeRef.current === 'heatmap') {
-              createHeatLayer(L, validData)
-            } else {
-              console.log('히트맵 생성 취소: 모드가 변경됨', { currentMode: currentModeRef.current })
-            }
-          }, 150)
+          safeSetTimeout(() => {
+            if (signal.aborted || !mapRef.current || currentModeRef.current !== 'heatmap') return
+            createHeatLayer(L, validData)
+          }, 200)
           return
         }
 
         // 스크립트가 이미 로드 중이면 대기
         if (document.getElementById('leaflet-heat-script')) {
-          const checkInterval = setInterval(() => {
-            if (signal.aborted) {
-              clearInterval(checkInterval)
-              return
-            }
-            if (!mapRef.current || currentModeRef.current !== 'heatmap') {
+          const checkInterval = safeSetInterval(() => {
+            if (signal.aborted || !mapRef.current || currentModeRef.current !== 'heatmap') {
+              intervalRefsRef.current.delete(checkInterval)
               clearInterval(checkInterval)
               return
             }
             if (L.heatLayer) {
+              intervalRefsRef.current.delete(checkInterval)
               clearInterval(checkInterval)
               createHeatLayer(L, validData)
             }
           }, 100)
-          setTimeout(() => {
+          
+          safeSetTimeout(() => {
+            intervalRefsRef.current.delete(checkInterval)
             clearInterval(checkInterval)
-            if (signal.aborted) return
-            if (!mapRef.current || currentModeRef.current !== 'heatmap') return
+            if (signal.aborted || !mapRef.current || currentModeRef.current !== 'heatmap') return
             if (L.heatLayer) {
               createHeatLayer(L, validData)
             } else {
@@ -269,25 +357,23 @@ export function LeafletMap({
         script.src = 'https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js'
         script.async = true
         script.onload = () => {
-          // 플러그인이 등록될 때까지 대기
-          const checkInterval = setInterval(() => {
-            if (signal.aborted) {
-              clearInterval(checkInterval)
-              return
-            }
-            if (!mapRef.current || currentModeRef.current !== 'heatmap') {
+          const checkInterval = safeSetInterval(() => {
+            if (signal.aborted || !mapRef.current || currentModeRef.current !== 'heatmap') {
+              intervalRefsRef.current.delete(checkInterval)
               clearInterval(checkInterval)
               return
             }
             if (L.heatLayer) {
+              intervalRefsRef.current.delete(checkInterval)
               clearInterval(checkInterval)
               createHeatLayer(L, validData)
             }
           }, 100)
-          setTimeout(() => {
+          
+          safeSetTimeout(() => {
+            intervalRefsRef.current.delete(checkInterval)
             clearInterval(checkInterval)
-            if (signal.aborted) return
-            if (!mapRef.current || currentModeRef.current !== 'heatmap') return
+            if (signal.aborted || !mapRef.current || currentModeRef.current !== 'heatmap') return
             if (L.heatLayer) {
               createHeatLayer(L, validData)
             } else {
@@ -299,69 +385,6 @@ export function LeafletMap({
           console.error('leaflet.heat 스크립트 로드 실패')
         }
         document.head.appendChild(script)
-      }
-
-      const createHeatLayer = (L: any, dataToUse: typeof validData) => {
-        // AbortSignal 확인
-        if (signal.aborted) {
-          console.log('히트맵 생성 취소: 작업이 중단됨')
-          return
-        }
-
-        // 현재 모드 및 지도 인스턴스 재확인
-        if (!mapRef.current) {
-          console.warn('히트맵 생성 취소: 지도 인스턴스가 없습니다')
-          return
-        }
-
-        if (currentModeRef.current !== 'heatmap') {
-          console.log('히트맵 생성 취소: 모드가 변경됨', { currentMode: currentModeRef.current, expectedMode: 'heatmap' })
-          return
-        }
-
-        // 기존 히트맵 레이어가 있으면 제거
-        if (heatLayerRef.current) {
-          try {
-            mapRef.current.removeLayer(heatLayerRef.current)
-          } catch (e) {
-            console.warn('기존 히트맵 제거 중 오류:', e)
-          }
-          heatLayerRef.current = null
-        }
-
-        // 데이터 유효성 확인
-        if (!dataToUse || dataToUse.length === 0) {
-          console.warn('히트맵 생성 취소: 데이터가 없습니다')
-          return
-        }
-
-        // 최대값 동적 계산
-        const maxValue = Math.max(...dataToUse.map(d => d.value), 1)
-
-        const heatData = dataToUse.map((point) => [
-          point.latitude,
-          point.longitude,
-          maxValue > 0 ? point.value / maxValue : 0, // 정규화 (0-1)
-        ])
-
-        const heatLayer = L.heatLayer(heatData, {
-          radius: 30, // 반경 증가 (더 넓은 영역 표시)
-          blur: 20, // 블러 증가 (더 부드러운 그라데이션)
-          maxZoom: 17,
-          max: 1.0,
-          minOpacity: 0.4, // 최소 투명도 증가 (더 선명하게)
-          gradient: {
-            0.0: '#1e40af', // 진한 파란색 (낮음) - 대비 증가
-            0.3: '#3b82f6', // 파란색
-            0.5: '#10b981', // 초록색 (중간)
-            0.7: '#f59e0b', // 주황색
-            0.9: '#f97316', // 진한 주황색
-            1.0: '#dc2626', // 진한 빨간색 (높음) - 대비 증가
-          },
-        })
-
-        heatLayer.addTo(mapRef.current)
-        heatLayerRef.current = heatLayer
       }
 
       loadAndCreateHeatmap()
@@ -377,24 +400,102 @@ export function LeafletMap({
           return
         }
 
-        // 이미 로드되어 있으면 바로 생성 (기존 레이어는 이미 제거됨)
+        const createClusterLayer = (L: any, dataToUse: typeof validData) => {
+          // AbortSignal 확인
+          if (signal.aborted) {
+            console.log('클러스터 생성 취소: 작업이 중단됨')
+            return
+          }
+
+          // 현재 모드 및 지도 인스턴스 재확인
+          if (!mapRef.current) {
+            console.warn('클러스터 생성 취소: 지도 인스턴스가 없습니다')
+            return
+          }
+
+          if (currentModeRef.current !== 'cluster') {
+            console.log('클러스터 생성 취소: 모드가 변경됨', { currentMode: currentModeRef.current, expectedMode: 'cluster' })
+            return
+          }
+
+          // 기존 클러스터 레이어가 있으면 제거
+          if (clusterLayerRef.current) {
+            try {
+              mapRef.current.removeLayer(clusterLayerRef.current)
+              if (clusterLayerRef.current.clearLayers) {
+                clusterLayerRef.current.clearLayers()
+              }
+            } catch (e) {
+              console.warn('기존 클러스터 제거 중 오류:', e)
+            }
+            clusterLayerRef.current = null
+          }
+
+          // 데이터 유효성 확인
+          if (!dataToUse || dataToUse.length === 0) {
+            console.warn('클러스터 생성 취소: 데이터가 없습니다')
+            return
+          }
+
+          // MarkerClusterGroup 찾기
+          let MarkerClusterGroup: any = null
+          
+          if (L.markerClusterGroup) {
+            MarkerClusterGroup = L.markerClusterGroup
+          } else if (L.MarkerClusterGroup) {
+            MarkerClusterGroup = L.MarkerClusterGroup
+          }
+
+          if (!MarkerClusterGroup) {
+            console.error('MarkerClusterGroup을 찾을 수 없습니다.')
+            return
+          }
+
+          const markers = typeof MarkerClusterGroup === 'function' && !MarkerClusterGroup.prototype
+            ? MarkerClusterGroup({
+                chunkedLoading: true,
+                animateAddingMarkers: true,
+                singleMarkerMode: false,
+                showCoverageOnHover: true,
+                zoomToBoundsOnClick: true,
+              })
+            : new MarkerClusterGroup({
+                chunkedLoading: true,
+                animateAddingMarkers: true,
+                singleMarkerMode: false,
+                showCoverageOnHover: true,
+                zoomToBoundsOnClick: true,
+              })
+
+          dataToUse.forEach((point) => {
+            const marker = L.marker([point.latitude, point.longitude])
+            
+            const popupContent = point.region 
+              ? `<div><strong>${point.region}</strong><br/>값: ${point.value.toLocaleString()}</div>`
+              : `<div><strong>값: ${point.value.toLocaleString()}</strong></div>`
+            
+            marker.bindPopup(popupContent)
+
+            marker.on('click', () => {
+              if (onLocationSelect) {
+                onLocationSelect(point.h3Index || 'temp_h3_index', point)
+              }
+            })
+
+            markers.addLayer(marker)
+          })
+
+          markers.addTo(mapRef.current)
+          clusterLayerRef.current = markers
+          console.log('클러스터 레이어 생성 완료')
+        }
+
+        // 이미 로드되어 있으면 바로 생성
         if (L.markerClusterGroup || L.MarkerClusterGroup) {
-          // 약간의 지연을 두어 이전 레이어가 완전히 제거되도록 보장
-          setTimeout(() => {
-            if (signal.aborted) {
-              console.log('클러스터 생성 취소: 작업이 중단됨 (setTimeout)')
-              return
-            }
-            if (!mapRef.current) {
-              console.warn('클러스터 생성 취소: 지도 인스턴스가 없습니다 (setTimeout)')
-              return
-            }
-            if (currentModeRef.current === 'cluster') {
-              createClusterLayer(L, validData)
-            } else {
-              console.log('클러스터 생성 취소: 모드가 변경됨', { currentMode: currentModeRef.current })
-            }
-          }, 150)
+          safeSetTimeout(() => {
+            if (signal.aborted || !mapRef.current || currentModeRef.current !== 'cluster') return
+            createClusterLayer(L, validData)
+          }, 200)
           return
         }
 
@@ -409,24 +510,23 @@ export function LeafletMap({
 
         // 스크립트가 이미 로드 중이면 대기
         if (document.getElementById('leaflet-markercluster-script')) {
-          const checkInterval = setInterval(() => {
-            if (signal.aborted) {
-              clearInterval(checkInterval)
-              return
-            }
-            if (!mapRef.current || currentModeRef.current !== 'cluster') {
+          const checkInterval = safeSetInterval(() => {
+            if (signal.aborted || !mapRef.current || currentModeRef.current !== 'cluster') {
+              intervalRefsRef.current.delete(checkInterval)
               clearInterval(checkInterval)
               return
             }
             if (L.markerClusterGroup || L.MarkerClusterGroup) {
+              intervalRefsRef.current.delete(checkInterval)
               clearInterval(checkInterval)
               createClusterLayer(L, validData)
             }
           }, 100)
-          setTimeout(() => {
+          
+          safeSetTimeout(() => {
+            intervalRefsRef.current.delete(checkInterval)
             clearInterval(checkInterval)
-            if (signal.aborted) return
-            if (!mapRef.current || currentModeRef.current !== 'cluster') return
+            if (signal.aborted || !mapRef.current || currentModeRef.current !== 'cluster') return
             if (L.markerClusterGroup || L.MarkerClusterGroup) {
               createClusterLayer(L, validData)
             } else {
@@ -442,25 +542,23 @@ export function LeafletMap({
         script.src = 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js'
         script.async = true
         script.onload = () => {
-          // 플러그인이 등록될 때까지 대기
-          const checkInterval = setInterval(() => {
-            if (signal.aborted) {
-              clearInterval(checkInterval)
-              return
-            }
-            if (!mapRef.current || currentModeRef.current !== 'cluster') {
+          const checkInterval = safeSetInterval(() => {
+            if (signal.aborted || !mapRef.current || currentModeRef.current !== 'cluster') {
+              intervalRefsRef.current.delete(checkInterval)
               clearInterval(checkInterval)
               return
             }
             if (L.markerClusterGroup || L.MarkerClusterGroup) {
+              intervalRefsRef.current.delete(checkInterval)
               clearInterval(checkInterval)
               createClusterLayer(L, validData)
             }
           }, 100)
-          setTimeout(() => {
+          
+          safeSetTimeout(() => {
+            intervalRefsRef.current.delete(checkInterval)
             clearInterval(checkInterval)
-            if (signal.aborted) return
-            if (!mapRef.current || currentModeRef.current !== 'cluster') return
+            if (signal.aborted || !mapRef.current || currentModeRef.current !== 'cluster') return
             if (L.markerClusterGroup || L.MarkerClusterGroup) {
               createClusterLayer(L, validData)
             } else {
@@ -472,98 +570,6 @@ export function LeafletMap({
           console.error('leaflet.markercluster 스크립트 로드 실패')
         }
         document.head.appendChild(script)
-      }
-
-      const createClusterLayer = (L: any, dataToUse: typeof validData) => {
-        // AbortSignal 확인
-        if (signal.aborted) {
-          console.log('클러스터 생성 취소: 작업이 중단됨')
-          return
-        }
-
-        // 현재 모드 및 지도 인스턴스 재확인
-        if (!mapRef.current) {
-          console.warn('클러스터 생성 취소: 지도 인스턴스가 없습니다')
-          return
-        }
-
-        if (currentModeRef.current !== 'cluster') {
-          console.log('클러스터 생성 취소: 모드가 변경됨', { currentMode: currentModeRef.current, expectedMode: 'cluster' })
-          return
-        }
-
-        // 기존 클러스터 레이어가 있으면 제거
-        if (clusterLayerRef.current) {
-          try {
-            mapRef.current.removeLayer(clusterLayerRef.current)
-            if (clusterLayerRef.current.clearLayers) {
-              clusterLayerRef.current.clearLayers()
-            }
-          } catch (e) {
-            console.warn('기존 클러스터 제거 중 오류:', e)
-          }
-          clusterLayerRef.current = null
-        }
-
-        // 데이터 유효성 확인
-        if (!dataToUse || dataToUse.length === 0) {
-          console.warn('클러스터 생성 취소: 데이터가 없습니다')
-          return
-        }
-
-        // MarkerClusterGroup 찾기 (여러 방법 시도)
-        let MarkerClusterGroup: any = null
-        
-        if (L.markerClusterGroup) {
-          // L.markerClusterGroup은 함수이므로 직접 사용
-          MarkerClusterGroup = L.markerClusterGroup
-        } else if (L.MarkerClusterGroup) {
-          // L.MarkerClusterGroup은 클래스이므로 new로 생성
-          MarkerClusterGroup = L.MarkerClusterGroup
-        }
-
-        if (!MarkerClusterGroup) {
-          console.error('MarkerClusterGroup을 찾을 수 없습니다.')
-          return
-        }
-
-        // markerClusterGroup이 함수인지 클래스인지 확인
-        const markers = typeof MarkerClusterGroup === 'function' && !MarkerClusterGroup.prototype
-          ? MarkerClusterGroup({
-              chunkedLoading: true,
-              animateAddingMarkers: true,
-              singleMarkerMode: false,
-              showCoverageOnHover: true,
-              zoomToBoundsOnClick: true,
-            })
-          : new MarkerClusterGroup({
-              chunkedLoading: true,
-              animateAddingMarkers: true,
-              singleMarkerMode: false,
-              showCoverageOnHover: true,
-              zoomToBoundsOnClick: true,
-            })
-
-        dataToUse.forEach((point) => {
-          const marker = L.marker([point.latitude, point.longitude])
-          
-          const popupContent = point.region 
-            ? `<div><strong>${point.region}</strong><br/>값: ${point.value.toLocaleString()}</div>`
-            : `<div><strong>값: ${point.value.toLocaleString()}</strong></div>`
-          
-          marker.bindPopup(popupContent)
-
-          marker.on('click', () => {
-            if (onLocationSelect) {
-              onLocationSelect(point.h3Index || 'temp_h3_index', point)
-            }
-          })
-
-          markers.addLayer(marker)
-        })
-
-        markers.addTo(mapRef.current)
-        clusterLayerRef.current = markers
       }
 
       loadAndCreateCluster()
@@ -624,6 +630,7 @@ export function LeafletMap({
 
       markerLayer.addTo(mapRef.current)
       markerLayerRef.current = markerLayer
+      console.log('마커 레이어 생성 완료')
     } else if (mode === 'circle') {
       // AbortSignal 확인
       if (signal.aborted) {
@@ -666,24 +673,21 @@ export function LeafletMap({
       const minValue = Math.min(...validData.map(d => d.value), 0)
 
       validData.forEach((point) => {
-        // 값에 따라 반지름 계산 (최소 5px, 최대 50px)
-        // 값이 0인 경우 최소 반지름 사용
         let radius = 5
         if (point.value > 0 && maxValue > 0) {
           const normalizedValue = (point.value - minValue) / (maxValue - minValue || 1)
           radius = Math.max(5, Math.min(50, 5 + normalizedValue * 45))
         }
 
-        // 값에 따라 색상 결정
-        let fillColor = '#94a3b8' // 회색 (값이 0인 경우)
+        let fillColor = '#94a3b8'
         if (point.value > 0) {
           const normalizedValue = maxValue > 0 ? point.value / maxValue : 0
           if (normalizedValue < 0.33) {
-            fillColor = '#3b82f6' // 파란색 (낮음)
+            fillColor = '#3b82f6'
           } else if (normalizedValue < 0.66) {
-            fillColor = '#f59e0b' // 주황색 (중간)
+            fillColor = '#f59e0b'
           } else {
-            fillColor = '#ef4444' // 빨간색 (높음)
+            fillColor = '#ef4444'
           }
         }
 
@@ -712,15 +716,17 @@ export function LeafletMap({
 
       circleLayer.addTo(mapRef.current)
       circleLayerRef.current = circleLayer
+      console.log('원형 레이어 생성 완료')
     }
 
     // 클린업 함수: 컴포넌트 언마운트 또는 의존성 변경 시 실행
     return () => {
+      clearAllTimers()
       if (abortControllerRef.current) {
         abortControllerRef.current.abort()
       }
     }
-  }, [leafletLoaded, data, mode, onLocationSelect, center, zoom])
+  }, [leafletLoaded, data, mode, center, zoom, clearAllLayers, clearAllTimers, safeSetInterval, safeSetTimeout])
 
   // 지도 중심 변경
   useEffect(() => {
