@@ -343,7 +343,7 @@ export default function MapPage() {
 
   // 수술 목록 추출 (Top 20)
   const surgeryOptions = useMemo(() => {
-    if (!isDataLoaded || rawData.length === 0) {
+    if (!isDataLoaded || filteredRawData.length === 0) {
       return []
     }
 
