@@ -48,118 +48,6 @@ export function LeafletMap({
       document.head.appendChild(link)
     }
 
-    // leaflet.heat 플러그인 스크립트 로드 (전역 L에 등록되도록)
-    const loadHeatPlugin = () => {
-      return new Promise<void>((resolve, reject) => {
-        if ((window as any).L && (window as any).L.heatLayer) {
-          resolve()
-          return
-        }
-        if (document.getElementById('leaflet-heat-script')) {
-          // 이미 로드 중이면 대기
-          const checkInterval = setInterval(() => {
-            if ((window as any).L && (window as any).L.heatLayer) {
-              clearInterval(checkInterval)
-              resolve()
-            }
-          }, 50)
-          setTimeout(() => {
-            clearInterval(checkInterval)
-            if (!(window as any).L || !(window as any).L.heatLayer) {
-              reject(new Error('leaflet.heat 로드 타임아웃'))
-            }
-          }, 5000)
-          return
-        }
-
-        const script = document.createElement('script')
-        script.id = 'leaflet-heat-script'
-        script.src = 'https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js'
-        script.async = true
-        script.onload = () => {
-          // 플러그인이 등록될 때까지 대기
-          const checkInterval = setInterval(() => {
-            if ((window as any).L && (window as any).L.heatLayer) {
-              clearInterval(checkInterval)
-              resolve()
-            }
-          }, 50)
-          setTimeout(() => {
-            clearInterval(checkInterval)
-            if (!(window as any).L || !(window as any).L.heatLayer) {
-              reject(new Error('leaflet.heat 등록 실패'))
-            }
-          }, 2000)
-        }
-        script.onerror = () => reject(new Error('leaflet.heat 스크립트 로드 실패'))
-        document.head.appendChild(script)
-      })
-    }
-
-    // leaflet.markercluster 플러그인 스크립트 로드
-    const loadClusterPlugin = () => {
-      return new Promise<void>((resolve, reject) => {
-        // MarkerClusterGroup이 이미 등록되어 있는지 확인 (여러 방법)
-        const checkCluster = () => {
-          const L = (window as any).L
-          if (L && (L.markerClusterGroup || L.MarkerClusterGroup)) {
-            return true
-          }
-          return false
-        }
-
-        if (checkCluster()) {
-          resolve()
-          return
-        }
-        if (document.getElementById('leaflet-markercluster-script')) {
-          // 이미 로드 중이면 대기
-          const checkInterval = setInterval(() => {
-            if (checkCluster()) {
-              clearInterval(checkInterval)
-              resolve()
-            }
-          }, 50)
-          setTimeout(() => {
-            clearInterval(checkInterval)
-            if (!checkCluster()) {
-              reject(new Error('leaflet.markercluster 로드 타임아웃'))
-            }
-          }, 5000)
-          return
-        }
-
-        // CSS 먼저 로드
-        if (!document.getElementById('leaflet-markercluster-css')) {
-          const link = document.createElement('link')
-          link.id = 'leaflet-markercluster-css'
-          link.rel = 'stylesheet'
-          link.href = 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css'
-          document.head.appendChild(link)
-        }
-
-        const script = document.createElement('script')
-        script.id = 'leaflet-markercluster-script'
-        script.src = 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js'
-        script.async = true
-        script.onload = () => {
-          const checkInterval = setInterval(() => {
-            if (checkCluster()) {
-              clearInterval(checkInterval)
-              resolve()
-            }
-          }, 50)
-          setTimeout(() => {
-            clearInterval(checkInterval)
-            if (!checkCluster()) {
-              reject(new Error('leaflet.markercluster 등록 실패'))
-            }
-          }, 2000)
-        }
-        script.onerror = () => reject(new Error('leaflet.markercluster 스크립트 로드 실패'))
-        document.head.appendChild(script)
-      })
-    }
 
     // Leaflet 라이브러리 동적 로드
     import('leaflet').then((L) => {
@@ -191,15 +79,8 @@ export function LeafletMap({
       }).addTo(map)
 
       mapRef.current = map
-      
-      // 플러그인들을 미리 로드 (필요할 때 사용)
-      Promise.all([
-        loadHeatPlugin().catch(err => console.warn('leaflet.heat 로드 실패 (나중에 사용 가능):', err)),
-        loadClusterPlugin().catch(err => console.warn('leaflet.markercluster 로드 실패 (나중에 사용 가능):', err))
-      ]).finally(() => {
-        setLeafletLoaded(true)
-        setIsLoading(false)
-      })
+      setLeafletLoaded(true)
+      setIsLoading(false)
     }).catch(err => {
       console.error('Leaflet 로드 실패:', err)
       setIsLoading(false)
@@ -277,8 +158,8 @@ export function LeafletMap({
     }
 
     if (mode === 'heatmap') {
-      // 히트맵 모드: window.L.heatLayer 사용 (스크립트 태그로 이미 로드됨)
-      const createHeatmap = () => {
+      // 히트맵 모드: leaflet.heat 플러그인 동적 로드
+      const loadAndCreateHeatmap = async () => {
         if (!mapRef.current) return
 
         const L = (window as any).L
@@ -288,17 +169,61 @@ export function LeafletMap({
           return
         }
 
-        // heatLayer가 등록되어 있는지 확인
-        if (!L.heatLayer) {
-          console.error('L.heatLayer를 찾을 수 없습니다. leaflet.heat 플러그인이 로드되지 않았습니다.')
-          // 재시도 (플러그인이 아직 로드 중일 수 있음)
-          setTimeout(() => {
-            if ((window as any).L && (window as any).L.heatLayer) {
-              createHeatmap()
-            }
-          }, 500)
+        // 이미 로드되어 있으면 바로 생성
+        if (L.heatLayer) {
+          createHeatLayer(L)
           return
         }
+
+        // 스크립트가 이미 로드 중이면 대기
+        if (document.getElementById('leaflet-heat-script')) {
+          const checkInterval = setInterval(() => {
+            if (L.heatLayer) {
+              clearInterval(checkInterval)
+              createHeatLayer(L)
+            }
+          }, 100)
+          setTimeout(() => {
+            clearInterval(checkInterval)
+            if (L.heatLayer) {
+              createHeatLayer(L)
+            } else {
+              console.error('leaflet.heat 로드 타임아웃')
+            }
+          }, 5000)
+          return
+        }
+
+        // 스크립트 태그로 플러그인 로드
+        const script = document.createElement('script')
+        script.id = 'leaflet-heat-script'
+        script.src = 'https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js'
+        script.async = true
+        script.onload = () => {
+          // 플러그인이 등록될 때까지 대기
+          const checkInterval = setInterval(() => {
+            if (L.heatLayer) {
+              clearInterval(checkInterval)
+              createHeatLayer(L)
+            }
+          }, 100)
+          setTimeout(() => {
+            clearInterval(checkInterval)
+            if (L.heatLayer) {
+              createHeatLayer(L)
+            } else {
+              console.error('leaflet.heat 등록 실패')
+            }
+          }, 3000)
+        }
+        script.onerror = () => {
+          console.error('leaflet.heat 스크립트 로드 실패')
+        }
+        document.head.appendChild(script)
+      }
+
+      const createHeatLayer = (L: any) => {
+        if (!mapRef.current) return
 
         // 최대값 동적 계산
         const maxValue = Math.max(...validData.map(d => d.value), 1)
@@ -326,10 +251,10 @@ export function LeafletMap({
         heatLayerRef.current = heatLayer
       }
 
-      createHeatmap()
+      loadAndCreateHeatmap()
     } else if (mode === 'cluster') {
-      // 클러스터 모드: MarkerClusterGroup 사용 (스크립트 태그로 이미 로드됨)
-      const createCluster = () => {
+      // 클러스터 모드: leaflet.markercluster 플러그인 동적 로드
+      const loadAndCreateCluster = async () => {
         if (!mapRef.current) return
 
         const L = (window as any).L
@@ -338,6 +263,71 @@ export function LeafletMap({
           console.error('window.L을 찾을 수 없습니다.')
           return
         }
+
+        // 이미 로드되어 있으면 바로 생성
+        if (L.markerClusterGroup || L.MarkerClusterGroup) {
+          createClusterLayer(L)
+          return
+        }
+
+        // CSS 먼저 로드
+        if (!document.getElementById('leaflet-markercluster-css')) {
+          const link = document.createElement('link')
+          link.id = 'leaflet-markercluster-css'
+          link.rel = 'stylesheet'
+          link.href = 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css'
+          document.head.appendChild(link)
+        }
+
+        // 스크립트가 이미 로드 중이면 대기
+        if (document.getElementById('leaflet-markercluster-script')) {
+          const checkInterval = setInterval(() => {
+            if (L.markerClusterGroup || L.MarkerClusterGroup) {
+              clearInterval(checkInterval)
+              createClusterLayer(L)
+            }
+          }, 100)
+          setTimeout(() => {
+            clearInterval(checkInterval)
+            if (L.markerClusterGroup || L.MarkerClusterGroup) {
+              createClusterLayer(L)
+            } else {
+              console.error('leaflet.markercluster 로드 타임아웃')
+            }
+          }, 5000)
+          return
+        }
+
+        // 스크립트 태그로 플러그인 로드
+        const script = document.createElement('script')
+        script.id = 'leaflet-markercluster-script'
+        script.src = 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js'
+        script.async = true
+        script.onload = () => {
+          // 플러그인이 등록될 때까지 대기
+          const checkInterval = setInterval(() => {
+            if (L.markerClusterGroup || L.MarkerClusterGroup) {
+              clearInterval(checkInterval)
+              createClusterLayer(L)
+            }
+          }, 100)
+          setTimeout(() => {
+            clearInterval(checkInterval)
+            if (L.markerClusterGroup || L.MarkerClusterGroup) {
+              createClusterLayer(L)
+            } else {
+              console.error('leaflet.markercluster 등록 실패')
+            }
+          }, 3000)
+        }
+        script.onerror = () => {
+          console.error('leaflet.markercluster 스크립트 로드 실패')
+        }
+        document.head.appendChild(script)
+      }
+
+      const createClusterLayer = (L: any) => {
+        if (!mapRef.current) return
 
         // MarkerClusterGroup 찾기 (여러 방법 시도)
         let MarkerClusterGroup: any = null
@@ -351,11 +341,7 @@ export function LeafletMap({
         }
 
         if (!MarkerClusterGroup) {
-          console.error('MarkerClusterGroup을 찾을 수 없습니다. leaflet.markercluster 플러그인이 로드되지 않았습니다.')
-          // 재시도 (플러그인이 아직 로드 중일 수 있음)
-          setTimeout(() => {
-            createCluster()
-          }, 500)
+          console.error('MarkerClusterGroup을 찾을 수 없습니다.')
           return
         }
 
@@ -369,12 +355,12 @@ export function LeafletMap({
               zoomToBoundsOnClick: true,
             })
           : new MarkerClusterGroup({
-          chunkedLoading: true,
-          animateAddingMarkers: true,
-          singleMarkerMode: false,
-          showCoverageOnHover: true,
-          zoomToBoundsOnClick: true,
-        })
+              chunkedLoading: true,
+              animateAddingMarkers: true,
+              singleMarkerMode: false,
+              showCoverageOnHover: true,
+              zoomToBoundsOnClick: true,
+            })
 
         validData.forEach((point) => {
           const marker = L.marker([point.latitude, point.longitude])
@@ -398,7 +384,7 @@ export function LeafletMap({
         clusterLayerRef.current = markers
       }
 
-      createCluster()
+      loadAndCreateCluster()
     } else {
       // 마커 및 원형 모드: leaflet만 로드
       import('leaflet').then((L) => {
