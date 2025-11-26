@@ -186,13 +186,22 @@ export function LeafletMap({
 
   // 데이터 렌더링 (히트맵 또는 마커)
   useEffect(() => {
+    console.log('=== 지도 렌더링 useEffect 시작 ===', {
+      leafletLoaded,
+      hasMap: !!mapRef.current,
+      mode,
+      dataLength: data?.length || 0,
+      timestamp: new Date().toISOString()
+    })
+
     if (!leafletLoaded || !mapRef.current) {
-      console.log('지도 렌더링 대기:', { leafletLoaded, hasMap: !!mapRef.current })
+      console.warn('지도 렌더링 대기:', { leafletLoaded, hasMap: !!mapRef.current })
       return
     }
 
     // 이전 비동기 작업 취소 및 타이머 정리
     if (abortControllerRef.current) {
+      console.log('이전 비동기 작업 취소')
       abortControllerRef.current.abort()
     }
     clearAllTimers()
@@ -201,19 +210,32 @@ export function LeafletMap({
     const signal = abortControllerRef.current.signal
 
     // 현재 모드 업데이트
+    const previousMode = currentModeRef.current
     currentModeRef.current = mode
+    console.log('모드 업데이트:', { previousMode, newMode: mode })
 
     // 데이터가 비어있으면 기존 레이어만 제거
     if (!data || data.length === 0) {
-      console.log('데이터가 비어있어 레이어 제거')
+      console.log('데이터가 비어있어 레이어 제거', { dataLength: data?.length || 0 })
       clearAllLayers()
       return
     }
     
-    console.log('지도 데이터 렌더링 시작:', { mode, dataLength: data.length })
+    console.log('지도 데이터 렌더링 시작:', { 
+      mode, 
+      dataLength: data.length,
+      firstDataPoint: data[0] ? { lat: data[0].latitude, lng: data[0].longitude, value: data[0].value } : null
+    })
 
     // 기존 레이어 완전히 제거 (모드 전환 시 재생성 보장)
+    console.log('기존 레이어 제거 시작:', {
+      hasHeatLayer: !!heatLayerRef.current,
+      hasMarkerLayer: !!markerLayerRef.current,
+      hasClusterLayer: !!clusterLayerRef.current,
+      hasCircleLayer: !!circleLayerRef.current
+    })
     clearAllLayers()
+    console.log('기존 레이어 제거 완료')
 
     // 유효한 데이터만 필터링 (좌표가 있는 경우만)
     const validData = data.filter(
@@ -229,12 +251,18 @@ export function LeafletMap({
     if (validData.length === 0) {
       console.warn('유효한 데이터가 없습니다.', { 
         originalLength: data.length,
-        filtered: data.filter(p => p.latitude == null || p.longitude == null).length
+        filtered: data.filter(p => p.latitude == null || p.longitude == null).length,
+        invalidLatLng: data.filter(p => p.latitude == null || p.longitude == null).length,
+        invalidValue: data.filter(p => p.value == null || isNaN(p.value)).length
       })
       return
     }
     
-    console.log('유효한 데이터:', { validDataLength: validData.length, mode })
+    console.log('유효한 데이터 확인 완료:', { 
+      validDataLength: validData.length, 
+      mode,
+      sampleData: validData.slice(0, 3).map(d => ({ lat: d.latitude, lng: d.longitude, value: d.value }))
+    })
 
     if (mode === 'heatmap') {
       // 히트맵 모드: leaflet.heat 플러그인 동적 로드
@@ -252,41 +280,63 @@ export function LeafletMap({
         }
 
         const createHeatLayer = (L: any, dataToUse: typeof validData) => {
+          console.log('=== createHeatLayer 호출 ===', {
+            signalAborted: signal.aborted,
+            hasMap: !!mapRef.current,
+            currentMode: currentModeRef.current,
+            dataLength: dataToUse?.length || 0,
+            timestamp: new Date().toISOString()
+          })
+
           // AbortSignal 확인
           if (signal.aborted) {
-            console.log('히트맵 생성 취소: 작업이 중단됨')
+            console.warn('히트맵 생성 취소: 작업이 중단됨')
             return
           }
 
           // 현재 모드 및 지도 인스턴스 재확인
           if (!mapRef.current) {
-            console.warn('히트맵 생성 취소: 지도 인스턴스가 없습니다')
+            console.error('히트맵 생성 취소: 지도 인스턴스가 없습니다')
             return
           }
 
           if (currentModeRef.current !== 'heatmap') {
-            console.log('히트맵 생성 취소: 모드가 변경됨', { currentMode: currentModeRef.current, expectedMode: 'heatmap' })
+            console.warn('히트맵 생성 취소: 모드가 변경됨', { 
+              currentMode: currentModeRef.current, 
+              expectedMode: 'heatmap' 
+            })
             return
           }
 
           // 기존 히트맵 레이어가 있으면 제거
           if (heatLayerRef.current) {
+            console.log('기존 히트맵 레이어 제거 시작')
             try {
               mapRef.current.removeLayer(heatLayerRef.current)
+              console.log('기존 히트맵 레이어 제거 성공')
             } catch (e) {
-              console.warn('기존 히트맵 제거 중 오류:', e)
+              console.error('기존 히트맵 제거 중 오류:', e)
             }
             heatLayerRef.current = null
           }
 
           // 데이터 유효성 확인
           if (!dataToUse || dataToUse.length === 0) {
-            console.warn('히트맵 생성 취소: 데이터가 없습니다')
+            console.error('히트맵 생성 취소: 데이터가 없습니다', { 
+              dataToUse: dataToUse?.length || 0 
+            })
             return
           }
 
           // 최대값 동적 계산
           const maxValue = Math.max(...dataToUse.map(d => d.value), 1)
+          const minValue = Math.min(...dataToUse.map(d => d.value), 0)
+          console.log('히트맵 데이터 계산:', {
+            dataPoints: dataToUse.length,
+            maxValue,
+            minValue,
+            sampleValues: dataToUse.slice(0, 5).map(d => d.value)
+          })
 
           const heatData = dataToUse.map((point) => [
             point.latitude,
@@ -294,25 +344,45 @@ export function LeafletMap({
             maxValue > 0 ? point.value / maxValue : 0, // 정규화 (0-1)
           ])
 
-          const heatLayer = L.heatLayer(heatData, {
-            radius: 30,
-            blur: 20,
-            maxZoom: 17,
-            max: 1.0,
-            minOpacity: 0.4,
-            gradient: {
-              0.0: '#1e40af',
-              0.3: '#3b82f6',
-              0.5: '#10b981',
-              0.7: '#f59e0b',
-              0.9: '#f97316',
-              1.0: '#dc2626',
-            },
+          console.log('히트맵 레이어 생성 시작:', {
+            heatDataPoints: heatData.length,
+            sampleHeatData: heatData.slice(0, 3),
+            hasHeatLayerFunction: !!L.heatLayer
           })
 
-          heatLayer.addTo(mapRef.current)
-          heatLayerRef.current = heatLayer
-          console.log('히트맵 레이어 생성 완료')
+          try {
+            const heatLayer = L.heatLayer(heatData, {
+              radius: 30,
+              blur: 20,
+              maxZoom: 17,
+              max: 1.0,
+              minOpacity: 0.4,
+              gradient: {
+                0.0: '#1e40af',
+                0.3: '#3b82f6',
+                0.5: '#10b981',
+                0.7: '#f59e0b',
+                0.9: '#f97316',
+                1.0: '#dc2626',
+              },
+            })
+
+            console.log('히트맵 레이어 객체 생성 완료, 지도에 추가 시작')
+            heatLayer.addTo(mapRef.current)
+            heatLayerRef.current = heatLayer
+            console.log('✅ 히트맵 레이어 생성 및 추가 완료', {
+              layerType: typeof heatLayer,
+              hasLayer: !!heatLayer,
+              mapLayers: mapRef.current._layers ? Object.keys(mapRef.current._layers).length : 0
+            })
+          } catch (error) {
+            console.error('❌ 히트맵 레이어 생성 중 오류:', error, {
+              errorMessage: error instanceof Error ? error.message : String(error),
+              errorStack: error instanceof Error ? error.stack : undefined,
+              LType: typeof L,
+              heatLayerType: typeof L.heatLayer
+            })
+          }
         }
 
         // 플러그인 로딩 헬퍼 함수
@@ -344,49 +414,103 @@ export function LeafletMap({
 
         // 플러그인이 이미 로드되어 있는지 즉시 확인
         const isHeatPluginLoaded = L.heatLayer || (window as any).L?.heatLayer || (L as any).heat?.Layer
+        
+        console.log('히트맵 플러그인 확인:', {
+          L_heatLayer: !!L.heatLayer,
+          window_L_heatLayer: !!(window as any).L?.heatLayer,
+          L_heat_Layer: !!(L as any).heat?.Layer,
+          isHeatPluginLoaded,
+          pluginLoading: pluginLoadingRef.current.heat
+        })
 
         if (isHeatPluginLoaded) {
           // 플러그인이 이미 로드되어 있으면 즉시 레이어 생성 (탭 전환 시 데이터 변경 반영)
-          console.log('leaflet.heat 플러그인 이미 로드됨, 레이어 즉시 생성')
+          console.log('✅ leaflet.heat 플러그인 이미 로드됨, 레이어 즉시 생성 시작', {
+            validDataLength: validData.length,
+            timestamp: new Date().toISOString()
+          })
           safeSetTimeout(() => {
-            if (signal.aborted || !mapRef.current || currentModeRef.current !== 'heatmap') return
+            console.log('히트맵 레이어 생성 setTimeout 실행:', {
+              signalAborted: signal.aborted,
+              hasMap: !!mapRef.current,
+              currentMode: currentModeRef.current,
+              expectedMode: 'heatmap'
+            })
+            if (signal.aborted || !mapRef.current || currentModeRef.current !== 'heatmap') {
+              console.warn('히트맵 레이어 생성 취소 (setTimeout 내부)')
+              return
+            }
             createHeatLayer(L, validData)
           }, 100)
         } else if (!pluginLoadingRef.current.heat) {
+          console.log('히트맵 플러그인 로드 필요, 스크립트 확인 시작')
           // 스크립트가 이미 로드 중이면 대기
           const existingScript = document.getElementById('leaflet-heat-script')
           if (existingScript) {
-            console.log('leaflet.heat 스크립트 로드 대기 중...')
+            console.log('leaflet.heat 스크립트 이미 존재, 플러그인 등록 대기...', {
+              scriptSrc: existingScript.getAttribute('src'),
+              scriptId: existingScript.id
+            })
             waitForHeatPlugin(50).then((loaded) => {
+              console.log('히트맵 플러그인 대기 완료:', {
+                loaded,
+                signalAborted: signal.aborted,
+                hasMap: !!mapRef.current,
+                currentMode: currentModeRef.current
+              })
               if (loaded && !signal.aborted && mapRef.current && currentModeRef.current === 'heatmap') {
                 createHeatLayer(L, validData)
               } else if (!loaded) {
-                console.error('leaflet.heat 플러그인 로드 실패 - 스크립트는 있지만 플러그인이 등록되지 않음')
+                console.error('❌ leaflet.heat 플러그인 로드 실패 - 스크립트는 있지만 플러그인이 등록되지 않음')
+              } else {
+                console.warn('히트맵 레이어 생성 취소:', {
+                  loaded,
+                  signalAborted: signal.aborted,
+                  hasMap: !!mapRef.current,
+                  currentMode: currentModeRef.current
+                })
               }
             })
           } else {
             // 스크립트 태그로 플러그인 로드
+            console.log('leaflet.heat 스크립트 새로 로드 시작')
             pluginLoadingRef.current.heat = true
             const script = document.createElement('script')
             script.id = 'leaflet-heat-script'
             script.src = 'https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js'
             script.async = true
             script.onload = () => {
-              console.log('leaflet.heat 스크립트 로드 완료, 플러그인 등록 대기...')
+              console.log('✅ leaflet.heat 스크립트 로드 완료, 플러그인 등록 대기...')
               waitForHeatPlugin(50).then((loaded) => {
                 pluginLoadingRef.current.heat = false
+                console.log('히트맵 플러그인 등록 확인 완료:', {
+                  loaded,
+                  signalAborted: signal.aborted,
+                  hasMap: !!mapRef.current,
+                  currentMode: currentModeRef.current
+                })
                 if (loaded && !signal.aborted && mapRef.current && currentModeRef.current === 'heatmap') {
                   createHeatLayer(L, validData)
                 } else if (!loaded) {
-                  console.error('leaflet.heat 플러그인 등록 실패 - 스크립트는 로드되었지만 플러그인이 등록되지 않음')
+                  console.error('❌ leaflet.heat 플러그인 등록 실패 - 스크립트는 로드되었지만 플러그인이 등록되지 않음')
+                } else {
+                  console.warn('히트맵 레이어 생성 취소 (스크립트 로드 후):', {
+                    loaded,
+                    signalAborted: signal.aborted,
+                    hasMap: !!mapRef.current,
+                    currentMode: currentModeRef.current
+                  })
                 }
               })
             }
             script.onerror = () => {
               pluginLoadingRef.current.heat = false
-              console.error('leaflet.heat 스크립트 로드 실패 - 네트워크 오류 또는 CDN 문제')
+              console.error('❌ leaflet.heat 스크립트 로드 실패 - 네트워크 오류 또는 CDN 문제', {
+                scriptSrc: script.src
+              })
             }
             document.head.appendChild(script)
+            console.log('leaflet.heat 스크립트 태그 추가 완료')
           }
         }
       }
@@ -405,39 +529,54 @@ export function LeafletMap({
         }
 
         const createClusterLayer = (L: any, dataToUse: typeof validData) => {
+          console.log('=== createClusterLayer 호출 ===', {
+            signalAborted: signal.aborted,
+            hasMap: !!mapRef.current,
+            currentMode: currentModeRef.current,
+            dataLength: dataToUse?.length || 0,
+            timestamp: new Date().toISOString()
+          })
+
           // AbortSignal 확인
           if (signal.aborted) {
-            console.log('클러스터 생성 취소: 작업이 중단됨')
+            console.warn('클러스터 생성 취소: 작업이 중단됨')
             return
           }
 
           // 현재 모드 및 지도 인스턴스 재확인
           if (!mapRef.current) {
-            console.warn('클러스터 생성 취소: 지도 인스턴스가 없습니다')
+            console.error('클러스터 생성 취소: 지도 인스턴스가 없습니다')
             return
           }
 
           if (currentModeRef.current !== 'cluster') {
-            console.log('클러스터 생성 취소: 모드가 변경됨', { currentMode: currentModeRef.current, expectedMode: 'cluster' })
+            console.warn('클러스터 생성 취소: 모드가 변경됨', { 
+              currentMode: currentModeRef.current, 
+              expectedMode: 'cluster' 
+            })
             return
           }
 
           // 기존 클러스터 레이어가 있으면 제거
           if (clusterLayerRef.current) {
+            console.log('기존 클러스터 레이어 제거 시작')
             try {
               mapRef.current.removeLayer(clusterLayerRef.current)
               if (clusterLayerRef.current.clearLayers) {
                 clusterLayerRef.current.clearLayers()
               }
+              console.log('기존 클러스터 레이어 제거 성공')
             } catch (e) {
-              console.warn('기존 클러스터 제거 중 오류:', e)
+              console.error('기존 클러스터 제거 중 오류:', e)
             }
             clusterLayerRef.current = null
           }
 
           // 데이터 유효성 확인
           if (!dataToUse || dataToUse.length === 0) {
-            console.warn('클러스터 생성 취소: 데이터가 없습니다')
+            console.error('클러스터 생성 취소: 데이터가 없습니다', { 
+              dataToUse: dataToUse?.length || 0 
+            })
             return
           }
 
@@ -489,9 +628,25 @@ export function LeafletMap({
             markers.addLayer(marker)
           })
 
-          markers.addTo(mapRef.current)
-          clusterLayerRef.current = markers
-          console.log('클러스터 레이어 생성 완료')
+          console.log('클러스터 레이어 지도에 추가 시작:', {
+            markersCount: dataToUse.length,
+            hasMarkerClusterGroup: !!MarkerClusterGroup
+          })
+          
+          try {
+            markers.addTo(mapRef.current)
+            clusterLayerRef.current = markers
+            console.log('✅ 클러스터 레이어 생성 및 추가 완료', {
+              layerType: typeof markers,
+              hasLayer: !!markers,
+              mapLayers: mapRef.current._layers ? Object.keys(mapRef.current._layers).length : 0
+            })
+          } catch (error) {
+            console.error('❌ 클러스터 레이어 생성 중 오류:', error, {
+              errorMessage: error instanceof Error ? error.message : String(error),
+              errorStack: error instanceof Error ? error.stack : undefined
+            })
+          }
         }
 
         // 플러그인 로딩 헬퍼 함수
@@ -537,48 +692,104 @@ export function LeafletMap({
           (window as any).L?.markerClusterGroup || (window as any).L?.MarkerClusterGroup ||
           (L as any).markerCluster?.Group
 
+        console.log('클러스터 플러그인 확인:', {
+          L_markerClusterGroup: !!L.markerClusterGroup,
+          L_MarkerClusterGroup: !!L.MarkerClusterGroup,
+          window_L_markerClusterGroup: !!(window as any).L?.markerClusterGroup,
+          window_L_MarkerClusterGroup: !!(window as any).L?.MarkerClusterGroup,
+          L_markerCluster_Group: !!(L as any).markerCluster?.Group,
+          isClusterPluginLoaded,
+          pluginLoading: pluginLoadingRef.current.cluster
+        })
+
         if (isClusterPluginLoaded) {
           // 플러그인이 이미 로드되어 있으면 즉시 레이어 생성 (탭 전환 시 데이터 변경 반영)
-          console.log('leaflet.markercluster 플러그인 이미 로드됨, 레이어 즉시 생성')
+          console.log('✅ leaflet.markercluster 플러그인 이미 로드됨, 레이어 즉시 생성 시작', {
+            validDataLength: validData.length,
+            timestamp: new Date().toISOString()
+          })
           safeSetTimeout(() => {
-            if (signal.aborted || !mapRef.current || currentModeRef.current !== 'cluster') return
+            console.log('클러스터 레이어 생성 setTimeout 실행:', {
+              signalAborted: signal.aborted,
+              hasMap: !!mapRef.current,
+              currentMode: currentModeRef.current,
+              expectedMode: 'cluster'
+            })
+            if (signal.aborted || !mapRef.current || currentModeRef.current !== 'cluster') {
+              console.warn('클러스터 레이어 생성 취소 (setTimeout 내부)')
+              return
+            }
             createClusterLayer(L, validData)
           }, 100)
         } else if (!pluginLoadingRef.current.cluster) {
+          console.log('클러스터 플러그인 로드 필요, 스크립트 확인 시작')
           // 스크립트가 이미 로드 중이면 대기
           const existingScript = document.getElementById('leaflet-markercluster-script')
           if (existingScript) {
-            console.log('leaflet.markercluster 스크립트 로드 대기 중...')
+            console.log('leaflet.markercluster 스크립트 이미 존재, 플러그인 등록 대기...', {
+              scriptSrc: existingScript.getAttribute('src'),
+              scriptId: existingScript.id
+            })
             waitForClusterPlugin(50).then((loaded) => {
+              console.log('클러스터 플러그인 대기 완료:', {
+                loaded,
+                signalAborted: signal.aborted,
+                hasMap: !!mapRef.current,
+                currentMode: currentModeRef.current
+              })
               if (loaded && !signal.aborted && mapRef.current && currentModeRef.current === 'cluster') {
                 createClusterLayer(L, validData)
               } else if (!loaded) {
-                console.error('leaflet.markercluster 플러그인 로드 실패 - 스크립트는 있지만 플러그인이 등록되지 않음')
+                console.error('❌ leaflet.markercluster 플러그인 로드 실패 - 스크립트는 있지만 플러그인이 등록되지 않음')
+              } else {
+                console.warn('클러스터 레이어 생성 취소:', {
+                  loaded,
+                  signalAborted: signal.aborted,
+                  hasMap: !!mapRef.current,
+                  currentMode: currentModeRef.current
+                })
               }
             })
           } else {
             // 스크립트 태그로 플러그인 로드
+            console.log('leaflet.markercluster 스크립트 새로 로드 시작')
             pluginLoadingRef.current.cluster = true
             const script = document.createElement('script')
             script.id = 'leaflet-markercluster-script'
             script.src = 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js'
             script.async = true
             script.onload = () => {
-              console.log('leaflet.markercluster 스크립트 로드 완료, 플러그인 등록 대기...')
+              console.log('✅ leaflet.markercluster 스크립트 로드 완료, 플러그인 등록 대기...')
               waitForClusterPlugin(50).then((loaded) => {
                 pluginLoadingRef.current.cluster = false
+                console.log('클러스터 플러그인 등록 확인 완료:', {
+                  loaded,
+                  signalAborted: signal.aborted,
+                  hasMap: !!mapRef.current,
+                  currentMode: currentModeRef.current
+                })
                 if (loaded && !signal.aborted && mapRef.current && currentModeRef.current === 'cluster') {
                   createClusterLayer(L, validData)
                 } else if (!loaded) {
-                  console.error('leaflet.markercluster 플러그인 등록 실패 - 스크립트는 로드되었지만 플러그인이 등록되지 않음')
+                  console.error('❌ leaflet.markercluster 플러그인 등록 실패 - 스크립트는 로드되었지만 플러그인이 등록되지 않음')
+                } else {
+                  console.warn('클러스터 레이어 생성 취소 (스크립트 로드 후):', {
+                    loaded,
+                    signalAborted: signal.aborted,
+                    hasMap: !!mapRef.current,
+                    currentMode: currentModeRef.current
+                  })
                 }
               })
             }
             script.onerror = () => {
               pluginLoadingRef.current.cluster = false
-              console.error('leaflet.markercluster 스크립트 로드 실패 - 네트워크 오류 또는 CDN 문제')
+              console.error('❌ leaflet.markercluster 스크립트 로드 실패 - 네트워크 오류 또는 CDN 문제', {
+                scriptSrc: script.src
+              })
             }
             document.head.appendChild(script)
+            console.log('leaflet.markercluster 스크립트 태그 추가 완료')
           }
         }
       }
