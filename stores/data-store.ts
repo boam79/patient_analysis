@@ -551,6 +551,8 @@ export const useDataStore = create<DataState & DataActions>()(
             .slice(0, 10) // Top 10 지역
 
           // 월별 트렌드 계산 (Task 1.3)
+          // 환자별 첫 방문 월을 추적
+          const patientFirstVisitMonth = new Map<string, string>()
           const monthlyData = rawData.reduce((acc, patient) => {
             const date = new Date(patient.visit_date)
             const month = `${date.getMonth() + 1}월`
@@ -560,11 +562,14 @@ export const useDataStore = create<DataState & DataActions>()(
             }
 
             const key = patientKey(patient)
-            const isNew = patientVisitCounts[key] === 1
             
-            if (isNew) {
+            // 해당 환자의 첫 방문 월 확인
+            if (!patientFirstVisitMonth.has(key)) {
+              // 첫 방문이면 신규 환자로 분류
+              patientFirstVisitMonth.set(key, month)
               acc[month].newPatients.add(key)
             } else {
+              // 이미 방문한 적이 있으면 재방문 환자로 분류
               acc[month].returningPatients.add(key)
             }
 
