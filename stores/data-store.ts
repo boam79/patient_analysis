@@ -624,9 +624,10 @@ export const useDataStore = create<DataState & DataActions>()(
       {
         name: 'patient-data-storage', // localStorage key
         storage: createJSONStorage(() => localStorage),
-        // 용량 큰 데이터(rawData)는 localStorage에 저장하지 않음 (브라우저 quota 초과 방지)
         partialize: (state) => ({
-          // rawData는 새로고침 시 다시 업로드하도록 설계
+          // 현재 더미 데이터는 10,000행 수준이므로 rawData도 함께 저장
+          // (새로고침 후에도 분석/필터 기능이 온전히 동작하도록 유지)
+          rawData: state.rawData,
           isDataLoaded: state.isDataLoaded,
           diseases: state.diseases,
           mapData: state.mapData,
