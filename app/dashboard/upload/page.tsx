@@ -7,11 +7,13 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useDataStore, PatientData } from '@/stores/data-store'
+import { useFilterStore } from '@/stores/filter-store'
 import { CheckCircle2, Database, TrendingUp } from 'lucide-react'
 
 export default function UploadPage() {
   const router = useRouter()
   const { setRawData, processData, setLoading, isDataLoaded, totalPatients, resetData } = useDataStore()
+  const { resetFilters } = useFilterStore()
   
   const [uploadedData, setUploadedData] = useState<any[] | null>(null)
   const [fileName, setFileName] = useState<string>('')
@@ -40,6 +42,10 @@ export default function UploadPage() {
     setLoading(true)
 
     try {
+      // 새 데이터 업로드 시 기존 캐시 초기화
+      resetData()
+      resetFilters()
+      
       // 데이터 변환 (CSV 컬럼명 → PatientData 형식)
       const patientData: PatientData[] = uploadedData.map((row: any) => {
         // 나이 계산 (생년월일 또는 나이 컬럼 사용)
