@@ -607,6 +607,323 @@
 
 ---
 
+## 🔧 제작자 페이지 구현 (2024-12-XX)
+
+### 배경 및 동기
+- 메인 대시보드는 현재 회원가입이 없음
+- 제작자 전용 관리 페이지에 IP 로그 기록 기능 추가
+- 옵션 2 선택: 같은 프로젝트 내 `/admin` 경로로 구현
+
+### 현재 진행 상황
+
+#### Phase 0: 프로젝트 준비 ✅ 완료
+- ✅ Supabase 패키지 설치 (`@supabase/supabase-js`, `@supabase/ssr`)
+- ✅ 디렉토리 구조 생성 (`app/admin/`, `components/admin/`)
+- ✅ Supabase 클라이언트 파일 생성
+  - `lib/supabase/client.ts` (클라이언트 사이드)
+  - `lib/supabase/server.ts` (서버 사이드)
+  - `lib/supabase/middleware.ts` (Middleware용)
+- ✅ IP 유틸리티 함수 생성 (`lib/ip-utils.ts`)
+- ✅ IP 로그 테이블 생성 (Supabase Migration)
+- ✅ IP 로그 기록 API Route 생성 (`app/api/log-ip/route.ts`)
+- ✅ Middleware 수정 (IP 로그 기록 + Supabase 세션 관리)
+- ✅ 초기 관리자 계정 생성 스크립트 (`scripts/seed-admin.ts`)
+
+#### Phase 1: 기본 제작자 페이지 구조 ✅ 완료
+- ✅ 제작자 로그인 페이지 (`app/admin/login/page.tsx`)
+- ✅ 제작자 레이아웃 (`app/admin/layout.tsx`)
+- ✅ 제작자 대시보드 홈 (`app/admin/page.tsx`)
+- ✅ Admin Sidebar 컴포넌트 (`components/admin/layout/admin-sidebar.tsx`)
+- ✅ Admin Header 컴포넌트 (`components/admin/layout/admin-header.tsx`)
+
+### 다음 작업
+- [ ] Phase 2: 초기 관리자 계정 생성 (시드 스크립트 실행)
+- [ ] Phase 3: 사용자 관리 페이지 구현
+- [ ] Phase 4: IP 로그 조회 페이지 구현
+- [ ] Phase 5: 기타 관리 페이지 구현
+
+### 완료된 작업 상세
+
+#### Phase 0 & 1: 프로젝트 준비 및 Supabase 설정 ✅
+1. ✅ Supabase 패키지 설치 (`@supabase/supabase-js`, `@supabase/ssr`, `date-fns`)
+2. ✅ 디렉토리 구조 생성
+   - `app/admin/` (로그인, 사용자, 모니터링, 로그, 유지보수, 통계, 감사)
+   - `components/admin/` (레이아웃, 사용자, 로그)
+   - `lib/supabase/` (클라이언트 파일들)
+3. ✅ Supabase 클라이언트 파일 생성
+   - `lib/supabase/client.ts` (브라우저용)
+   - `lib/supabase/server.ts` (서버용)
+   - `lib/supabase/middleware.ts` (Middleware용)
+4. ✅ IP 로그 테이블 생성 (Supabase Migration)
+   - `ip_access_logs` 테이블 생성
+   - 인덱스 생성 (ip_address, created_at, path)
+   - RLS 정책 설정 (ADMIN만 조회 가능)
+5. ✅ IP 로그 기록 시스템
+   - `lib/ip-utils.ts` (IP 추출 유틸리티)
+   - `app/api/log-ip/route.ts` (IP 로그 기록 API)
+   - `middleware.ts` 수정 (메인 대시보드 접근 시 IP 로그 자동 기록)
+
+#### Phase 2 & 3: 인증 및 기본 페이지 구조 ✅
+1. ✅ 제작자 로그인 페이지 (`app/admin/login/page.tsx`)
+2. ✅ 제작자 레이아웃 (`app/admin/layout.tsx`)
+   - ADMIN 역할 확인
+   - Sidebar + Header 구성
+3. ✅ 제작자 대시보드 홈 (`app/admin/page.tsx`)
+   - 시스템 통계 카드
+   - 빠른 액션 섹션
+4. ✅ Admin Sidebar 컴포넌트 (`components/admin/layout/admin-sidebar.tsx`)
+5. ✅ Admin Header 컴포넌트 (`components/admin/layout/admin-header.tsx`)
+6. ✅ 사용자 관리 페이지 (`app/admin/users/page.tsx`)
+   - 사용자 목록 테이블
+   - 검색 및 필터 기능
+7. ✅ IP 로그 조회 페이지 (`app/admin/logs/page.tsx`)
+   - IP 로그 테이블
+   - 통계 카드
+8. ✅ 기타 관리 페이지 기본 구조
+   - 모니터링 (`app/admin/monitoring/page.tsx`)
+   - 통계 (`app/admin/statistics/page.tsx`)
+   - 유지보수 (`app/admin/maintenance/page.tsx`)
+   - 감사 로그 (`app/admin/audit/page.tsx`)
+9. ✅ 초기 관리자 계정 생성 스크립트 (`scripts/seed-admin.ts`)
+
+### 환경 변수 설정 필요
+`.env.local` 파일에 다음 추가 필요:
+```
+NEXT_PUBLIC_SUPABASE_URL=https://bkmzuabmkbtxtetuzyaq.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJrbXp1YWJta2J0eHRldHV6eWFxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ0OTc0ODQsImV4cCI6MjA4MDA3MzQ4NH0.Ma0fh8JgWyStY-_UHLfkIJGDeYfswGSz0pppyL8gXfc
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+```
+
+**Service Role Key 확인 방법**:
+1. Supabase 대시보드 접속
+2. Settings → API
+3. service_role key 복사 (⚠️ 절대 공개하지 마세요!)
+
+### Supabase 프로젝트 정보
+- 프로젝트 ID: `bkmzuabmkbtxtetuzyaq`
+- 프로젝트 이름: `boam79_patient_data`
+- 상태: ACTIVE_HEALTHY
+- 데이터베이스: PostgreSQL 17.6.1
+- URL: `https://bkmzuabmkbtxtetuzyaq.supabase.co`
+
+### 생성된 테이블
+- ✅ `ip_access_logs` (IP 접근 로그) - 신규 생성
+- ✅ `user_profiles` (기존)
+- ✅ `audit_logs` (기존)
+- ✅ `user_sessions` (기존)
+- ✅ `permissions` (기존)
+- ✅ `user_permissions` (기존)
+- ✅ `settings` (기존)
+
+### 다음 단계
+1. **환경 변수 설정**: `.env.local` 파일에 Supabase Service Role Key 추가
+2. **초기 관리자 계정 생성**: `npm run seed-admin` 실행
+3. **개발 서버 실행**: `npm run dev`
+4. **제작자 페이지 접속**: `http://localhost:3000/admin/login`
+5. **기능 테스트**: 로그인 → 대시보드 → 사용자 관리 → IP 로그 조회
+
+### 구현된 기능 요약
+- ✅ IP 로그 자동 기록 (메인 대시보드 접근 시)
+- ✅ 제작자 로그인 페이지
+- ✅ 제작자 대시보드 홈 (통계 카드)
+- ✅ 사용자 관리 페이지 (목록, 검색, 필터)
+- ✅ IP 로그 조회 페이지 (테이블, 통계)
+- ✅ 기본 관리 페이지 구조 (모니터링, 통계, 유지보수, 감사 로그)
+
+#### Phase 4: 사용자 관리 기능 완성 ✅ (2024-12-02)
+1. ✅ 감사 로그 헬퍼 함수 (`lib/audit.ts`)
+   - 모든 관리자 액션 자동 기록
+   - IP 주소 및 User-Agent 자동 수집
+2. ✅ 사용자 관리 Server Actions (`app/admin/users/actions.ts`)
+   - 사용자 승인/거부 (`approveUser`, `rejectUser`)
+   - 사용자 역할 변경 (`updateUserRole`)
+   - 사용자 삭제 (`deleteUser`)
+   - 제작자 계정 생성 (`createAdminUser` - Supabase Admin API 사용)
+3. ✅ 사용자 관리 테이블 업데이트 (`components/admin/users/user-management-table.tsx`)
+   - Server Actions 연결
+   - 역할 변경 드롭다운 (Select 컴포넌트)
+   - 제작자 계정 생성 모달 (Dialog)
+   - Toast 알림 (sonner)
+   - 승인/거부 버튼 동적 표시
+4. ✅ Toaster 추가 (sonner)
+   - 제작자 레이아웃에 Toaster 컴포넌트 추가
+   - 성공/에러 알림 표시
+
+**구현된 기능**:
+- ✅ 사용자 승인/거부
+- ✅ 사용자 역할 변경 (ADMIN, ANALYST, VIEWER, USER)
+- ✅ 사용자 삭제 (Supabase Auth에서도 삭제)
+- ✅ 제작자 계정 생성 (새 관리자 계정 직접 생성)
+- ✅ 모든 액션에 감사 로그 자동 기록
+- ✅ Toast 알림으로 사용자 피드백 제공
+
+#### Phase 6: 로그 분석 페이지 고도화 ✅ (2024-12-02)
+1. ✅ IP 로그 분석 Server Actions (`app/admin/logs/actions.ts`)
+   - Top 10 접근 IP 통계 (`getTopIps`)
+   - 시간대별 접근 통계 (`getHourlyStats`)
+   - 경로별 접근 통계 (`getPathStats`)
+   - 이상 접근 패턴 감지 (`detectAnomalies`)
+   - IP 로그 내보내기 (`exportIpLogs`)
+2. ✅ IP 통계 대시보드 컴포넌트 (`components/admin/logs/ip-statistics-dashboard.tsx`)
+   - Top 10 IP 바 차트 (Recharts BarChart)
+   - 경로별 분포 파이 차트 (Recharts PieChart)
+   - 시간대별 추이 라인 차트 (Recharts LineChart)
+   - 이상 접근 패턴 알림 카드
+   - Top 10 IP 상세 목록
+3. ✅ IP 로그 뷰어 고도화 (`components/admin/logs/ip-log-viewer.tsx`)
+   - 날짜 범위 필터 추가
+   - CSV 내보내기 기능
+   - 향상된 검색 및 필터링
+4. ✅ 로그 분석 페이지 업데이트 (`app/admin/logs/page.tsx`)
+   - 탭으로 통계와 로그 분리 (Tabs 컴포넌트)
+   - 통계 분석 탭
+   - 로그 조회 탭
+
+**구현된 기능**:
+- ✅ Top 10 접근 IP 통계 및 시각화
+- ✅ 시간대별 접근 추이 차트 (최근 24시간)
+- ✅ 경로별 접근 분포 파이 차트
+- ✅ 이상 접근 패턴 자동 감지 (초당 10회 이상)
+- ✅ IP 로그 CSV 내보내기
+- ✅ 날짜 범위 필터링
+- ✅ 향상된 검색 및 필터링
+
+#### Phase 9: 감사 로그 페이지 고도화 ✅ (2024-12-02)
+1. ✅ 감사 로그 Server Actions (`app/admin/audit/actions.ts`)
+   - 감사 로그 조회 (`getAuditLogs` - 필터링 지원)
+   - 감사 로그 통계 (`getAuditStats` - 최근 7일)
+   - 감사 로그 내보내기 (`exportAuditLogs` - CSV)
+2. ✅ 감사 로그 뷰어 컴포넌트 (`components/admin/audit/audit-log-viewer.tsx`)
+   - 검색 기능 (액션, 리소스, IP 주소, 사용자)
+   - 액션 타입 필터
+   - 날짜 범위 필터
+   - 상세 정보 다이얼로그
+   - CSV 내보내기
+   - 액션 타입별 색상 구분
+   - 사용자 정보 표시 (이메일, 이름)
+3. ✅ 감사 로그 페이지 업데이트 (`app/admin/audit/page.tsx`)
+   - 통계 카드 (최근 7일 활동, 액션 유형, 활동 관리자)
+   - 사용자 정보 조인 (user_profiles)
+   - 향상된 UI/UX
+
+**구현된 기능**:
+- ✅ 감사 로그 조회 및 필터링
+- ✅ 액션 타입별 색상 구분
+- ✅ 사용자 정보 표시
+- ✅ 상세 정보 다이얼로그
+- ✅ 날짜 범위 필터
+- ✅ CSV 내보내기
+- ✅ 통계 카드 (최근 7일 활동)
+
+#### Phase 8: 대시보드 통계 페이지 고도화 ✅ (2024-12-02)
+1. ✅ 통계 Server Actions (`app/admin/statistics/actions.ts`)
+   - 사용자 가입 추이 (`getUserSignupTrend` - 월별)
+   - 역할별 사용자 분포 (`getUserRoleDistribution`)
+   - 활성 사용자 통계 (`getActiveUserStats` - 최근 30일)
+   - 사용량 통계 (`getUsageStats` - 로그인, 세션, 페이지 뷰)
+   - 전체 통계 요약 (`getStatisticsSummary`)
+2. ✅ 통계 차트 컴포넌트 (`components/admin/statistics/statistics-charts.tsx`)
+   - 요약 카드 5개 (총 사용자, 승인된 사용자, 승인 대기, 활성 사용자, 총 세션)
+   - 사용자 가입 추이 라인 차트 (최근 12개월)
+   - 역할별 분포 파이 차트
+   - 시간대별 로그인 분포 바 차트 (최근 30일)
+   - 일별 활성 사용자 라인 차트 (최근 30일)
+   - 사용량 통계 카드 (총 로그인 수, 평균 세션 지속 시간, 총 페이지 뷰)
+   - 역할별 상세 통계 목록
+3. ✅ 통계 페이지 업데이트 (`app/admin/statistics/page.tsx`)
+   - StatisticsCharts 컴포넌트 통합
+   - 실시간 데이터 로드
+
+**구현된 기능**:
+- ✅ 사용자 통계 (가입 추이, 역할별 분포, 활성 사용자)
+- ✅ 사용량 통계 (로그인 수, 세션 지속 시간, 페이지별 방문 수, 피크 시간대)
+- ✅ 통계 차트 시각화 (라인 차트, 파이 차트, 바 차트)
+- ✅ 실시간 데이터 로드 및 표시
+
+#### Phase 7: 시스템 유지보수 페이지 고도화 ✅ (2024-12-02)
+1. ✅ 유지보수 Server Actions (`app/admin/maintenance/actions.ts`)
+   - 데이터베이스 테이블 통계 조회 (`getDatabaseStats`)
+   - 인덱스 정보 조회 (`getIndexInfo`)
+   - 시스템 설정 조회 (`getSystemSettings`)
+   - 시스템 설정 업데이트 (`updateSystemSetting`)
+   - 유지보수 모드 토글 (`toggleMaintenanceMode`)
+   - 데이터베이스 연결 상태 확인 (`checkDatabaseHealth`)
+2. ✅ 데이터베이스 통계 컴포넌트 (`components/admin/maintenance/database-stats.tsx`)
+   - 데이터베이스 연결 상태 표시
+   - 테이블별 행 수 통계
+   - 총 행 수 합계
+3. ✅ 시스템 설정 컴포넌트 (`components/admin/maintenance/system-settings.tsx`)
+   - 시스템 설정 목록 표시
+   - 설정 편집 다이얼로그
+   - 설정 값 및 설명 업데이트
+   - 업데이트 시간 표시
+4. ✅ 유지보수 모드 컴포넌트 (`components/admin/maintenance/maintenance-mode.tsx`)
+   - 유지보수 모드 상태 표시
+   - 유지보수 모드 활성화/비활성화 토글
+   - 확인 다이얼로그
+5. ✅ 유지보수 페이지 업데이트 (`app/admin/maintenance/page.tsx`)
+   - 탭으로 데이터베이스와 시스템 설정 분리
+   - 유지보수 모드 카드 상단 표시
+
+**구현된 기능**:
+- ✅ 데이터베이스 관리 (테이블 통계, 연결 상태 확인)
+- ✅ 시스템 설정 관리 (조회, 편집, 업데이트)
+- ✅ 유지보수 모드 (활성화/비활성화 토글)
+- ✅ 감사 로그 자동 기록 (설정 변경 시)
+
+#### IP 로그 기록 개선 (2024-12-02)
+1. ✅ Middleware에서 직접 Supabase에 IP 로그 기록
+   - 기존: fetch를 통해 API 엔드포인트 호출 (불안정)
+   - 개선: middleware에서 직접 Supabase Admin Client 사용
+   - 더 안정적이고 빠른 로그 기록
+2. ✅ IP 로그 조회 범위 확대
+   - 최근 100개 → 최근 1000개로 증가
+   - 대시보드 및 루트 경로 접근 시 자동 로그 기록
+3. ✅ 로그 분석 페이지에서 IP 로그 확인 가능
+   - 통계 분석 탭: Top IP, 시간대별 통계, 경로별 통계, 이상 패턴 감지
+   - 로그 조회 탭: IP 로그 목록, 검색, 필터링, 내보내기
+
+**변경된 파일**:
+- `middleware.ts`: 직접 Supabase에 로그 기록하도록 변경
+- `app/admin/logs/page.tsx`: 로그 조회 범위 100 → 1000으로 증가
+
+### IP 로그 고도화 (2024-12-02)
+
+**완료된 작업**:
+1. ✅ IP Geolocation API 통합 (ip-api.com)
+   - IP 주소로부터 국가 및 도시 정보 자동 조회
+   - 로컬/프라이빗 IP는 건너뛰기
+2. ✅ User-Agent 파싱 기능 추가
+   - `ua-parser-js` 라이브러리 사용
+   - 디바이스 타입(데스크톱/모바일/태블릿), 브라우저, OS 정보 추출
+3. ✅ IP 로그 UI 개선
+   - IP 주소 전체 표시 (도시 정보 포함)
+   - 국가 정보 표시 (국가명 + 아이콘)
+   - 디바이스 정보 표시 (타입, 디바이스명, 브라우저, OS)
+   - 검색 기능 확장 (국가, 디바이스, 브라우저로도 검색 가능)
+   - CSV 내보내기 시 국가/도시/디바이스 정보 포함
+
+**구현된 기능**:
+- **IP Geolocation**: `lib/ip-geolocation.ts` - IP 주소로 국가/도시 조회
+- **User-Agent 파싱**: `lib/user-agent-parser.ts` - 디바이스 정보 추출
+- **테이블 컬럼**: IP 주소, 국가, 디바이스, 시간, 경로, 메서드, 상태, 응답 시간
+- **자동 기록**: middleware에서 IP 로그 기록 시 국가 정보 자동 조회 및 저장
+
+**변경된 파일**:
+- `lib/ip-geolocation.ts`: 신규 생성 - IP Geolocation 유틸리티
+- `lib/user-agent-parser.ts`: 신규 생성 - User-Agent 파싱 유틸리티
+- `middleware.ts`: IP 로그 기록 시 국가 정보 조회 추가
+- `components/admin/logs/ip-log-viewer.tsx`: UI 개선 (국가, 디바이스 정보 표시)
+- `package.json`: `ua-parser-js` 추가
+
+**검증 결과**:
+- ✅ 서버 재시작 및 테스트 완료
+- ✅ IP 로그에 국가 및 디바이스 정보 정상 표시
+- ✅ TypeScript 빌드 성공
+- ✅ Linter 에러 없음
+
+---
+
 ## 지도 분석 페이지 고도화 (2024-11-25)
 
 ### Phase 1 완료 ✅
