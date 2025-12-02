@@ -65,18 +65,18 @@ export default function UploadPage() {
           }
         }
 
-        // 성별 정규화
-        let gender = '알 수 없음'
+        // 성별 정규화 (data-store.ts와 동일한 로직 사용)
         const genderRaw = (row.gender || row['성별'] || '').toString().trim()
+        let gender = '알 수 없음'
         if (genderRaw === 'M' || genderRaw === '남' || genderRaw === '남성' || genderRaw === '1') {
           gender = '남성'
         } else if (genderRaw === 'F' || genderRaw === '여' || genderRaw === '여성' || genderRaw === '2') {
           gender = '여성'
         }
 
-        // 주소에서 지역 추출
-        const address = row.address || row['주소'] || ''
-        let region = row.region || row['지역'] || ''
+        // 주소에서 지역 추출 (BOM 문자 처리)
+        const address = (row.address || row['주소'] || '').toString().trim()
+        let region = (row.region || row['지역'] || '').toString().trim()
         
         if (!region && address) {
           // "서울특별시 종로구 세종대로" → "서울 종로구"
@@ -105,7 +105,8 @@ export default function UploadPage() {
 
         // patient_id 생성: CSV에 patient_id가 있으면 사용, 없으면 이름+주소 기반으로 생성
         // 같은 환자(이름+주소 동일)는 같은 patient_id를 가지도록 함
-        const name = (row.name || row['이름'] || '미상').toString()
+        // BOM 문자가 포함된 경우를 처리 ('\ufeffname' 지원)
+        const name = (row.name || row['\ufeffname'] || row['이름'] || '미상').toString().trim()
         let patientId: string
         
         if (row.patient_id || row['환자ID'] || row.id) {
