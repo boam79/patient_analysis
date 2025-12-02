@@ -239,16 +239,20 @@ export function DiseaseSurgeryStrategy({ data }: DiseaseSurgeryStrategyProps) {
           <CardTitle>질병별 재방문율 Top 10</CardTitle>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={analysis.diseaseRetention.slice(0, 10)}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="disease" angle={-45} textAnchor="end" height={100} />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="retentionRate" fill="#82ca9d" name="재방문율 (%)" />
-            </BarChart>
-          </ResponsiveContainer>
+          {analysis.diseaseRetention.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">데이터가 없습니다.</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={analysis.diseaseRetention.slice(0, 10)}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="disease" angle={-45} textAnchor="end" height={100} />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="retentionRate" fill="#82ca9d" name="재방문율 (%)" />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </CardContent>
       </Card>
 

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PatientData } from '@/stores/data-store'
 import { Users, TrendingUp, TrendingDown, ArrowRight } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts'
+import { parseDate } from '@/lib/utils/date-helpers'
 
 interface PatientFlowAnalysisProps {
   data: PatientData[]
@@ -42,7 +43,11 @@ export function PatientFlowAnalysis({ data }: PatientFlowAnalysisProps) {
       if (!patientFirstVisit.has(p.patient_id)) {
         patientFirstVisit.set(p.patient_id, p.visit_date)
       }
-      patientLastVisit.set(p.patient_id, p.visit_date)
+      // 마지막 방문일 업데이트 (날짜 비교)
+      const currentLastVisit = patientLastVisit.get(p.patient_id)
+      if (!currentLastVisit || (parseDate(p.visit_date) && parseDate(currentLastVisit) && parseDate(p.visit_date)! > parseDate(currentLastVisit)!)) {
+        patientLastVisit.set(p.patient_id, p.visit_date)
+      }
       
       if (!patientDiseases.has(p.patient_id)) {
         patientDiseases.set(p.patient_id, new Set())
@@ -238,16 +243,20 @@ export function PatientFlowAnalysis({ data }: PatientFlowAnalysisProps) {
           <CardTitle>환자 여정 분석</CardTitle>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={flowAnalysis.patientJourney}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="category" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="count" fill="#8884d8" name="환자 수" />
-            </BarChart>
-          </ResponsiveContainer>
+          {flowAnalysis.patientJourney.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">데이터가 없습니다.</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={flowAnalysis.patientJourney}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="category" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="count" fill="#8884d8" name="환자 수" />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </CardContent>
       </Card>
 
@@ -257,16 +266,20 @@ export function PatientFlowAnalysis({ data }: PatientFlowAnalysisProps) {
           <CardTitle>방문 횟수 분포</CardTitle>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={flowAnalysis.visitDistribution}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="visits" label={{ value: '방문 횟수', position: 'insideBottom', offset: -5 }} />
-              <YAxis label={{ value: '환자 수', angle: -90, position: 'insideLeft' }} />
-              <Tooltip />
-              <Legend />
-              <Line type="monotone" dataKey="patients" stroke="#82ca9d" name="환자 수" />
-            </LineChart>
-          </ResponsiveContainer>
+          {flowAnalysis.visitDistribution.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">데이터가 없습니다.</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={flowAnalysis.visitDistribution}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="visits" label={{ value: '방문 횟수', position: 'insideBottom', offset: -5 }} />
+                <YAxis label={{ value: '환자 수', angle: -90, position: 'insideLeft' }} />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="patients" stroke="#82ca9d" name="환자 수" />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
         </CardContent>
       </Card>
 

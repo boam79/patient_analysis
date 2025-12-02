@@ -64,8 +64,7 @@ export default function StrategyPage() {
       
       // 성별 필터
       if (genders.length > 0) {
-        const patientGender = patient.gender === 'M' || patient.gender === '남성' ? '남성' : 
-                             patient.gender === 'F' || patient.gender === '여성' ? '여성' : patient.gender
+        const patientGender = normalizeGender(patient.gender)
         if (!genders.includes(patientGender as '남성' | '여성')) {
           return false
         }
@@ -73,9 +72,14 @@ export default function StrategyPage() {
       
       // 날짜 필터
       if (dateRange.start && dateRange.end) {
-        const visitDate = new Date(patient.visit_date)
-        const startDate = new Date(dateRange.start)
-        const endDate = new Date(dateRange.end)
+        const visitDate = parseDate(patient.visit_date)
+        const startDate = parseDate(dateRange.start)
+        const endDate = parseDate(dateRange.end)
+        
+        if (!visitDate || !startDate || !endDate) {
+          return false
+        }
+        
         if (visitDate < startDate || visitDate > endDate) {
           return false
         }
@@ -165,14 +169,6 @@ export default function StrategyPage() {
   )
 }
 
-// 연령대 계산 헬퍼 함수
-function getAgeGroup(age: number): string {
-  if (age < 20) return '10대 이하'
-  if (age < 30) return '20대'
-  if (age < 40) return '30대'
-  if (age < 50) return '40대'
-  if (age < 60) return '50대'
-  if (age < 70) return '60대'
-  return '70대 이상'
-}
+import { getAgeGroup, normalizeGender } from '@/lib/utils/patient-helpers'
+import { extractMonth, parseDate } from '@/lib/utils/date-helpers'
 

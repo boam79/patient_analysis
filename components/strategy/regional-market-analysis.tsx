@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PatientData } from '@/stores/data-store'
 import { MapPin, TrendingUp, Users } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { extractMonth } from '@/lib/utils/date-helpers'
 
 interface RegionalMarketAnalysisProps {
   data: PatientData[]
@@ -82,13 +83,14 @@ export function RegionalMarketAnalysis({ data }: RegionalMarketAnalysisProps) {
     const monthlyRegionData = new Map<string, Map<string, number>>()
     data.forEach(p => {
       if (!p.region) return
-      const month = p.visit_date.substring(0, 7)
-      
-      if (!monthlyRegionData.has(p.region)) {
-        monthlyRegionData.set(p.region, new Map())
+      const month = extractMonth(p.visit_date)
+      if (month) {
+        if (!monthlyRegionData.has(p.region)) {
+          monthlyRegionData.set(p.region, new Map())
+        }
+        const monthData = monthlyRegionData.get(p.region)!
+        monthData.set(month, (monthData.get(month) || 0) + 1)
       }
-      const monthData = monthlyRegionData.get(p.region)!
-      monthData.set(month, (monthData.get(month) || 0) + 1)
     })
 
     const growthByRegion = Array.from(monthlyRegionData.entries())
@@ -228,16 +230,20 @@ export function RegionalMarketAnalysis({ data }: RegionalMarketAnalysisProps) {
           <CardTitle>지역별 시장 점유율</CardTitle>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={analysis.marketShare.slice(0, 10)}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="region" angle={-45} textAnchor="end" height={100} />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="share" fill="#8884d8" name="시장 점유율 (%)" />
-            </BarChart>
-          </ResponsiveContainer>
+          {analysis.marketShare.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">데이터가 없습니다.</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={analysis.marketShare.slice(0, 10)}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="region" angle={-45} textAnchor="end" height={100} />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="share" fill="#8884d8" name="시장 점유율 (%)" />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </CardContent>
       </Card>
 

@@ -4,6 +4,7 @@ import { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PatientData } from '@/stores/data-store'
 import { Users, TrendingUp, MapPin, Calendar, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { extractMonth, parseDate } from '@/lib/utils/date-helpers'
 
 interface ExecutiveDashboardProps {
   data: PatientData[]
@@ -75,8 +76,10 @@ export function ExecutiveDashboard({ data }: ExecutiveDashboardProps) {
     // 성장률 계산 (월별 환자 수 비교)
     const monthlyVisits = new Map<string, number>()
     data.forEach(p => {
-      const month = p.visit_date.substring(0, 7) // YYYY-MM
-      monthlyVisits.set(month, (monthlyVisits.get(month) || 0) + 1)
+      const month = extractMonth(p.visit_date)
+      if (month) {
+        monthlyVisits.set(month, (monthlyVisits.get(month) || 0) + 1)
+      }
     })
     const sortedMonths = Array.from(monthlyVisits.entries()).sort()
     let growthRate = 0
