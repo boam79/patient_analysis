@@ -924,6 +924,73 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
 
 ---
 
+## 경영·마케팅 전략 분석 기능 개발 (2024-12-02)
+
+**완료된 작업**:
+1. ✅ 전략 분석 페이지 생성 (`/dashboard/strategy`)
+   - 7개 분석 탭 구성: 경영 대시보드, 환자 유입/유지, 지역별 시장, 질병/수술 전략, 고객 세그먼트, 시기별 트렌드, 예측 분석
+2. ✅ 경영 대시보드 컴포넌트 (`ExecutiveDashboard`)
+   - 핵심 경영 지표: 총 방문 수, 재방문율, 환자당 평균 방문, 성장률
+   - 주요 지역/질병 Top 5
+   - 경영 인사이트 및 권장사항
+3. ✅ 환자 유입/유지 분석 컴포넌트 (`PatientFlowAnalysis`)
+   - 환자 여정 분석 (1회, 2회, 3회, 4회, 5회 이상)
+   - 방문 횟수 분포
+   - 질병별/지역별 재방문율
+   - 이탈 환자 분석 (질병별, 지역별)
+4. ✅ 지역별 시장 분석 컴포넌트 (`RegionalMarketAnalysis`)
+   - 지역별 상세 통계 (총 방문, 고유 환자, 신규/재방문, 재방문율)
+   - 지역별 시장 점유율
+   - 지역별 성장률 분석
+5. ✅ 질병/수술 전략 분석 컴포넌트 (`DiseaseSurgeryStrategy`)
+   - 질병별 통계 (총 방문, 고유 환자, 수술 건수, 수술률, 평균 연령)
+   - 질병별 재방문율
+   - 수술별 통계
+   - 질병-수술 조합 매트릭스
+6. ✅ 고객 세그먼트 분석 컴포넌트 (`CustomerSegmentAnalysis`)
+   - 연령대별 세그먼트 분석
+   - 성별 세그먼트 분석
+   - 연령대+성별 복합 세그먼트
+   - 고가치 고객 세그먼트 (5회 이상 방문)
+7. ✅ 시기별 트렌드 분석 컴포넌트 (`TrendAnalysis`)
+   - 월별 환자 방문 트렌드
+   - 분기별 환자 방문 트렌드
+   - 계절별 환자 방문 패턴
+   - 요일별 환자 방문 패턴
+8. ✅ 예측 분석 컴포넌트 (`PredictionAnalysis`)
+   - 월별 환자 수 예측 (다음 3개월)
+   - 질병별 환자 수 예측
+   - 지역별 환자 수 예측
+
+**구현된 기능**:
+- **경영 대시보드**: 핵심 지표 통합 대시보드, 경영 인사이트 자동 생성
+- **환자 유입/유지**: 신규 vs 재방문 분석, 이탈 환자 분석, 재방문율 분석
+- **지역별 시장**: 지역별 시장 점유율, 성장률 분석, 신규 환자 유입 분석
+- **질병/수술 전략**: 질병-수술 조합 분석, 재방문 패턴 분석
+- **고객 세그먼트**: 연령대/성별/복합 세그먼트 분석, 고가치 고객 식별
+- **시기별 트렌드**: 월별/분기별/계절별/요일별 트렌드 분석
+- **예측 분석**: 단순 이동평균 기반 예측 (월별, 질병별, 지역별)
+
+**변경된 파일**:
+- `app/dashboard/strategy/page.tsx`: 신규 생성 - 전략 분석 메인 페이지
+- `components/layout/header.tsx`: 네비게이션에 "전략 분석" 메뉴 추가
+- `components/strategy/executive-dashboard.tsx`: 신규 생성
+- `components/strategy/patient-flow-analysis.tsx`: 신규 생성
+- `components/strategy/regional-market-analysis.tsx`: 신규 생성
+- `components/strategy/disease-surgery-strategy.tsx`: 신규 생성
+- `components/strategy/customer-segment-analysis.tsx`: 신규 생성
+- `components/strategy/trend-analysis.tsx`: 신규 생성
+- `components/strategy/prediction-analysis.tsx`: 신규 생성
+
+**검증 결과**:
+- ✅ TypeScript 빌드 성공
+- ✅ Linter 에러 없음
+- ✅ 모든 컴포넌트 정상 컴파일
+
+**다음 단계**: 실제 데이터로 테스트 및 UI/UX 개선
+
+---
+
 ## 지도 분석 페이지 고도화 (2024-11-25)
 
 ### Phase 1 완료 ✅

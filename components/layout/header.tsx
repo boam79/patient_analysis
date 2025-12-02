@@ -63,6 +63,12 @@ export function Header() {
               >
                 📊 차트 분석
               </a>
+              <a 
+                href="/dashboard/strategy" 
+                className="text-sm font-medium transition-colors hover:text-primary"
+              >
+                📈 전략 분석
+              </a>
             </nav>
           </div>
           <div className="flex items-center gap-2">

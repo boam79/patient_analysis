@@ -38,6 +38,7 @@ export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname
   
   // 로그인 페이지나 인증 관련 경로는 통과
+  // 주의: /login은 일반 사용자 로그인 페이지 (현재 기능만 구현, 실제 사용은 나중에 활성화 예정)
   if (
     pathname.startsWith('/login') ||
     pathname.startsWith('/auth') ||
@@ -48,18 +49,49 @@ export async function updateSession(request: NextRequest) {
   }
 
   // 보호된 경로 접근 시 사용자 확인
-  if (
-    !user &&
-    (pathname.startsWith('/admin') || pathname.startsWith('/dashboard'))
-  ) {
-    // no user, potentially respond by redirecting the user to the login page
-    const url = request.nextUrl.clone()
-    if (pathname.startsWith('/admin')) {
-      url.pathname = '/login-admin'
-    } else {
-      url.pathname = '/login'
+  if (pathname.startsWith('/admin') || pathname.startsWith('/dashboard')) {
+    // 로그인하지 않은 사용자
+    if (!user) {
+      const url = request.nextUrl.clone()
+      if (pathname.startsWith('/admin')) {
+        url.pathname = '/login-admin'
+      } else {
+        url.pathname = '/login'
+      }
+      return NextResponse.redirect(url)
     }
-    return NextResponse.redirect(url)
+
+    // 사용자 프로필 조회 (승인 상태 확인)
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('role, is_approved')
+      .eq('id', user.id)
+      .single()
+
+    // ADMIN 경로 접근 시: ADMIN 역할 및 승인 확인
+    if (pathname.startsWith('/admin')) {
+      if (!profile || !profile.is_approved || profile.role !== 'ADMIN') {
+        const url = request.nextUrl.clone()
+        url.pathname = '/login-admin'
+        return NextResponse.redirect(url)
+      }
+    }
+    
+    // DASHBOARD 경로 접근 시: 승인된 사용자만 접근
+    if (pathname.startsWith('/dashboard')) {
+      if (!profile || !profile.is_approved) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/login?error=not_approved'
+        return NextResponse.redirect(url)
+      }
+      // ADMIN도 전략 분석 페이지는 접근 가능하도록 허용
+      // 다른 대시보드 페이지는 ADMIN이 아닌 사용자만 접근 (제작자 페이지 사용)
+      if (profile.role === 'ADMIN' && pathname !== '/dashboard/strategy') {
+        const url = request.nextUrl.clone()
+        url.pathname = '/admin'
+        return NextResponse.redirect(url)
+      }
+    }
   }
 
   // IMPORTANT: You *must* return the supabaseResponse object as it is. If you're
