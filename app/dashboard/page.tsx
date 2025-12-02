@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { FilterPanel } from '@/components/filter/filter-panel'
@@ -922,7 +922,13 @@ export default function DashboardPage() {
                 <CardTitle className="text-base">월별 추세</CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <MonthlyTrendChart data={filteredMonthlyTrend} />
+                {chartsReady ? (
+                  <MonthlyTrendChart data={filteredMonthlyTrend} />
+                ) : (
+                  <div className="h-[300px] flex items-center justify-center text-muted-foreground text-sm">
+                    차트 로딩 중...
+                  </div>
+                )}
               </CardContent>
             </Card>
             <Card>
@@ -930,7 +936,13 @@ export default function DashboardPage() {
                 <CardTitle className="text-base">신규 vs 재방문</CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <NewVsReturningChart data={filteredMonthlyTrend} />
+                {chartsReady ? (
+                  <NewVsReturningChart data={filteredMonthlyTrend} />
+                ) : (
+                  <div className="h-[300px] flex items-center justify-center text-muted-foreground text-sm">
+                    차트 로딩 중...
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
