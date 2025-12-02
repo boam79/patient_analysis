@@ -30,7 +30,8 @@ export function RegionalMarketAnalysis({ data }: RegionalMarketAnalysisProps) {
       returningPatients: Set<string>
     }>()
 
-    const patientFirstVisit = new Map<string, string>()
+    // 지역별 첫 방문 기록 (각 지역에서의 첫 방문을 기준으로 계산)
+    const patientFirstVisitInRegion = new Map<string, Map<string, string>>()
     const patientRegions = new Map<string, Set<string>>()
 
     data.forEach(p => {
@@ -43,14 +44,17 @@ export function RegionalMarketAnalysis({ data }: RegionalMarketAnalysisProps) {
           newPatients: new Set(),
           returningPatients: new Set(),
         })
+        patientFirstVisitInRegion.set(p.region, new Map())
       }
 
       const stats = regionStats.get(p.region)!
       stats.total++
       stats.unique.add(p.patient_id)
 
-      if (!patientFirstVisit.has(p.patient_id)) {
-        patientFirstVisit.set(p.patient_id, p.visit_date)
+      // 해당 지역에서의 첫 방문인지 확인
+      const regionFirstVisit = patientFirstVisitInRegion.get(p.region)!
+      if (!regionFirstVisit.has(p.patient_id)) {
+        regionFirstVisit.set(p.patient_id, p.visit_date)
         stats.newPatients.add(p.patient_id)
       } else {
         stats.returningPatients.add(p.patient_id)
