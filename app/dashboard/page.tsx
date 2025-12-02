@@ -272,9 +272,10 @@ export default function DashboardPage() {
         else ageGroup = '70대 이상'
 
         const existing = ageGroupMap.get(ageGroup) || { male: 0, female: 0 }
-        if (patient.gender === '남성' || patient.gender === 'M') {
+        // 성별 판별: '남성', 'M', '남' 모두 처리
+        if (patient.gender === '남성' || patient.gender === 'M' || patient.gender === '남') {
           existing.male++
-        } else {
+        } else if (patient.gender === '여성' || patient.gender === 'F' || patient.gender === '여') {
           existing.female++
         }
         ageGroupMap.set(ageGroup, existing)
