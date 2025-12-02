@@ -63,17 +63,17 @@ export const AgePyramidChart = memo(function AgePyramidChart({ data }: AgePyrami
               ]
             }}
           />
-          <Bar dataKey="male" fill="#3b82f6" radius={[4, 0, 0, 4]} stackId="stack" />
-          <Bar dataKey="female" fill="#ec4899" radius={[0, 4, 4, 0]} stackId="stack" />
+          <Bar dataKey="male" fill="#2563eb" radius={[4, 0, 0, 4]} stackId="stack" />
+          <Bar dataKey="female" fill="#f472b6" radius={[0, 4, 4, 0]} stackId="stack" />
         </BarChart>
       </ResponsiveContainer>
       <div className="flex items-center justify-center gap-4 text-xs">
         <div className="flex items-center gap-1">
-          <div className="w-3 h-3 bg-blue-500 rounded" />
+          <div className="w-3 h-3 rounded" style={{ backgroundColor: '#2563eb' }} />
           <span>남성</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="w-3 h-3 bg-pink-500 rounded" />
+          <div className="w-3 h-3 rounded" style={{ backgroundColor: '#f472b6' }} />
           <span>여성</span>
         </div>
       </div>
