@@ -13,7 +13,7 @@ import { CheckCircle2, Database, TrendingUp } from 'lucide-react'
 export default function UploadPage() {
   const router = useRouter()
   const { setRawData, processData, setLoading, isDataLoaded, totalPatients, resetData } = useDataStore()
-  const { resetFilters } = useFilterStore()
+  const { resetFilters, setDateRange } = useFilterStore()
   
   const [uploadedData, setUploadedData] = useState<any[] | null>(null)
   const [fileName, setFileName] = useState<string>('')
@@ -142,6 +142,17 @@ export default function UploadPage() {
           h3_index: row.h3_index || row.h3Index || undefined,
         }
       })
+
+      // 업로드된 데이터의 기간에 맞춰 기본 날짜 필터를 자동으로 설정
+      if (patientData.length > 0) {
+        let minDate = patientData[0].visit_date
+        let maxDate = patientData[0].visit_date
+        for (const p of patientData) {
+          if (p.visit_date < minDate) minDate = p.visit_date
+          if (p.visit_date > maxDate) maxDate = p.visit_date
+        }
+        setDateRange(minDate, maxDate)
+      }
 
       // Store에 데이터 저장
       setRawData(patientData)
