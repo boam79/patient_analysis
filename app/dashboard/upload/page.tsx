@@ -97,9 +97,30 @@ export default function UploadPage() {
           }
         }
 
+        // patient_id 생성: CSV에 patient_id가 있으면 사용, 없으면 이름+주소 기반으로 생성
+        // 같은 환자(이름+주소 동일)는 같은 patient_id를 가지도록 함
+        const name = (row.name || row['이름'] || '미상').toString()
+        let patientId: string
+        
+        if (row.patient_id || row['환자ID'] || row.id) {
+          // CSV에 patient_id가 있으면 사용
+          patientId = (row.patient_id || row['환자ID'] || row.id).toString()
+        } else {
+          // 이름+주소 기반으로 patient_id 생성 (같은 환자는 같은 ID)
+          // 간단한 해시 함수 사용 (문자열을 숫자로 변환)
+          const patientKey = `${name}|${address}`
+          let hash = 0
+          for (let i = 0; i < patientKey.length; i++) {
+            const char = patientKey.charCodeAt(i)
+            hash = ((hash << 5) - hash) + char
+            hash = hash & hash // Convert to 32bit integer
+          }
+          patientId = `patient_${Math.abs(hash)}`
+        }
+
         return {
-          patient_id: (row.patient_id || row['환자ID'] || row.id || Math.random().toString()).toString(),
-          name: (row.name || row['이름'] || '미상').toString(),
+          patient_id: patientId,
+          name,
           visit_date: row.visit_date || row['방문일자'] || new Date().toISOString().split('T')[0],
           age,
           gender,
