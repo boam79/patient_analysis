@@ -631,9 +631,9 @@ export const useDataStore = create<DataState & DataActions>()(
       {
         name: 'patient-data-storage', // localStorage key
         storage: createJSONStorage(() => localStorage),
-        // 용량 큰 데이터는 압축하거나 중요한 필드만 저장
+        // 용량 큰 데이터(rawData)는 localStorage에 저장하지 않음 (브라우저 quota 초과 방지)
         partialize: (state) => ({
-          rawData: state.rawData,
+          // rawData는 새로고침 시 다시 업로드하도록 설계
           isDataLoaded: state.isDataLoaded,
           diseases: state.diseases,
           mapData: state.mapData,
@@ -651,7 +651,7 @@ export const useDataStore = create<DataState & DataActions>()(
         onRehydrateStorage: () => (state) => {
           if (state) {
             console.log('✅ 저장된 데이터 복원 완료:', {
-              환자수: state.rawData.length,
+              환자수: state.rawData ? state.rawData.length : 0,
               질병수: state.diseases.length,
               지역수: state.mapData.length,
             })
