@@ -489,32 +489,14 @@ npm run generate-data
 
 ## 📚 문서
 
-더 자세한 정보는 다음 문서를 참조하세요:
+핵심 문서만 빠르게 보고 싶다면 다음 3가지만 참고하면 됩니다:
 
-### 개발 완료 보고서
-- [Phase 4 완료 보고서](docs/PHASE4_COMPLETE.md) - 지오코딩 & 지도 구현
-- [Phase 5 완료 보고서](docs/PHASE5_COMPLETE.md) - 데이터 분석 & 시각화
-- [Phase 6 완료 보고서](docs/PHASE6_COMPLETE.md) - 필터링 & 인터랙션
-- [Phase 7 완료 보고서](docs/PHASE7_COMPLETE.md) - 보고서 & 내보내기
-- [Phase 8 완료 보고서](docs/PHASE8_COMPLETE.md) - 성능 최적화 & 테스트
-- [Phase 9 완료 보고서](docs/PHASE9_COMPLETE.md) - 실전 배포 준비
+- [제품 설계 문서 (PDR v4.1)](docs/PDR_Dashboard_v4.1_Final.md) — 전체 시스템·기능 설계
+- [Phase 8 완료 보고서](docs/PHASE8_COMPLETE.md) — 성능 최적화 & 테스트 정리
+- [최종 배포 요약](docs/FINAL_DEPLOYMENT_SUMMARY.md) — 실제 배포 결과 요약
 
-### 설계 문서
-- [제품 설계 문서 (PDR v4.1)](docs/PDR_Dashboard_v4.1_Final.md) - 전체 시스템 설계
-- [와이어프레임 부록](docs/pdr_appendix_wireframe.md) - UI/UX 설계
-- [지오코딩 설정](docs/geocodingmap.md) - OpenStreetMap 설정
-
-### 배포 가이드
-- [배포 가이드](docs/DEPLOYMENT_GUIDE.md) - Docker/Vercel 배포
-- [Vercel 배포 단계](docs/VERCEL_DEPLOYMENT_STEPS.md) - 단계별 가이드
-- [Vercel 배포 준비](docs/VERCEL_DEPLOY_READY.md) - 사전 준비 사항
-- [로컬 테스트 완료](docs/LOCAL_TEST_COMPLETE.md) - 로컬 테스트 결과
-- [최종 배포 요약](docs/FINAL_DEPLOYMENT_SUMMARY.md) - 배포 완료 보고서
-- [UI 업데이트 가이드](docs/UI_UPDATE_GUIDE.md) - UI 변경 사항
-
-### 프로젝트 관리
-- [프로젝트 현황 보드](.cursor/scratchpad.md) - 실시간 진행 상황
-- [환경 변수 예시](.env.example) - 설정 템플릿
+그 외 세부 문서(Phase별 완료 보고서, 배포 가이드, UI 부록 등)는  
+`docs/` 폴더 내에서 필요할 때만 찾아보는 참고용으로 유지합니다.
 
 ---
 

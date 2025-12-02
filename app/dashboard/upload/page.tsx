@@ -147,16 +147,8 @@ export default function UploadPage() {
       setRawData(patientData)
       
       // 데이터 처리 (통계 계산)
-      // 메인 스레드를 오래 점유하지 않도록 idle 시점으로 넘겨 처리
-      if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-        ;(window as any).requestIdleCallback(() => {
-          processData()
-        })
-      } else {
-        setTimeout(() => {
-          processData()
-        }, 0)
-      }
+      // 실제 데이터 처리가 누락되지 않도록 즉시 실행
+      await processData()
 
       setSuccess(true)
       // 메모리 사용량을 줄이기 위해 업로드 원본 데이터는 해제
