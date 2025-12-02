@@ -272,10 +272,11 @@ export default function DashboardPage() {
         else ageGroup = '70대 이상'
 
         const existing = ageGroupMap.get(ageGroup) || { male: 0, female: 0 }
-        // 성별 판별: '남성', 'M', '남' 모두 처리
-        if (patient.gender === '남성' || patient.gender === 'M' || patient.gender === '남') {
+        // normalizeGender 로직을 직접 적용하여 일관된 성별 판별
+        const normalizedGender = patient.gender?.toString().trim().toUpperCase() || ''
+        if (normalizedGender === 'M' || normalizedGender === '남' || normalizedGender === '남성' || normalizedGender === 'MALE' || normalizedGender === '1') {
           existing.male++
-        } else if (patient.gender === '여성' || patient.gender === 'F' || patient.gender === '여') {
+        } else if (normalizedGender === 'F' || normalizedGender === '여' || normalizedGender === '여성' || normalizedGender === 'FEMALE' || normalizedGender === '2') {
           existing.female++
         }
         ageGroupMap.set(ageGroup, existing)

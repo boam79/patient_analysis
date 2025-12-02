@@ -14,23 +14,38 @@ interface AgePyramidChartProps {
 }
 
 export const AgePyramidChart = memo(function AgePyramidChart({ data }: AgePyramidChartProps) {
-  // 최대값 계산하여 대칭적인 스케일 설정
+  // 최대값 계산하여 대칭적인 스케일 설정 (더 정확한 계산)
   const maxValue = useMemo(() => {
     if (!data || data.length === 0) return 1000
-    return Math.max(
-      ...data.map(item => Math.max(item.male, item.female))
-    ) * 1.1 // 10% 여유 공간
+    
+    // 모든 연령대의 남성/여성 최대값 찾기
+    let max = 0
+    for (const item of data) {
+      max = Math.max(max, item.male, item.female)
+    }
+    
+    // 가장 가까운 100의 배수로 반올림하여 깔끔한 스케일
+    return Math.ceil(max / 100) * 100 * 1.1 // 10% 여유 공간
   }, [data])
 
   // 피라미드 형태를 위해 남성은 음수로 변환 (useMemo로 최적화)
   const pyramidData = useMemo(() => {
     if (!data || data.length === 0) return []
-    return data.map((item) => ({
-      ageGroup: item.ageGroup,
-      male: -item.male,
-      female: item.female,
-      total: item.male + item.female,
-    }))
+    
+    return data.map((item) => {
+      const male = item.male || 0
+      const female = item.female || 0
+      const total = male + female
+      
+      return {
+        ageGroup: item.ageGroup,
+        male: -male,
+        female: female,
+        total: total,
+        malePercentage: total > 0 ? (male / total * 100).toFixed(1) : '0.0',
+        femalePercentage: total > 0 ? (female / total * 100).toFixed(1) : '0.0',
+      }
+    })
   }, [data])
 
   return (
@@ -66,14 +81,17 @@ export const AgePyramidChart = memo(function AgePyramidChart({ data }: AgePyrami
               backgroundColor: 'hsl(var(--popover))',
               border: '1px solid hsl(var(--border))',
               borderRadius: '8px',
+              padding: '8px 12px',
             }}
             formatter={(value: any, name: string, props: any) => {
               const absValue = Math.abs(value)
-              const total = props.payload?.total || 0
-              const percentage = total > 0 ? ((absValue / total) * 100).toFixed(1) : '0.0'
+              const isMale = name === 'male'
+              const percentage = isMale 
+                ? (props.payload?.malePercentage || '0.0')
+                : (props.payload?.femalePercentage || '0.0')
               return [
-                `${absValue}명 (${percentage}%)`,
-                name === 'male' ? '남성' : '여성'
+                `${absValue.toLocaleString()}명 (${percentage}%)`,
+                isMale ? '남성' : '여성'
               ]
             }}
             labelFormatter={(label) => `${label} 연령대`}
@@ -84,7 +102,8 @@ export const AgePyramidChart = memo(function AgePyramidChart({ data }: AgePyrami
             radius={[4, 0, 0, 4]} 
             stackId="stack"
             stroke="#1e40af"
-            strokeWidth={1}
+            strokeWidth={1.5}
+            opacity={0.9}
           />
           <Bar 
             dataKey="female" 
@@ -92,18 +111,33 @@ export const AgePyramidChart = memo(function AgePyramidChart({ data }: AgePyrami
             radius={[0, 4, 4, 0]} 
             stackId="stack"
             stroke="#ec4899"
-            strokeWidth={1}
+            strokeWidth={1.5}
+            opacity={0.9}
           />
         </BarChart>
       </ResponsiveContainer>
-      <div className="flex items-center justify-center gap-4 text-xs">
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded" style={{ backgroundColor: '#2563eb' }} />
-          <span>남성</span>
+      <div className="flex items-center justify-center gap-6 text-xs mt-2">
+        <div className="flex items-center gap-2">
+          <div 
+            className="w-4 h-4 rounded border" 
+            style={{ 
+              backgroundColor: '#2563eb',
+              borderColor: '#1e40af',
+              borderWidth: '1.5px'
+            }} 
+          />
+          <span className="font-medium">남성</span>
         </div>
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded" style={{ backgroundColor: '#f472b6' }} />
-          <span>여성</span>
+        <div className="flex items-center gap-2">
+          <div 
+            className="w-4 h-4 rounded border" 
+            style={{ 
+              backgroundColor: '#f472b6',
+              borderColor: '#ec4899',
+              borderWidth: '1.5px'
+            }} 
+          />
+          <span className="font-medium">여성</span>
         </div>
       </div>
     </div>
