@@ -49,27 +49,33 @@ export function ExecutiveDashboard({ data }: ExecutiveDashboardProps) {
     // 환자당 평균 방문 횟수
     const avgVisitsPerPatient = uniquePatients > 0 ? data.length / uniquePatients : 0
 
-    // 지역별 환자 수
-    const regionCounts = new Map<string, number>()
+    // 지역별 고유 환자 수
+    const regionPatients = new Map<string, Set<string>>()
     data.forEach(p => {
       if (p.region) {
-        regionCounts.set(p.region, (regionCounts.get(p.region) || 0) + 1)
+        if (!regionPatients.has(p.region)) {
+          regionPatients.set(p.region, new Set())
+        }
+        regionPatients.get(p.region)!.add(p.patient_id)
       }
     })
-    const topRegions = Array.from(regionCounts.entries())
-      .map(([region, count]) => ({ region, count }))
+    const topRegions = Array.from(regionPatients.entries())
+      .map(([region, patients]) => ({ region, count: patients.size }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5)
 
-    // 질병별 환자 수
-    const diseaseCounts = new Map<string, number>()
+    // 질병별 고유 환자 수
+    const diseasePatients = new Map<string, Set<string>>()
     data.forEach(p => {
       if (p.disease_name) {
-        diseaseCounts.set(p.disease_name, (diseaseCounts.get(p.disease_name) || 0) + 1)
+        if (!diseasePatients.has(p.disease_name)) {
+          diseasePatients.set(p.disease_name, new Set())
+        }
+        diseasePatients.get(p.disease_name)!.add(p.patient_id)
       }
     })
-    const topDiseases = Array.from(diseaseCounts.entries())
-      .map(([disease, count]) => ({ disease, count }))
+    const topDiseases = Array.from(diseasePatients.entries())
+      .map(([disease, patients]) => ({ disease, count: patients.size }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5)
 
