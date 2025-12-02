@@ -64,8 +64,8 @@ export default function StrategyPage() {
         }
       }
       
-      // 성별 필터
-      if (genders.length > 0) {
+      // 성별 필터 (두 성별이 모두 선택된 경우는 필터링하지 않음)
+      if (genders.length > 0 && genders.length < 2) {
         const patientGender = normalizeGender(patient.gender)
         if (!genders.includes(patientGender as '남성' | '여성')) {
           return false
