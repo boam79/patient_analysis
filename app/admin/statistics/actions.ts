@@ -136,7 +136,7 @@ export async function getActiveUserStats(days: number = 30) {
   // 활성 사용자 수
   const { data: activeUsers, error: activeError } = await supabaseAdmin
     .from('user_sessions')
-    .select('user_id')
+    .select('user_id, login_at, created_at')
     .gte('login_at', startDate)
 
   if (activeError) {
@@ -191,7 +191,7 @@ export async function getUsageStats(days: number = 30) {
 
   const { data: sessions, error } = await supabaseAdmin
     .from('user_sessions')
-    .select('login_at, session_duration, page_views')
+    .select('login_at, session_duration, page_views, created_at')
     .gte('created_at', startDate)
 
   if (error) {
@@ -256,7 +256,7 @@ export async function getStatisticsSummary() {
   // 최근 30일 활성 사용자
   const { data: recentSessions } = await supabaseAdmin
     .from('user_sessions')
-    .select('user_id')
+    .select('user_id, login_at')
     .gte('login_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
 
   const activeUsers = new Set(recentSessions?.map(s => s.user_id) || []).size
