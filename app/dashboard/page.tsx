@@ -505,33 +505,37 @@ export default function DashboardPage() {
       { newPatients: Set<string>; returningPatients: Set<string> }
     >()
 
-    patientVisitsByKey.forEach((visits, key) => {
-      visits.forEach((visit, index) => {
-        const date = new Date(visit.visit_date)
-        const month = `${date.getMonth() + 1}월`
+    // 환자별 첫 방문 월 추적
+    const patientFirstVisitMonth = new Map<string, string>()
+    
+    // 날짜순으로 정렬된 방문 데이터로 처리
+    const sortedVisits = Array.from(filteredRawData).sort(
+      (a, b) => new Date(a.visit_date).getTime() - new Date(b.visit_date).getTime()
+    )
 
-        if (!monthlyData.has(month)) {
-          monthlyData.set(month, {
-            newPatients: new Set(),
-            returningPatients: new Set(),
-          })
-        }
+    sortedVisits.forEach((patient) => {
+      const date = new Date(patient.visit_date)
+      const month = `${date.getMonth() + 1}월`
+      const key = `${patient.name}|${patient.address}`
 
-        const bucket = monthlyData.get(month)!
+      if (!monthlyData.has(month)) {
+        monthlyData.set(month, {
+          newPatients: new Set(),
+          returningPatients: new Set(),
+        })
+      }
 
-        if (index === 0) {
-          bucket.newPatients.add(key)
-        } else {
-          const prevDate = new Date(visits[index - 1].visit_date)
-          const interval = (date.getTime() - prevDate.getTime()) / MS_PER_DAY
+      const bucket = monthlyData.get(month)!
 
-          if (interval <= windowSize) {
-            bucket.returningPatients.add(key)
-          } else {
-            bucket.newPatients.add(key)
-          }
-        }
-      })
+      // 해당 환자의 첫 방문 월 확인
+      if (!patientFirstVisitMonth.has(key)) {
+        // 첫 방문이면 신규 환자로 분류
+        patientFirstVisitMonth.set(key, month)
+        bucket.newPatients.add(key)
+      } else {
+        // 이미 방문한 적이 있으면 재방문 환자로 분류
+        bucket.returningPatients.add(key)
+      }
     })
 
     const monthOrder = [
