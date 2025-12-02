@@ -49,15 +49,11 @@ export async function updateSession(request: NextRequest) {
   }
 
   // 보호된 경로 접근 시 사용자 확인
-  if (pathname.startsWith('/admin') || pathname.startsWith('/dashboard')) {
+  if (pathname.startsWith('/admin')) {
     // 로그인하지 않은 사용자
     if (!user) {
       const url = request.nextUrl.clone()
-      if (pathname.startsWith('/admin')) {
-        url.pathname = '/login-admin'
-      } else {
-        url.pathname = '/login'
-      }
+      url.pathname = '/login-admin'
       return NextResponse.redirect(url)
     }
 
@@ -69,30 +65,16 @@ export async function updateSession(request: NextRequest) {
       .single()
 
     // ADMIN 경로 접근 시: ADMIN 역할 및 승인 확인
-    if (pathname.startsWith('/admin')) {
-      if (!profile || !profile.is_approved || profile.role !== 'ADMIN') {
-        const url = request.nextUrl.clone()
-        url.pathname = '/login-admin'
-        return NextResponse.redirect(url)
-      }
-    }
-    
-    // DASHBOARD 경로 접근 시: 승인된 사용자만 접근
-    if (pathname.startsWith('/dashboard')) {
-      if (!profile || !profile.is_approved) {
-        const url = request.nextUrl.clone()
-        url.pathname = '/login?error=not_approved'
-        return NextResponse.redirect(url)
-      }
-      // ADMIN도 전략 분석 페이지는 접근 가능하도록 허용
-      // 다른 대시보드 페이지는 ADMIN이 아닌 사용자만 접근 (제작자 페이지 사용)
-      if (profile.role === 'ADMIN' && pathname !== '/dashboard/strategy') {
-        const url = request.nextUrl.clone()
-        url.pathname = '/admin'
-        return NextResponse.redirect(url)
-      }
+    if (!profile || !profile.is_approved || profile.role !== 'ADMIN') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/login-admin'
+      return NextResponse.redirect(url)
     }
   }
+  
+  // DASHBOARD 경로는 공개 접근 가능 (로그인 불필요)
+  // 아직 로그인 기능을 구현하지 않음
+  // 로그인한 사용자가 있어도 리다이렉트하지 않음
 
   // IMPORTANT: You *must* return the supabaseResponse object as it is. If you're
   // creating a new response object with NextResponse.next() make sure to:
