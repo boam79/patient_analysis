@@ -27,14 +27,17 @@ export function ExecutiveDashboard({ data }: ExecutiveDashboardProps) {
       }
     }
 
-    // 고유 환자 수
-    const uniquePatientIds = new Set(data.map(p => p.patient_id))
-    const uniquePatients = uniquePatientIds.size
+    // 고유 환자 식별 (이름+주소 기준) - 메인 대시보드 KPI 로직과 동일하게 맞춤
+    const patientKey = (p: PatientData) => `${p.name}|${p.address}`
+
+    const uniquePatientKeys = new Set(data.map(patientKey))
+    const uniquePatients = uniquePatientKeys.size
 
     // 환자별 방문 횟수
     const patientVisitCounts = new Map<string, number>()
     data.forEach(p => {
-      patientVisitCounts.set(p.patient_id, (patientVisitCounts.get(p.patient_id) || 0) + 1)
+      const key = patientKey(p)
+      patientVisitCounts.set(key, (patientVisitCounts.get(key) || 0) + 1)
     })
 
     // 신규 환자 (1회 방문만)
@@ -49,14 +52,15 @@ export function ExecutiveDashboard({ data }: ExecutiveDashboardProps) {
     // 환자당 평균 방문 횟수
     const avgVisitsPerPatient = uniquePatients > 0 ? data.length / uniquePatients : 0
 
-    // 지역별 고유 환자 수
+    // 지역별 고유 환자 수 (이름+주소 기준)
     const regionPatients = new Map<string, Set<string>>()
     data.forEach(p => {
       if (p.region) {
+        const key = patientKey(p)
         if (!regionPatients.has(p.region)) {
           regionPatients.set(p.region, new Set())
         }
-        regionPatients.get(p.region)!.add(p.patient_id)
+        regionPatients.get(p.region)!.add(key)
       }
     })
     const topRegions = Array.from(regionPatients.entries())
@@ -64,14 +68,15 @@ export function ExecutiveDashboard({ data }: ExecutiveDashboardProps) {
       .sort((a, b) => b.count - a.count)
       .slice(0, 5)
 
-    // 질병별 고유 환자 수
+    // 질병별 고유 환자 수 (이름+주소 기준)
     const diseasePatients = new Map<string, Set<string>>()
     data.forEach(p => {
       if (p.disease_name) {
+        const key = patientKey(p)
         if (!diseasePatients.has(p.disease_name)) {
           diseasePatients.set(p.disease_name, new Set())
         }
-        diseasePatients.get(p.disease_name)!.add(p.patient_id)
+        diseasePatients.get(p.disease_name)!.add(key)
       }
     })
     const topDiseases = Array.from(diseasePatients.entries())
