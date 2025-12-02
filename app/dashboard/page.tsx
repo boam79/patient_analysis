@@ -134,6 +134,36 @@ export default function DashboardPage() {
     rawData,
   } = useDataStore()
 
+  // 차트 지연 로딩을 위한 상태
+  const [chartsReady, setChartsReady] = useState(false)
+
+  // 데이터 로드 후 차트를 점진적으로 렌더링
+  useEffect(() => {
+    if (!isDataLoaded || rawData.length === 0) {
+      setChartsReady(true) // 샘플 데이터는 즉시 표시
+      return
+    }
+
+    // 데이터 업로드 직후에는 KPI만 먼저 표시하고, 차트는 지연 로딩
+    setChartsReady(false)
+    
+    const loadCharts = () => {
+      // requestIdleCallback을 사용해 브라우저가 여유 있을 때 차트 렌더링
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(() => {
+          setChartsReady(true)
+        }, { timeout: 500 })
+      } else {
+        // 폴백: setTimeout 사용
+        setTimeout(() => {
+          setChartsReady(true)
+        }, 100)
+      }
+    }
+
+    loadCharts()
+  }, [isDataLoaded, rawData.length])
+
   // 업로드된 데이터가 있으면 사용, 없으면 샘플 데이터 사용
   const diseases = isDataLoaded && storeDiseases.length > 0 ? storeDiseases : SAMPLE_DISEASES
   const mapData = isDataLoaded && storeMapData.length > 0 ? storeMapData : SAMPLE_MAP_DATA
