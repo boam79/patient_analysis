@@ -17,6 +17,7 @@ import { Users, TrendingUp, Clock, Activity, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
 import { normalizeGender } from '@/lib/utils/patient-helpers'
+import { filterPatients } from '@/lib/utils/patient-filters'
 
 // 샘플 데이터
 const SAMPLE_DISEASES = [
@@ -139,75 +140,19 @@ export default function DashboardPage() {
   const boundaryData = isDataLoaded && storeBoundaryData.length > 0 ? storeBoundaryData : SAMPLE_BOUNDARY_DATA
   const boxplotData = isDataLoaded && storeBoxplotData.length > 0 ? storeBoxplotData : SAMPLE_BOXPLOT_DATA
   const monthlyTrend = isDataLoaded && storeMonthlyTrend.length > 0 ? storeMonthlyTrend : SAMPLE_MONTHLY_TREND
-
-  // 필터링된 rawData 계산 (Task 3.1)
+  // 필터링된 rawData 계산 (공통 유틸 사용)
   const filteredRawData = useMemo(() => {
-    if (!isDataLoaded || rawData.length === 0) {
-      return []
-    }
+    if (!isDataLoaded || rawData.length === 0) return []
 
-    let filtered = [...rawData]
-
-    // 기간 필터 (BUG FIX: dateRange 필터 추가)
-    if (dateRange.start && dateRange.end) {
-      filtered = filtered.filter(p => {
-        const visitDate = new Date(p.visit_date)
-        const startDate = new Date(dateRange.start)
-        const endDate = new Date(dateRange.end)
-        return visitDate >= startDate && visitDate <= endDate
-      })
-    }
-
-    // 질병 필터
-    if (selectedDiseases.length > 0) {
-      filtered = filtered.filter(p => selectedDiseases.includes(p.disease_name))
-    }
-
-    // 수술 필터
-    if (selectedSurgeries.length > 0) {
-      filtered = filtered.filter(
-        (p) => p.surgery_name && selectedSurgeries.includes(p.surgery_name)
-      )
-    }
-
-    // 지역 필터
-    if (selectedRegions.length > 0) {
-      filtered = filtered.filter(p => selectedRegions.includes(p.region))
-    }
-
-    // 연령 필터
-    if (ageGroups.length > 0) {
-      filtered = filtered.filter(p => {
-        const age = p.age
-        if (age < 20) return ageGroups.includes('10대 이하')
-        if (age < 30) return ageGroups.includes('20대')
-        if (age < 40) return ageGroups.includes('30대')
-        if (age < 50) return ageGroups.includes('40대')
-        if (age < 60) return ageGroups.includes('50대')
-        if (age < 70) return ageGroups.includes('60대')
-        return ageGroups.includes('70대 이상')
-      })
-    }
-
-    // 성별 필터 (normalizeGender 사용하여 일관성 있게 처리)
-    if (genders.length > 0 && genders.length < 2) {
-      filtered = filtered.filter(p => {
-        const normalizedGender = normalizeGender(p.gender)
-        return genders.includes(normalizedGender as '남성' | '여성')
-      })
-    }
-
-    return filtered
-  }, [
-    isDataLoaded,
-    rawData,
-    selectedDiseases,
-    selectedSurgeries,
-    selectedRegions,
-    ageGroups,
-    genders,
-    dateRange,
-  ])
+    return filterPatients(rawData, {
+      selectedDiseases,
+      selectedRegions,
+      selectedSurgeries,
+      ageGroups,
+      genders: genders as ('남성' | '여성')[],
+      dateRange,
+    })
+  }, [isDataLoaded, rawData, selectedDiseases, selectedRegions, selectedSurgeries, ageGroups, genders, dateRange])
 
   const patientVisitsByKey = useMemo(() => {
     const map = new Map<string, PatientData[]>()

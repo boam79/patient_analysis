@@ -139,15 +139,8 @@ export const useDataStore = create<DataState & DataActions>()(
         ...initialState,
 
       setRawData: (data) => {
-        // localStorage 용량 체크 (대략적)
-        const dataSize = JSON.stringify(data).length
-        const sizeMB = (dataSize / 1024 / 1024).toFixed(2)
-        console.log(`📊 데이터 크기: ${sizeMB}MB (${data.length}개 레코드)`)
-        
-        if (dataSize > 4 * 1024 * 1024) { // 4MB 이상
-          console.warn('⚠️ 데이터가 너무 큽니다. 브라우저 저장소 제한으로 일부 기능이 제한될 수 있습니다.')
-        }
-        
+        // 대용량 데이터 업로드 시 불필요한 용량 계산을 제거하여 성능 최적화
+        // (localStorage에는 rawData를 저장하지 않으므로 크기 측정이 의미 없음)
         set({ rawData: data, isDataLoaded: true, error: null })
       },
 

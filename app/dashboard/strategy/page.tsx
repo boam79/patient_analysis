@@ -9,6 +9,7 @@ import { PatientData, useDataStore } from '@/stores/data-store'
 import { TrendingUp, Users, MapPin, Calendar, Target, BarChart3 } from 'lucide-react'
 import { getAgeGroup, normalizeGender } from '@/lib/utils/patient-helpers'
 import { parseDate } from '@/lib/utils/date-helpers'
+import { filterPatients } from '@/lib/utils/patient-filters'
 
 // 분석 컴포넌트들 (추가 예정)
 import { PatientFlowAnalysis } from '@/components/strategy/patient-flow-analysis'
@@ -68,70 +69,16 @@ export default function StrategyPage() {
 
   // 필터링된 데이터 (실제 데이터가 없으면 샘플 데이터 사용)
   const filteredData = useMemo(() => {
-    // 실제 데이터가 없으면 샘플 데이터 사용
-    const dataToFilter = isDataLoaded && rawData && rawData.length > 0 ? rawData : SAMPLE_PATIENT_DATA
-    
-    if (dataToFilter.length === 0) return []
-    
-    return dataToFilter.filter((patient: PatientData) => {
-      // 질병 필터
-      if (selectedDiseases.length > 0 && !selectedDiseases.includes(patient.disease_name)) {
-        return false
-      }
-      
-      // 지역 필터
-      if (selectedRegions.length > 0 && !selectedRegions.includes(patient.region)) {
-        return false
-      }
-      
-      // 수술 필터
-      if (selectedSurgeries.length > 0) {
-        if (!patient.surgery_name || !selectedSurgeries.includes(patient.surgery_name)) {
-          return false
-        }
-      }
-      
-      // 연령대 필터
-      if (ageGroups.length > 0) {
-        const ageGroup = getAgeGroup(patient.age)
-        if (!ageGroups.includes(ageGroup)) {
-          return false
-        }
-      }
-      
-      // 성별 필터 (두 성별이 모두 선택된 경우는 필터링하지 않음)
-      if (genders.length > 0 && genders.length < 2) {
-        const patientGender = normalizeGender(patient.gender)
-        if (!genders.includes(patientGender as '남성' | '여성')) {
-          return false
-        }
-      }
-      
-      // 날짜 필터
-      if (dateRange.start && dateRange.end) {
-        const visitDate = parseDate(patient.visit_date)
-        const startDate = parseDate(dateRange.start)
-        const endDate = parseDate(dateRange.end)
-        
-        // 유효한 날짜인지 확인
-        if (!visitDate || !startDate || !endDate || 
-            isNaN(visitDate.getTime()) || 
-            isNaN(startDate.getTime()) || 
-            isNaN(endDate.getTime())) {
-          return false
-        }
-        
-        // 날짜 비교 (시간 부분 제거)
-        const visitTime = visitDate.getTime()
-        const startTime = startDate.getTime()
-        const endTime = endDate.getTime()
-        
-        if (visitTime < startTime || visitTime > endTime) {
-          return false
-        }
-      }
-      
-      return true
+    const baseData = isDataLoaded && rawData && rawData.length > 0 ? rawData : SAMPLE_PATIENT_DATA
+    if (baseData.length === 0) return []
+
+    return filterPatients(baseData, {
+      selectedDiseases,
+      selectedRegions,
+      selectedSurgeries,
+      ageGroups,
+      genders: genders as ('남성' | '여성')[],
+      dateRange,
     })
   }, [isDataLoaded, rawData, selectedDiseases, selectedRegions, selectedSurgeries, ageGroups, genders, dateRange])
 
