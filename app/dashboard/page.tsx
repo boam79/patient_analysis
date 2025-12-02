@@ -16,6 +16,7 @@ import { PatientData, useDataStore } from '@/stores/data-store'
 import { Users, TrendingUp, Clock, Activity, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
+import { normalizeGender } from '@/lib/utils/patient-helpers'
 
 // 샘플 데이터
 const SAMPLE_DISEASES = [
@@ -188,13 +189,12 @@ export default function DashboardPage() {
       })
     }
 
-    // 성별 필터 (BUG FIX: 두 성별이 모두 선택된 경우는 필터링하지 않음)
+    // 성별 필터 (normalizeGender 사용하여 일관성 있게 처리)
     if (genders.length > 0 && genders.length < 2) {
-      filtered = filtered.filter(p => 
-        p.gender === genders[0] || 
-        (genders[0] === '남성' && p.gender === 'M') ||
-        (genders[0] === '여성' && p.gender === 'F')
-      )
+      filtered = filtered.filter(p => {
+        const normalizedGender = normalizeGender(p.gender)
+        return genders.includes(normalizedGender as '남성' | '여성')
+      })
     }
 
     return filtered

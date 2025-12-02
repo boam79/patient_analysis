@@ -7,6 +7,8 @@ import { FilterPanel } from '@/components/filter/filter-panel'
 import { useFilterStore } from '@/stores/filter-store'
 import { PatientData, useDataStore } from '@/stores/data-store'
 import { TrendingUp, Users, MapPin, Calendar, Target, BarChart3 } from 'lucide-react'
+import { getAgeGroup, normalizeGender } from '@/lib/utils/patient-helpers'
+import { parseDate } from '@/lib/utils/date-helpers'
 
 // 분석 컴포넌트들 (추가 예정)
 import { PatientFlowAnalysis } from '@/components/strategy/patient-flow-analysis'
@@ -34,7 +36,7 @@ export default function StrategyPage() {
 
   // 필터링된 데이터
   const filteredData = useMemo(() => {
-    if (!rawData || rawData.length === 0) return []
+    if (!isDataLoaded || !rawData || rawData.length === 0) return []
     
     return rawData.filter((patient: PatientData) => {
       // 질병 필터
@@ -76,18 +78,27 @@ export default function StrategyPage() {
         const startDate = parseDate(dateRange.start)
         const endDate = parseDate(dateRange.end)
         
-        if (!visitDate || !startDate || !endDate) {
+        // 유효한 날짜인지 확인
+        if (!visitDate || !startDate || !endDate || 
+            isNaN(visitDate.getTime()) || 
+            isNaN(startDate.getTime()) || 
+            isNaN(endDate.getTime())) {
           return false
         }
         
-        if (visitDate < startDate || visitDate > endDate) {
+        // 날짜 비교 (시간 부분 제거)
+        const visitTime = visitDate.getTime()
+        const startTime = startDate.getTime()
+        const endTime = endDate.getTime()
+        
+        if (visitTime < startTime || visitTime > endTime) {
           return false
         }
       }
       
       return true
     })
-  }, [rawData, selectedDiseases, selectedRegions, selectedSurgeries, ageGroups, genders, dateRange])
+  }, [isDataLoaded, rawData, selectedDiseases, selectedRegions, selectedSurgeries, ageGroups, genders, dateRange])
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6" id="strategy-main">
@@ -168,7 +179,3 @@ export default function StrategyPage() {
     </div>
   )
 }
-
-import { getAgeGroup, normalizeGender } from '@/lib/utils/patient-helpers'
-import { extractMonth, parseDate } from '@/lib/utils/date-helpers'
-
