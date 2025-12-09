@@ -20,15 +20,52 @@ export function IpStatisticsDashboard() {
   useEffect(() => {
     async function loadStats() {
       try {
-        console.log('Loading IP statistics...')
-        const [topIpsData, hourlyData, pathData, anomaliesData] = await Promise.all([
-          getTopIps(10),
-          getHourlyStats(1),
-          getPathStats(),
-          detectAnomalies(),
-        ])
+        console.log('[IpStatisticsDashboard] Loading IP statistics...')
+        
+        // 각 함수를 개별적으로 호출하여 어느 것이 실패하는지 확인
+        let topIpsData: any = null
+        let hourlyData: any = null
+        let pathData: any = null
+        let anomaliesData: any = null
+        
+        try {
+          console.log('[IpStatisticsDashboard] Calling getTopIps...')
+          topIpsData = await getTopIps(10)
+          console.log('[IpStatisticsDashboard] getTopIps result:', topIpsData)
+        } catch (err: any) {
+          console.error('[IpStatisticsDashboard] getTopIps failed:', err)
+          throw new Error(`Top IPs 조회 실패: ${err.message}`)
+        }
+        
+        try {
+          console.log('[IpStatisticsDashboard] Calling getHourlyStats...')
+          hourlyData = await getHourlyStats(1)
+          console.log('[IpStatisticsDashboard] getHourlyStats result:', hourlyData)
+        } catch (err: any) {
+          console.error('[IpStatisticsDashboard] getHourlyStats failed:', err)
+          throw new Error(`시간대별 통계 조회 실패: ${err.message}`)
+        }
+        
+        try {
+          console.log('[IpStatisticsDashboard] Calling getPathStats...')
+          pathData = await getPathStats()
+          console.log('[IpStatisticsDashboard] getPathStats result:', pathData)
+        } catch (err: any) {
+          console.error('[IpStatisticsDashboard] getPathStats failed:', err)
+          throw new Error(`경로별 통계 조회 실패: ${err.message}`)
+        }
+        
+        try {
+          console.log('[IpStatisticsDashboard] Calling detectAnomalies...')
+          anomaliesData = await detectAnomalies()
+          console.log('[IpStatisticsDashboard] detectAnomalies result:', anomaliesData)
+        } catch (err: any) {
+          console.error('[IpStatisticsDashboard] detectAnomalies failed:', err)
+          // 이상 패턴 감지는 선택사항이므로 에러를 무시
+          anomaliesData = []
+        }
 
-        console.log('IP statistics loaded:', {
+        console.log('[IpStatisticsDashboard] All data loaded:', {
           topIps: topIpsData,
           hourly: hourlyData,
           path: pathData,
@@ -37,26 +74,39 @@ export function IpStatisticsDashboard() {
 
         // 데이터 유효성 검사
         if (!Array.isArray(topIpsData)) {
-          console.error('topIpsData is not an array:', topIpsData)
-          throw new Error('Top IPs 데이터 형식이 올바르지 않습니다.')
+          console.error('[IpStatisticsDashboard] topIpsData is not an array:', topIpsData, typeof topIpsData)
+          throw new Error(`Top IPs 데이터 형식이 올바르지 않습니다. (타입: ${typeof topIpsData})`)
         }
         if (!Array.isArray(hourlyData)) {
-          console.error('hourlyData is not an array:', hourlyData)
-          throw new Error('시간대별 통계 데이터 형식이 올바르지 않습니다.')
+          console.error('[IpStatisticsDashboard] hourlyData is not an array:', hourlyData, typeof hourlyData)
+          throw new Error(`시간대별 통계 데이터 형식이 올바르지 않습니다. (타입: ${typeof hourlyData})`)
         }
         if (!Array.isArray(pathData)) {
-          console.error('pathData is not an array:', pathData)
-          throw new Error('경로별 통계 데이터 형식이 올바르지 않습니다.')
+          console.error('[IpStatisticsDashboard] pathData is not an array:', pathData, typeof pathData)
+          throw new Error(`경로별 통계 데이터 형식이 올바르지 않습니다. (타입: ${typeof pathData})`)
         }
+
+        console.log('[IpStatisticsDashboard] Setting state with:', {
+          topIpsCount: topIpsData.length,
+          hourlyCount: hourlyData.length,
+          pathCount: pathData.length,
+          anomaliesCount: anomaliesData.length,
+        })
 
         setTopIps(topIpsData as Array<{ ip_address: string; access_count: number }>)
         setHourlyStats(hourlyData as Array<{ hour: string; access_count: number; unique_ips: number }>)
         setPathStats(pathData.slice(0, 10) as Array<{ path: string; access_count: number; unique_ips: number }>)
-        setAnomalies(anomaliesData as Array<{ ip_address: string; access_count: number; rate: number }>)
+        setAnomalies(Array.isArray(anomaliesData) ? anomaliesData : [])
         setError(null)
       } catch (error: any) {
-        console.error('Failed to load statistics:', error)
-        setError(error?.message || '통계 데이터를 불러오는 중 오류가 발생했습니다.')
+        console.error('[IpStatisticsDashboard] Failed to load statistics:', error)
+        const errorMessage = error?.message || error?.toString() || '통계 데이터를 불러오는 중 오류가 발생했습니다.'
+        console.error('[IpStatisticsDashboard] Error details:', {
+          message: errorMessage,
+          stack: error?.stack,
+          error: error,
+        })
+        setError(errorMessage)
       } finally {
         setLoading(false)
       }

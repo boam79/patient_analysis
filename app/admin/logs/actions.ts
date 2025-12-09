@@ -12,77 +12,109 @@ const supabaseAdmin = createAdminClient(
  * Top 10 접근 IP 통계
  */
 export async function getTopIps(limit: number = 10) {
-  const supabase = await createClient()
-  
-  // ADMIN 역할 확인
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    throw new Error('인증이 필요합니다.')
-  }
-
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile || profile.role !== 'ADMIN') {
-    throw new Error('관리자만 접근할 수 있습니다.')
-  }
-
-  // 직접 쿼리로 집계
-  const { data: queryData, error: queryError } = await supabaseAdmin
-    .from('ip_access_logs')
-    .select('ip_address')
-    .limit(10000)
-
-  if (queryError) {
-    console.error('getTopIps query error:', queryError)
-    throw new Error(`IP 통계 조회 실패: ${queryError.message}`)
-  }
-
-  if (!queryData || queryData.length === 0) {
-    console.log('getTopIps: No data found')
-    return []
-  }
-
-  // 클라이언트 사이드에서 집계
-  const ipCounts = new Map<string, number>()
-  queryData.forEach(log => {
-    if (log.ip_address) {
-      ipCounts.set(log.ip_address, (ipCounts.get(log.ip_address) || 0) + 1)
+  try {
+    const supabase = await createClient()
+    
+    // ADMIN 역할 확인
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError) {
+      console.error('getTopIps auth error:', authError)
+      throw new Error(`인증 오류: ${authError.message}`)
     }
-  })
+    
+    if (!user) {
+      console.error('getTopIps: No user found')
+      throw new Error('인증이 필요합니다.')
+    }
 
-  const result = Array.from(ipCounts.entries())
-    .map(([ip, count]) => ({ ip_address: ip, access_count: count }))
-    .sort((a, b) => b.access_count - a.access_count)
-    .slice(0, limit)
+    const { data: profile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
 
-  console.log('getTopIps result:', result)
-  return result
+    if (profileError) {
+      console.error('getTopIps profile error:', profileError)
+      throw new Error(`프로필 조회 실패: ${profileError.message}`)
+    }
+
+    if (!profile || profile.role !== 'ADMIN') {
+      console.error('getTopIps: Not admin, role:', profile?.role)
+      throw new Error('관리자만 접근할 수 있습니다.')
+    }
+
+    // 직접 쿼리로 집계
+    const { data: queryData, error: queryError } = await supabaseAdmin
+      .from('ip_access_logs')
+      .select('ip_address')
+      .limit(10000)
+
+    if (queryError) {
+      console.error('getTopIps query error:', queryError)
+      throw new Error(`IP 통계 조회 실패: ${queryError.message}`)
+    }
+
+    if (!queryData || queryData.length === 0) {
+      console.log('getTopIps: No data found')
+      return []
+    }
+
+    // 클라이언트 사이드에서 집계
+    const ipCounts = new Map<string, number>()
+    queryData.forEach(log => {
+      if (log.ip_address) {
+        ipCounts.set(log.ip_address, (ipCounts.get(log.ip_address) || 0) + 1)
+      }
+    })
+
+    const result = Array.from(ipCounts.entries())
+      .map(([ip, count]) => ({ ip_address: ip, access_count: count }))
+      .sort((a, b) => b.access_count - a.access_count)
+      .slice(0, limit)
+
+    console.log('getTopIps result:', result, 'count:', result.length)
+    return result
+  } catch (error: any) {
+    console.error('getTopIps error:', error)
+    throw error
+  }
 }
 
 /**
  * 시간대별 접근 통계 (최근 24시간)
  */
 export async function getHourlyStats(days: number = 1) {
-  const supabase = await createClient()
-  
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    throw new Error('인증이 필요합니다.')
-  }
+  try {
+    const supabase = await createClient()
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError) {
+      console.error('getHourlyStats auth error:', authError)
+      throw new Error(`인증 오류: ${authError.message}`)
+    }
+    
+    if (!user) {
+      console.error('getHourlyStats: No user found')
+      throw new Error('인증이 필요합니다.')
+    }
 
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
+    const { data: profile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
 
-  if (!profile || profile.role !== 'ADMIN') {
-    throw new Error('관리자만 접근할 수 있습니다.')
-  }
+    if (profileError) {
+      console.error('getHourlyStats profile error:', profileError)
+      throw new Error(`프로필 조회 실패: ${profileError.message}`)
+    }
+
+    if (!profile || profile.role !== 'ADMIN') {
+      console.error('getHourlyStats: Not admin, role:', profile?.role)
+      throw new Error('관리자만 접근할 수 있습니다.')
+    }
 
   const { data, error } = await supabaseAdmin
     .from('ip_access_logs')
@@ -119,38 +151,56 @@ export async function getHourlyStats(days: number = 1) {
     }
   })
 
-  const result = Array.from(hourlyStats.entries())
-    .map(([hour, stats]) => ({
-      hour,
-      access_count: stats.count,
-      unique_ips: stats.uniqueIps.size,
-    }))
-    .sort((a, b) => a.hour.localeCompare(b.hour))
+    const result = Array.from(hourlyStats.entries())
+      .map(([hour, stats]) => ({
+        hour,
+        access_count: stats.count,
+        unique_ips: stats.uniqueIps.size,
+      }))
+      .sort((a, b) => a.hour.localeCompare(b.hour))
 
-  console.log('getHourlyStats result:', result)
-  return result
+    console.log('getHourlyStats result:', result, 'count:', result.length)
+    return result
+  } catch (error: any) {
+    console.error('getHourlyStats error:', error)
+    throw error
+  }
 }
 
 /**
  * 경로별 접근 통계
  */
 export async function getPathStats() {
-  const supabase = await createClient()
-  
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    throw new Error('인증이 필요합니다.')
-  }
+  try {
+    const supabase = await createClient()
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError) {
+      console.error('getPathStats auth error:', authError)
+      throw new Error(`인증 오류: ${authError.message}`)
+    }
+    
+    if (!user) {
+      console.error('getPathStats: No user found')
+      throw new Error('인증이 필요합니다.')
+    }
 
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
+    const { data: profile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
 
-  if (!profile || profile.role !== 'ADMIN') {
-    throw new Error('관리자만 접근할 수 있습니다.')
-  }
+    if (profileError) {
+      console.error('getPathStats profile error:', profileError)
+      throw new Error(`프로필 조회 실패: ${profileError.message}`)
+    }
+
+    if (!profile || profile.role !== 'ADMIN') {
+      console.error('getPathStats: Not admin, role:', profile?.role)
+      throw new Error('관리자만 접근할 수 있습니다.')
+    }
 
   const { data, error } = await supabaseAdmin
     .from('ip_access_logs')
@@ -182,16 +232,20 @@ export async function getPathStats() {
     }
   })
 
-  const result = Array.from(pathStats.entries())
-    .map(([path, stats]) => ({
-      path,
-      access_count: stats.count,
-      unique_ips: stats.uniqueIps.size,
-    }))
-    .sort((a, b) => b.access_count - a.access_count)
+    const result = Array.from(pathStats.entries())
+      .map(([path, stats]) => ({
+        path,
+        access_count: stats.count,
+        unique_ips: stats.uniqueIps.size,
+      }))
+      .sort((a, b) => b.access_count - a.access_count)
 
-  console.log('getPathStats result:', result)
-  return result
+    console.log('getPathStats result:', result, 'count:', result.length)
+    return result
+  } catch (error: any) {
+    console.error('getPathStats error:', error)
+    throw error
+  }
 }
 
 /**
