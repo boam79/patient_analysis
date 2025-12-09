@@ -36,12 +36,18 @@ export function IpStatisticsDashboard() {
         try {
           console.log('[IpStatisticsDashboard] Calling getTopIps...')
           const result = await getTopIps(10)
-          console.log('[IpStatisticsDashboard] getTopIps result:', result, 'type:', typeof result, 'isArray:', Array.isArray(result))
+          console.log('[IpStatisticsDashboard] getTopIps result:', result)
+          console.log('[IpStatisticsDashboard] getTopIps type:', typeof result, 'isArray:', Array.isArray(result))
+          console.log('[IpStatisticsDashboard] getTopIps length:', Array.isArray(result) ? result.length : 'N/A')
+          if (Array.isArray(result) && result.length > 0) {
+            console.log('[IpStatisticsDashboard] getTopIps first item:', result[0])
+          }
           
           if (!isMounted) return
           
           if (Array.isArray(result)) {
             topIpsData = result
+            console.log('[IpStatisticsDashboard] getTopIps success, count:', result.length)
           } else {
             console.warn('[IpStatisticsDashboard] getTopIps returned non-array:', result)
             topIpsData = []
@@ -63,12 +69,18 @@ export function IpStatisticsDashboard() {
         try {
           console.log('[IpStatisticsDashboard] Calling getHourlyStats...')
           const result = await getHourlyStats(1)
-          console.log('[IpStatisticsDashboard] getHourlyStats result:', result, 'type:', typeof result, 'isArray:', Array.isArray(result))
+          console.log('[IpStatisticsDashboard] getHourlyStats result:', result)
+          console.log('[IpStatisticsDashboard] getHourlyStats type:', typeof result, 'isArray:', Array.isArray(result))
+          console.log('[IpStatisticsDashboard] getHourlyStats length:', Array.isArray(result) ? result.length : 'N/A')
+          if (Array.isArray(result) && result.length > 0) {
+            console.log('[IpStatisticsDashboard] getHourlyStats first item:', result[0])
+          }
           
           if (!isMounted) return
           
           if (Array.isArray(result)) {
             hourlyData = result
+            console.log('[IpStatisticsDashboard] getHourlyStats success, count:', result.length)
           } else {
             console.warn('[IpStatisticsDashboard] getHourlyStats returned non-array:', result)
             hourlyData = []
@@ -90,12 +102,18 @@ export function IpStatisticsDashboard() {
         try {
           console.log('[IpStatisticsDashboard] Calling getPathStats...')
           const result = await getPathStats()
-          console.log('[IpStatisticsDashboard] getPathStats result:', result, 'type:', typeof result, 'isArray:', Array.isArray(result))
+          console.log('[IpStatisticsDashboard] getPathStats result:', result)
+          console.log('[IpStatisticsDashboard] getPathStats type:', typeof result, 'isArray:', Array.isArray(result))
+          console.log('[IpStatisticsDashboard] getPathStats length:', Array.isArray(result) ? result.length : 'N/A')
+          if (Array.isArray(result) && result.length > 0) {
+            console.log('[IpStatisticsDashboard] getPathStats first item:', result[0])
+          }
           
           if (!isMounted) return
           
           if (Array.isArray(result)) {
             pathData = result
+            console.log('[IpStatisticsDashboard] getPathStats success, count:', result.length)
           } else {
             console.warn('[IpStatisticsDashboard] getPathStats returned non-array:', result)
             pathData = []

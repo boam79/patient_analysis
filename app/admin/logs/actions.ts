@@ -172,14 +172,21 @@ export async function getHourlyStats(days: number = 1) {
     return []
   }
 
-  // 시간대별 집계
+  // 시간대별 집계 (UTC 기준)
   const hourlyStats = new Map<string, { count: number; uniqueIps: Set<string> }>()
   
   data.forEach(log => {
     if (log.created_at && log.ip_address) {
+      // UTC 시간으로 파싱하여 시간대 문제 방지
       const date = new Date(log.created_at)
-      const hour = new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours())
-      const hourKey = hour.toISOString()
+      // UTC 기준으로 시간 추출
+      const year = date.getUTCFullYear()
+      const month = date.getUTCMonth()
+      const day = date.getUTCDate()
+      const hour = date.getUTCHours()
+      
+      // UTC 기준으로 시간 키 생성 (YYYY-MM-DDTHH:00:00.000Z 형식)
+      const hourKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hour).padStart(2, '0')}:00:00.000Z`
       
       if (!hourlyStats.has(hourKey)) {
         hourlyStats.set(hourKey, { count: 0, uniqueIps: new Set() })
@@ -198,7 +205,8 @@ export async function getHourlyStats(days: number = 1) {
         unique_ips: Number(stats.uniqueIps.size || 0),
       }))
       .sort((a, b) => a.hour.localeCompare(b.hour))
-      .filter(item => item.hour && item.access_count > 0)
+      // 필터 조건 완화: hour만 있으면 통과 (access_count가 0이어도 표시)
+      .filter(item => item.hour)
 
     console.log('[getHourlyStats] Final result:', JSON.stringify(result), 'count:', result.length)
     return result
