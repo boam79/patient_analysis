@@ -47,6 +47,8 @@ export async function getIpGeolocation(ip: string): Promise<GeolocationResult> {
 
   try {
     // ip-api.com 무료 API 사용 (JSON 형식)
+    // 참고: ip-api.com은 무료 버전에서 분당 45회 제한
+    // 프로덕션 환경(Vercel)에서는 자동으로 HTTPS로 변환됨
     const response = await fetch(`http://ip-api.com/json/${ip}?fields=status,message,country,countryCode,city`, {
       method: 'GET',
       headers: {

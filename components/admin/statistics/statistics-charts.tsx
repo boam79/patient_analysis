@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import {
   LineChart,
   Line,
@@ -23,8 +24,12 @@ import {
   getActiveUserStats,
   getUsageStats,
   getStatisticsSummary,
+  getIpAccessSummary,
+  getIpAccessTrend,
+  getIpAccessHourlyDistribution,
+  getIpAccessPathStats,
 } from '@/app/admin/statistics/actions'
-import { Users, UserCheck, Activity, TrendingUp } from 'lucide-react'
+import { Users, UserCheck, Activity, TrendingUp, Globe, Search } from 'lucide-react'
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8']
 
@@ -48,17 +53,29 @@ export function StatisticsCharts() {
     totalPageViews: 0,
     hourlyDistribution: [] as Array<{ hour: number; count: number }>,
   })
+  const [ipAccessSummary, setIpAccessSummary] = useState({
+    totalIpLogs: 0,
+    todayIpLogs: 0,
+    uniqueIpCount: 0,
+  })
+  const [ipAccessTrend, setIpAccessTrend] = useState<Array<{ date: string; count: number; uniqueIps: number }>>([])
+  const [ipAccessHourly, setIpAccessHourly] = useState<Array<{ hour: number; count: number }>>([])
+  const [ipAccessPathStats, setIpAccessPathStats] = useState<Array<{ path: string; count: number; uniqueIps: number }>>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function loadStats() {
       try {
-        const [summaryData, signupData, roleData, activeData, usageData] = await Promise.all([
+        const [summaryData, signupData, roleData, activeData, usageData, ipSummary, ipTrend, ipHourly, ipPath] = await Promise.all([
           getStatisticsSummary(),
           getUserSignupTrend(12),
           getUserRoleDistribution(),
           getActiveUserStats(30),
           getUsageStats(30),
+          getIpAccessSummary(),
+          getIpAccessTrend(30),
+          getIpAccessHourlyDistribution(30),
+          getIpAccessPathStats(),
         ])
 
         setSummary(summaryData as typeof summary)
@@ -66,6 +83,10 @@ export function StatisticsCharts() {
         setRoleDistribution(roleData as Array<{ role: string; total: number; approved: number; pending: number }>)
         setActiveUserStats(activeData as typeof activeUserStats)
         setUsageStats(usageData as typeof usageStats)
+        setIpAccessSummary(ipSummary as typeof ipAccessSummary)
+        setIpAccessTrend(ipTrend as Array<{ date: string; count: number; uniqueIps: number }>)
+        setIpAccessHourly(ipHourly as Array<{ hour: number; count: number }>)
+        setIpAccessPathStats(ipPath as Array<{ path: string; count: number; uniqueIps: number }>)
       } catch (error) {
         console.error('Failed to load statistics:', error)
       } finally {
@@ -329,6 +350,142 @@ export function StatisticsCharts() {
           )}
         </CardContent>
       </Card>
+
+      {/* IP 접근 통계 섹션 */}
+      <div className="border-t pt-6">
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            <Globe className="h-6 w-6" />
+            IP 접근 통계
+          </h2>
+          <p className="text-muted-foreground mt-1">
+            메인 대시보드 접근 로그 통계
+          </p>
+        </div>
+
+        {/* IP 접근 요약 카드 */}
+        <div className="grid gap-4 md:grid-cols-3 mb-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">총 IP 로그</CardTitle>
+              <Search className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{ipAccessSummary.totalIpLogs}</div>
+              <p className="text-xs text-muted-foreground">전체 IP 접근 로그 수</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">오늘 IP 로그</CardTitle>
+              <Activity className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{ipAccessSummary.todayIpLogs}</div>
+              <p className="text-xs text-muted-foreground">오늘 접근한 IP 로그 수</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">고유 IP 수</CardTitle>
+              <Globe className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{ipAccessSummary.uniqueIpCount}</div>
+              <p className="text-xs text-muted-foreground">고유한 IP 주소 수</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* IP 접근 추이 (일별) */}
+          <Card>
+            <CardHeader>
+              <CardTitle>IP 접근 추이 (최근 30일)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {ipAccessTrend.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">데이터가 없습니다</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={ipAccessTrend.map(t => ({
+                    날짜: new Date(t.date).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }),
+                    접근수: t.count,
+                    고유IP: t.uniqueIps,
+                  }))}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="날짜" angle={-45} textAnchor="end" height={80} />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" dataKey="접근수" stroke="#0088FE" strokeWidth={2} />
+                    <Line type="monotone" dataKey="고유IP" stroke="#00C49F" strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* IP 접근 시간대별 분포 */}
+          <Card>
+            <CardHeader>
+              <CardTitle>IP 접근 시간대별 분포 (최근 30일)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {ipAccessHourly.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">데이터가 없습니다</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={ipAccessHourly.map(h => ({
+                    시간: `${h.hour}시`,
+                    접근수: h.count,
+                  }))}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="시간" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="접근수" fill="#0088FE" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* IP 접근 경로별 통계 */}
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>IP 접근 경로별 통계 (Top 10)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {ipAccessPathStats.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">데이터가 없습니다</div>
+            ) : (
+              <div className="space-y-2">
+                {ipAccessPathStats.map((pathStat, index) => (
+                  <div key={pathStat.path} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Badge variant="outline">#{index + 1}</Badge>
+                      <div>
+                        <div className="font-mono font-medium">{pathStat.path}</div>
+                        <div className="text-xs text-muted-foreground">
+                          고유 IP: {pathStat.uniqueIps}개
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-semibold">{pathStat.count}회</div>
+                      <div className="text-xs text-muted-foreground">접근</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }

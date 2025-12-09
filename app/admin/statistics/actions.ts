@@ -275,3 +275,210 @@ export async function getStatisticsSummary() {
   }
 }
 
+/**
+ * IP 접근 통계 요약
+ */
+export async function getIpAccessSummary() {
+  const supabase = await createClient()
+  
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    throw new Error('인증이 필요합니다.')
+  }
+
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile || profile.role !== 'ADMIN') {
+    throw new Error('관리자만 접근할 수 있습니다.')
+  }
+
+  // 총 IP 로그 수
+  const { count: totalIpLogs } = await supabaseAdmin
+    .from('ip_access_logs')
+    .select('*', { count: 'exact', head: true })
+
+  // 오늘 IP 로그 수
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const { count: todayIpLogs } = await supabaseAdmin
+    .from('ip_access_logs')
+    .select('*', { count: 'exact', head: true })
+    .gte('created_at', today.toISOString())
+
+  // 고유 IP 수
+  const { data: uniqueIps } = await supabaseAdmin
+    .from('ip_access_logs')
+    .select('ip_address')
+    .limit(10000)
+
+  const uniqueIpCount = new Set(uniqueIps?.map(log => log.ip_address) || []).size
+
+  return {
+    totalIpLogs: totalIpLogs || 0,
+    todayIpLogs: todayIpLogs || 0,
+    uniqueIpCount,
+  }
+}
+
+/**
+ * IP 접근 추이 (일별)
+ */
+export async function getIpAccessTrend(days: number = 30) {
+  const supabase = await createClient()
+  
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    throw new Error('인증이 필요합니다.')
+  }
+
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile || profile.role !== 'ADMIN') {
+    throw new Error('관리자만 접근할 수 있습니다.')
+  }
+
+  const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+
+  const { data: ipLogs, error } = await supabaseAdmin
+    .from('ip_access_logs')
+    .select('created_at, ip_address')
+    .gte('created_at', startDate)
+    .order('created_at', { ascending: true })
+
+  if (error) {
+    throw new Error(`IP 접근 추이 조회 실패: ${error.message}`)
+  }
+
+  // 일별 집계
+  const dailyStats = new Map<string, { count: number; uniqueIps: Set<string> }>()
+  
+  ipLogs?.forEach(log => {
+    const date = new Date(log.created_at)
+    const dateKey = date.toISOString().split('T')[0]
+    
+    if (!dailyStats.has(dateKey)) {
+      dailyStats.set(dateKey, { count: 0, uniqueIps: new Set() })
+    }
+    
+    const stats = dailyStats.get(dateKey)!
+    stats.count++
+    stats.uniqueIps.add(log.ip_address)
+  })
+
+  return Array.from(dailyStats.entries())
+    .map(([date, stats]) => ({
+      date,
+      count: stats.count,
+      uniqueIps: stats.uniqueIps.size,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date))
+}
+
+/**
+ * IP 접근 시간대별 분포
+ */
+export async function getIpAccessHourlyDistribution(days: number = 30) {
+  const supabase = await createClient()
+  
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    throw new Error('인증이 필요합니다.')
+  }
+
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile || profile.role !== 'ADMIN') {
+    throw new Error('관리자만 접근할 수 있습니다.')
+  }
+
+  const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+
+  const { data: ipLogs, error } = await supabaseAdmin
+    .from('ip_access_logs')
+    .select('created_at')
+    .gte('created_at', startDate)
+
+  if (error) {
+    throw new Error(`IP 접근 시간대별 분포 조회 실패: ${error.message}`)
+  }
+
+  // 시간대별 집계
+  const hourlyStats = new Map<number, number>()
+  
+  ipLogs?.forEach(log => {
+    const date = new Date(log.created_at)
+    const hour = date.getHours()
+    hourlyStats.set(hour, (hourlyStats.get(hour) || 0) + 1)
+  })
+
+  return Array.from({ length: 24 }, (_, i) => ({
+    hour: i,
+    count: hourlyStats.get(i) || 0,
+  }))
+}
+
+/**
+ * IP 접근 경로별 통계
+ */
+export async function getIpAccessPathStats() {
+  const supabase = await createClient()
+  
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    throw new Error('인증이 필요합니다.')
+  }
+
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile || profile.role !== 'ADMIN') {
+    throw new Error('관리자만 접근할 수 있습니다.')
+  }
+
+  const { data: ipLogs, error } = await supabaseAdmin
+    .from('ip_access_logs')
+    .select('path, ip_address')
+    .limit(10000)
+
+  if (error) {
+    throw new Error(`IP 접근 경로별 통계 조회 실패: ${error.message}`)
+  }
+
+  // 경로별 집계
+  const pathStats = new Map<string, { count: number; uniqueIps: Set<string> }>()
+  
+  ipLogs?.forEach(log => {
+    if (!pathStats.has(log.path)) {
+      pathStats.set(log.path, { count: 0, uniqueIps: new Set() })
+    }
+    
+    const stats = pathStats.get(log.path)!
+    stats.count++
+    stats.uniqueIps.add(log.ip_address)
+  })
+
+  return Array.from(pathStats.entries())
+    .map(([path, stats]) => ({
+      path,
+      count: stats.count,
+      uniqueIps: stats.uniqueIps.size,
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10) // Top 10
+}
+
