@@ -9,6 +9,63 @@ const supabaseAdmin = createAdminClient(
 )
 
 /**
+ * 국가별 접근 통계 (Top N)
+ */
+export async function getIpAccessCountryStats(limit: number = 10) {
+  const supabase = await createClient()
+  
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    throw new Error('인증이 필요합니다.')
+  }
+
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile || profile.role !== 'ADMIN') {
+    throw new Error('관리자만 접근할 수 있습니다.')
+  }
+
+  const { data: ipLogs, error } = await supabaseAdmin
+    .from('ip_access_logs')
+    .select('country, ip_address')
+    .not('country', 'is', null)
+    .limit(10000)
+
+  if (error) {
+    throw new Error(`국가별 통계 조회 실패: ${error.message}`)
+  }
+
+  // 국가별 집계
+  const countryStats = new Map<string, { count: number; uniqueIps: Set<string> }>()
+  
+  ipLogs?.forEach(log => {
+    if (log.country && log.ip_address) {
+      if (!countryStats.has(log.country)) {
+        countryStats.set(log.country, { count: 0, uniqueIps: new Set() })
+      }
+      
+      const stats = countryStats.get(log.country)!
+      stats.count++
+      stats.uniqueIps.add(log.ip_address)
+    }
+  })
+
+  return Array.from(countryStats.entries())
+    .map(([country, stats]) => ({
+      country: String(country || ''),
+      access_count: Number(stats.count || 0),
+      unique_ips: Number(stats.uniqueIps.size || 0),
+    }))
+    .sort((a, b) => b.access_count - a.access_count)
+    .slice(0, limit)
+    .filter(item => item.country && item.access_count > 0)
+}
+
+/**
  * 사용자 가입 추이 (월별)
  */
 export async function getUserSignupTrend(months: number = 12) {

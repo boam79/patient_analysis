@@ -28,8 +28,9 @@ import {
   getIpAccessTrend,
   getIpAccessHourlyDistribution,
   getIpAccessPathStats,
+  getIpAccessCountryStats,
 } from '@/app/admin/statistics/actions'
-import { Users, UserCheck, Activity, TrendingUp, Globe, Search } from 'lucide-react'
+import { Users, UserCheck, Activity, TrendingUp, Globe, Search, MapPin } from 'lucide-react'
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8']
 
@@ -61,12 +62,13 @@ export function StatisticsCharts() {
   const [ipAccessTrend, setIpAccessTrend] = useState<Array<{ date: string; count: number; uniqueIps: number }>>([])
   const [ipAccessHourly, setIpAccessHourly] = useState<Array<{ hour: number; count: number }>>([])
   const [ipAccessPathStats, setIpAccessPathStats] = useState<Array<{ path: string; count: number; uniqueIps: number }>>([])
+  const [ipAccessCountryStats, setIpAccessCountryStats] = useState<Array<{ country: string; access_count: number; unique_ips: number }>>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function loadStats() {
       try {
-        const [summaryData, signupData, roleData, activeData, usageData, ipSummary, ipTrend, ipHourly, ipPath] = await Promise.all([
+        const [summaryData, signupData, roleData, activeData, usageData, ipSummary, ipTrend, ipHourly, ipPath, ipCountry] = await Promise.all([
           getStatisticsSummary(),
           getUserSignupTrend(12),
           getUserRoleDistribution(),
@@ -76,6 +78,7 @@ export function StatisticsCharts() {
           getIpAccessTrend(30),
           getIpAccessHourlyDistribution(30),
           getIpAccessPathStats(),
+          getIpAccessCountryStats(10),
         ])
 
         setSummary(summaryData as typeof summary)
@@ -87,6 +90,7 @@ export function StatisticsCharts() {
         setIpAccessTrend(ipTrend as Array<{ date: string; count: number; uniqueIps: number }>)
         setIpAccessHourly(ipHourly as Array<{ hour: number; count: number }>)
         setIpAccessPathStats(ipPath as Array<{ path: string; count: number; uniqueIps: number }>)
+        setIpAccessCountryStats(ipCountry as Array<{ country: string; access_count: number; unique_ips: number }>)
       } catch (error) {
         console.error('Failed to load statistics:', error)
       } finally {
@@ -477,6 +481,107 @@ export function StatisticsCharts() {
                     </div>
                     <div className="text-right">
                       <div className="font-semibold">{pathStat.count}회</div>
+                      <div className="text-xs text-muted-foreground">접근</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 국가별 접근 통계 */}
+        <div className="grid gap-6 md:grid-cols-2 mt-6">
+          {/* 국가별 접근 통계 바 차트 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Globe className="h-5 w-5" />
+                국가별 접근 통계 (Top 10)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {ipAccessCountryStats.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">데이터가 없습니다</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={ipAccessCountryStats.map(c => ({
+                    국가: c.country,
+                    접근수: c.access_count,
+                    고유IP: c.unique_ips,
+                  }))}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="국가" angle={-45} textAnchor="end" height={100} />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="접근수" fill="#0088FE" />
+                    <Bar dataKey="고유IP" fill="#00C49F" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* 국가별 접근 통계 파이 차트 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
+                국가별 접근 분포
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {ipAccessCountryStats.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">데이터가 없습니다</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={ipAccessCountryStats.map(c => ({ name: c.country, value: c.access_count }))}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) => `${name}: ${percent ? (percent * 100).toFixed(1) : 0}%`}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {ipAccessCountryStats.map((_, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* 국가별 상세 통계 목록 */}
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>국가별 상세 통계 (Top 10)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {ipAccessCountryStats.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">데이터가 없습니다</div>
+            ) : (
+              <div className="space-y-2">
+                {ipAccessCountryStats.map((countryStat, index) => (
+                  <div key={countryStat.country} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Badge variant="outline">#{index + 1}</Badge>
+                      <div>
+                        <div className="font-medium">{countryStat.country}</div>
+                        <div className="text-xs text-muted-foreground">
+                          고유 IP: {countryStat.unique_ips}개
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-semibold">{countryStat.access_count}회</div>
                       <div className="text-xs text-muted-foreground">접근</div>
                     </div>
                   </div>
