@@ -37,19 +37,30 @@ export async function getTopIps(limit: number = 10) {
     .limit(10000)
 
   if (queryError) {
+    console.error('getTopIps query error:', queryError)
     throw new Error(`IP 통계 조회 실패: ${queryError.message}`)
+  }
+
+  if (!queryData || queryData.length === 0) {
+    console.log('getTopIps: No data found')
+    return []
   }
 
   // 클라이언트 사이드에서 집계
   const ipCounts = new Map<string, number>()
-  queryData?.forEach(log => {
-    ipCounts.set(log.ip_address, (ipCounts.get(log.ip_address) || 0) + 1)
+  queryData.forEach(log => {
+    if (log.ip_address) {
+      ipCounts.set(log.ip_address, (ipCounts.get(log.ip_address) || 0) + 1)
+    }
   })
 
-  return Array.from(ipCounts.entries())
+  const result = Array.from(ipCounts.entries())
     .map(([ip, count]) => ({ ip_address: ip, access_count: count }))
     .sort((a, b) => b.access_count - a.access_count)
     .slice(0, limit)
+
+  console.log('getTopIps result:', result)
+  return result
 }
 
 /**
@@ -80,33 +91,44 @@ export async function getHourlyStats(days: number = 1) {
     .order('created_at', { ascending: true })
 
   if (error) {
+    console.error('getHourlyStats query error:', error)
     throw new Error(`시간대별 통계 조회 실패: ${error.message}`)
+  }
+
+  if (!data || data.length === 0) {
+    console.log('getHourlyStats: No data found')
+    return []
   }
 
   // 시간대별 집계
   const hourlyStats = new Map<string, { count: number; uniqueIps: Set<string> }>()
   
-  data?.forEach(log => {
-    const date = new Date(log.created_at)
-    const hour = new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours())
-    const hourKey = hour.toISOString()
-    
-    if (!hourlyStats.has(hourKey)) {
-      hourlyStats.set(hourKey, { count: 0, uniqueIps: new Set() })
+  data.forEach(log => {
+    if (log.created_at && log.ip_address) {
+      const date = new Date(log.created_at)
+      const hour = new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours())
+      const hourKey = hour.toISOString()
+      
+      if (!hourlyStats.has(hourKey)) {
+        hourlyStats.set(hourKey, { count: 0, uniqueIps: new Set() })
+      }
+      
+      const stats = hourlyStats.get(hourKey)!
+      stats.count++
+      stats.uniqueIps.add(log.ip_address)
     }
-    
-    const stats = hourlyStats.get(hourKey)!
-    stats.count++
-    stats.uniqueIps.add(log.ip_address)
   })
 
-  return Array.from(hourlyStats.entries())
+  const result = Array.from(hourlyStats.entries())
     .map(([hour, stats]) => ({
       hour,
       access_count: stats.count,
       unique_ips: stats.uniqueIps.size,
     }))
     .sort((a, b) => a.hour.localeCompare(b.hour))
+
+  console.log('getHourlyStats result:', result)
+  return result
 }
 
 /**
@@ -136,29 +158,40 @@ export async function getPathStats() {
     .limit(10000)
 
   if (error) {
+    console.error('getPathStats query error:', error)
     throw new Error(`경로별 통계 조회 실패: ${error.message}`)
+  }
+
+  if (!data || data.length === 0) {
+    console.log('getPathStats: No data found')
+    return []
   }
 
   // 경로별 집계
   const pathStats = new Map<string, { count: number; uniqueIps: Set<string> }>()
   
-  data?.forEach(log => {
-    if (!pathStats.has(log.path)) {
-      pathStats.set(log.path, { count: 0, uniqueIps: new Set() })
+  data.forEach(log => {
+    if (log.path && log.ip_address) {
+      if (!pathStats.has(log.path)) {
+        pathStats.set(log.path, { count: 0, uniqueIps: new Set() })
+      }
+      
+      const stats = pathStats.get(log.path)!
+      stats.count++
+      stats.uniqueIps.add(log.ip_address)
     }
-    
-    const stats = pathStats.get(log.path)!
-    stats.count++
-    stats.uniqueIps.add(log.ip_address)
   })
 
-  return Array.from(pathStats.entries())
+  const result = Array.from(pathStats.entries())
     .map(([path, stats]) => ({
       path,
       access_count: stats.count,
       unique_ips: stats.uniqueIps.size,
     }))
     .sort((a, b) => b.access_count - a.access_count)
+
+  console.log('getPathStats result:', result)
+  return result
 }
 
 /**

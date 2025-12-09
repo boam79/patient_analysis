@@ -15,10 +15,12 @@ export function IpStatisticsDashboard() {
   const [pathStats, setPathStats] = useState<Array<{ path: string; access_count: number; unique_ips: number }>>([])
   const [anomalies, setAnomalies] = useState<Array<{ ip_address: string; access_count: number; rate: number }>>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     async function loadStats() {
       try {
+        console.log('Loading IP statistics...')
         const [topIpsData, hourlyData, pathData, anomaliesData] = await Promise.all([
           getTopIps(10),
           getHourlyStats(1),
@@ -26,12 +28,35 @@ export function IpStatisticsDashboard() {
           detectAnomalies(),
         ])
 
+        console.log('IP statistics loaded:', {
+          topIps: topIpsData,
+          hourly: hourlyData,
+          path: pathData,
+          anomalies: anomaliesData,
+        })
+
+        // 데이터 유효성 검사
+        if (!Array.isArray(topIpsData)) {
+          console.error('topIpsData is not an array:', topIpsData)
+          throw new Error('Top IPs 데이터 형식이 올바르지 않습니다.')
+        }
+        if (!Array.isArray(hourlyData)) {
+          console.error('hourlyData is not an array:', hourlyData)
+          throw new Error('시간대별 통계 데이터 형식이 올바르지 않습니다.')
+        }
+        if (!Array.isArray(pathData)) {
+          console.error('pathData is not an array:', pathData)
+          throw new Error('경로별 통계 데이터 형식이 올바르지 않습니다.')
+        }
+
         setTopIps(topIpsData as Array<{ ip_address: string; access_count: number }>)
         setHourlyStats(hourlyData as Array<{ hour: string; access_count: number; unique_ips: number }>)
         setPathStats(pathData.slice(0, 10) as Array<{ path: string; access_count: number; unique_ips: number }>)
         setAnomalies(anomaliesData as Array<{ ip_address: string; access_count: number; rate: number }>)
-      } catch (error) {
+        setError(null)
+      } catch (error: any) {
         console.error('Failed to load statistics:', error)
+        setError(error?.message || '통계 데이터를 불러오는 중 오류가 발생했습니다.')
       } finally {
         setLoading(false)
       }
@@ -42,6 +67,22 @@ export function IpStatisticsDashboard() {
 
   if (loading) {
     return <div className="text-center py-8">통계 로딩 중...</div>
+  }
+
+  if (error) {
+    return (
+      <Card className="border-red-200 bg-red-50">
+        <CardHeader>
+          <CardTitle className="text-red-800">오류 발생</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-red-600">{error}</p>
+          <p className="text-sm text-muted-foreground mt-2">
+            브라우저 콘솔을 확인하세요.
+          </p>
+        </CardContent>
+      </Card>
+    )
   }
 
   // 시간대별 차트 데이터 포맷팅
