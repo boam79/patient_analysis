@@ -16,11 +16,16 @@ export function IpStatisticsDashboard() {
   const [anomalies, setAnomalies] = useState<Array<{ ip_address: string; access_count: number; rate: number }>>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [retryCount, setRetryCount] = useState(0)
 
   useEffect(() => {
+    let isMounted = true
+    const errors: string[] = []
+    
     async function loadStats() {
       try {
         console.log('[IpStatisticsDashboard] Loading IP statistics...')
+        setError(null)
         
         // 각 함수를 개별적으로 호출하여 어느 것이 실패하는지 확인
         let topIpsData: any = null
@@ -30,90 +35,148 @@ export function IpStatisticsDashboard() {
         
         try {
           console.log('[IpStatisticsDashboard] Calling getTopIps...')
-          topIpsData = await getTopIps(10)
-          console.log('[IpStatisticsDashboard] getTopIps result:', topIpsData, 'type:', typeof topIpsData, 'isArray:', Array.isArray(topIpsData))
+          const result = await getTopIps(10)
+          console.log('[IpStatisticsDashboard] getTopIps result:', result, 'type:', typeof result, 'isArray:', Array.isArray(result))
+          
+          if (!isMounted) return
+          
+          if (Array.isArray(result)) {
+            topIpsData = result
+          } else {
+            console.warn('[IpStatisticsDashboard] getTopIps returned non-array:', result)
+            topIpsData = []
+            errors.push('Top IPs 데이터 형식 오류')
+          }
         } catch (err: any) {
           console.error('[IpStatisticsDashboard] getTopIps failed:', err)
-          console.error('[IpStatisticsDashboard] Error stack:', err?.stack)
-          // 에러를 다시 던지지 않고 빈 배열로 설정하여 다른 통계는 계속 로드
+          console.error('[IpStatisticsDashboard] Error details:', {
+            message: err?.message,
+            stack: err?.stack,
+            name: err?.name,
+            cause: err?.cause,
+          })
+          if (!isMounted) return
           topIpsData = []
-          setError(`Top IPs 조회 실패: ${err?.message || '알 수 없는 오류'}. 다른 통계는 계속 로드됩니다.`)
+          errors.push(`Top IPs: ${err?.message || '알 수 없는 오류'}`)
         }
         
         try {
           console.log('[IpStatisticsDashboard] Calling getHourlyStats...')
-          hourlyData = await getHourlyStats(1)
-          console.log('[IpStatisticsDashboard] getHourlyStats result:', hourlyData, 'type:', typeof hourlyData, 'isArray:', Array.isArray(hourlyData))
+          const result = await getHourlyStats(1)
+          console.log('[IpStatisticsDashboard] getHourlyStats result:', result, 'type:', typeof result, 'isArray:', Array.isArray(result))
+          
+          if (!isMounted) return
+          
+          if (Array.isArray(result)) {
+            hourlyData = result
+          } else {
+            console.warn('[IpStatisticsDashboard] getHourlyStats returned non-array:', result)
+            hourlyData = []
+            errors.push('시간대별 통계 데이터 형식 오류')
+          }
         } catch (err: any) {
           console.error('[IpStatisticsDashboard] getHourlyStats failed:', err)
-          console.error('[IpStatisticsDashboard] Error stack:', err?.stack)
+          console.error('[IpStatisticsDashboard] Error details:', {
+            message: err?.message,
+            stack: err?.stack,
+            name: err?.name,
+            cause: err?.cause,
+          })
+          if (!isMounted) return
           hourlyData = []
-          setError(`시간대별 통계 조회 실패: ${err?.message || '알 수 없는 오류'}. 다른 통계는 계속 로드됩니다.`)
+          errors.push(`시간대별 통계: ${err?.message || '알 수 없는 오류'}`)
         }
         
         try {
           console.log('[IpStatisticsDashboard] Calling getPathStats...')
-          pathData = await getPathStats()
-          console.log('[IpStatisticsDashboard] getPathStats result:', pathData, 'type:', typeof pathData, 'isArray:', Array.isArray(pathData))
+          const result = await getPathStats()
+          console.log('[IpStatisticsDashboard] getPathStats result:', result, 'type:', typeof result, 'isArray:', Array.isArray(result))
+          
+          if (!isMounted) return
+          
+          if (Array.isArray(result)) {
+            pathData = result
+          } else {
+            console.warn('[IpStatisticsDashboard] getPathStats returned non-array:', result)
+            pathData = []
+            errors.push('경로별 통계 데이터 형식 오류')
+          }
         } catch (err: any) {
           console.error('[IpStatisticsDashboard] getPathStats failed:', err)
-          console.error('[IpStatisticsDashboard] Error stack:', err?.stack)
+          console.error('[IpStatisticsDashboard] Error details:', {
+            message: err?.message,
+            stack: err?.stack,
+            name: err?.name,
+            cause: err?.cause,
+          })
+          if (!isMounted) return
           pathData = []
-          setError(`경로별 통계 조회 실패: ${err?.message || '알 수 없는 오류'}. 다른 통계는 계속 로드됩니다.`)
+          errors.push(`경로별 통계: ${err?.message || '알 수 없는 오류'}`)
         }
         
         try {
           console.log('[IpStatisticsDashboard] Calling detectAnomalies...')
-          anomaliesData = await detectAnomalies()
-          console.log('[IpStatisticsDashboard] detectAnomalies result:', anomaliesData)
+          const result = await detectAnomalies()
+          console.log('[IpStatisticsDashboard] detectAnomalies result:', result)
+          
+          if (!isMounted) return
+          
+          if (Array.isArray(result)) {
+            anomaliesData = result
+          } else {
+            anomaliesData = []
+          }
         } catch (err: any) {
           console.error('[IpStatisticsDashboard] detectAnomalies failed:', err)
           // 이상 패턴 감지는 선택사항이므로 에러를 무시
+          if (!isMounted) return
           anomaliesData = []
         }
+
+        if (!isMounted) return
 
         console.log('[IpStatisticsDashboard] All data loaded:', {
           topIps: topIpsData,
           hourly: hourlyData,
           path: pathData,
           anomalies: anomaliesData,
+          errors: errors.length > 0 ? errors : undefined,
         })
 
         // 데이터 유효성 검사 및 기본값 설정
-        if (!Array.isArray(topIpsData)) {
-          console.error('[IpStatisticsDashboard] topIpsData is not an array:', topIpsData, typeof topIpsData)
-          topIpsData = []
-        }
-        if (!Array.isArray(hourlyData)) {
-          console.error('[IpStatisticsDashboard] hourlyData is not an array:', hourlyData, typeof hourlyData)
-          hourlyData = []
-        }
-        if (!Array.isArray(pathData)) {
-          console.error('[IpStatisticsDashboard] pathData is not an array:', pathData, typeof pathData)
-          pathData = []
-        }
+        const validTopIps = Array.isArray(topIpsData) ? topIpsData : []
+        const validHourly = Array.isArray(hourlyData) ? hourlyData : []
+        const validPath = Array.isArray(pathData) ? pathData : []
+        const validAnomalies = Array.isArray(anomaliesData) ? anomaliesData : []
 
         console.log('[IpStatisticsDashboard] Setting state with:', {
-          topIpsCount: Array.isArray(topIpsData) ? topIpsData.length : 0,
-          hourlyCount: Array.isArray(hourlyData) ? hourlyData.length : 0,
-          pathCount: Array.isArray(pathData) ? pathData.length : 0,
-          anomaliesCount: Array.isArray(anomaliesData) ? anomaliesData.length : 0,
+          topIpsCount: validTopIps.length,
+          hourlyCount: validHourly.length,
+          pathCount: validPath.length,
+          anomaliesCount: validAnomalies.length,
         })
 
-        setTopIps(Array.isArray(topIpsData) ? topIpsData as Array<{ ip_address: string; access_count: number }> : [])
-        setHourlyStats(Array.isArray(hourlyData) ? hourlyData as Array<{ hour: string; access_count: number; unique_ips: number }> : [])
-        setPathStats(Array.isArray(pathData) ? pathData.slice(0, 10) as Array<{ path: string; access_count: number; unique_ips: number }> : [])
-        setAnomalies(Array.isArray(anomaliesData) ? anomaliesData : [])
+        setTopIps(validTopIps as Array<{ ip_address: string; access_count: number }>)
+        setHourlyStats(validHourly as Array<{ hour: string; access_count: number; unique_ips: number }>)
+        setPathStats(validPath.slice(0, 10) as Array<{ path: string; access_count: number; unique_ips: number }>)
+        setAnomalies(validAnomalies)
         
-        // 모든 데이터가 비어있으면 에러 메시지 설정
-        if (
-          (!topIpsData || topIpsData.length === 0) &&
-          (!hourlyData || hourlyData.length === 0) &&
-          (!pathData || pathData.length === 0)
+        // 에러 메시지 설정
+        if (errors.length > 0) {
+          const errorMessage = `일부 통계를 불러오지 못했습니다:\n${errors.join('\n')}\n\n브라우저 콘솔을 확인하세요.`
+          setError(errorMessage)
+        } else if (
+          validTopIps.length === 0 &&
+          validHourly.length === 0 &&
+          validPath.length === 0
         ) {
-          setError('통계 데이터를 불러올 수 없습니다. 브라우저 콘솔을 확인하거나 관리자에게 문의하세요.')
+          setError('통계 데이터가 없습니다. IP 접근 로그가 기록되지 않았을 수 있습니다.')
+        } else {
+          setError(null)
         }
       } catch (error: any) {
+        if (!isMounted) return
+        
         console.error('[IpStatisticsDashboard] Failed to load statistics:', error)
         const errorMessage = error?.message || error?.toString() || '통계 데이터를 불러오는 중 오류가 발생했습니다.'
         console.error('[IpStatisticsDashboard] Error details:', {
@@ -121,14 +184,26 @@ export function IpStatisticsDashboard() {
           stack: error?.stack,
           error: error,
         })
-        setError(errorMessage)
+        setError(`통계 데이터 로드 실패: ${errorMessage}\n\n브라우저 콘솔을 확인하세요.`)
       } finally {
-        setLoading(false)
+        if (isMounted) {
+          setLoading(false)
+        }
       }
     }
 
     loadStats()
-  }, [])
+    
+    return () => {
+      isMounted = false
+    }
+  }, [retryCount])
+
+  const handleRetry = () => {
+    setRetryCount(prev => prev + 1)
+    setError(null)
+    setLoading(true)
+  }
 
   if (loading) {
     return <div className="text-center py-8">통계 로딩 중...</div>
@@ -138,13 +213,30 @@ export function IpStatisticsDashboard() {
     return (
       <Card className="border-red-200 bg-red-50">
         <CardHeader>
-          <CardTitle className="text-red-800">오류 발생</CardTitle>
+          <CardTitle className="text-red-800 flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5" />
+            오류 발생
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-red-600">{error}</p>
-          <p className="text-sm text-muted-foreground mt-2">
-            브라우저 콘솔을 확인하세요.
-          </p>
+          <div className="text-red-600 whitespace-pre-line">{error}</div>
+          <div className="mt-4 p-3 bg-white rounded border border-red-200">
+            <p className="text-sm font-semibold mb-2">디버깅 정보:</p>
+            <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
+              <li>브라우저 개발자 도구(F12) → Console 탭 확인</li>
+              <li>Network 탭에서 실패한 요청 확인</li>
+              <li>서버 로그 확인 (Vercel 대시보드)</li>
+              <li>환경 변수 SUPABASE_SERVICE_ROLE_KEY 설정 확인</li>
+            </ul>
+          </div>
+          <div className="mt-4">
+            <button
+              onClick={handleRetry}
+              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+            >
+              다시 시도
+            </button>
+          </div>
         </CardContent>
       </Card>
     )

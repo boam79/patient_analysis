@@ -93,11 +93,15 @@ export async function getTopIps(limit: number = 10) {
     })
 
     const result = Array.from(ipCounts.entries())
-      .map(([ip, count]) => ({ ip_address: ip, access_count: count }))
+      .map(([ip, count]) => ({ 
+        ip_address: String(ip || ''), 
+        access_count: Number(count || 0) 
+      }))
       .sort((a, b) => b.access_count - a.access_count)
       .slice(0, limit)
+      .filter(item => item.ip_address && item.access_count > 0)
 
-    console.log('getTopIps result:', result, 'count:', result.length)
+    console.log('[getTopIps] Final result:', JSON.stringify(result), 'count:', result.length)
     return result
   } catch (error: any) {
     console.error('getTopIps error:', error)
@@ -189,13 +193,14 @@ export async function getHourlyStats(days: number = 1) {
 
     const result = Array.from(hourlyStats.entries())
       .map(([hour, stats]) => ({
-        hour,
-        access_count: stats.count,
-        unique_ips: stats.uniqueIps.size,
+        hour: String(hour || ''),
+        access_count: Number(stats.count || 0),
+        unique_ips: Number(stats.uniqueIps.size || 0),
       }))
       .sort((a, b) => a.hour.localeCompare(b.hour))
+      .filter(item => item.hour && item.access_count > 0)
 
-    console.log('getHourlyStats result:', result, 'count:', result.length)
+    console.log('[getHourlyStats] Final result:', JSON.stringify(result), 'count:', result.length)
     return result
   } catch (error: any) {
     console.error('getHourlyStats error:', error)
@@ -282,13 +287,14 @@ export async function getPathStats() {
 
     const result = Array.from(pathStats.entries())
       .map(([path, stats]) => ({
-        path,
-        access_count: stats.count,
-        unique_ips: stats.uniqueIps.size,
+        path: String(path || ''),
+        access_count: Number(stats.count || 0),
+        unique_ips: Number(stats.uniqueIps.size || 0),
       }))
       .sort((a, b) => b.access_count - a.access_count)
+      .filter(item => item.path && item.access_count > 0)
 
-    console.log('getPathStats result:', result, 'count:', result.length)
+    console.log('[getPathStats] Final result:', JSON.stringify(result), 'count:', result.length)
     return result
   } catch (error: any) {
     console.error('getPathStats error:', error)
