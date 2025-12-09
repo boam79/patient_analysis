@@ -3,9 +3,21 @@
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 
+// Service Role Key 확인 및 경고
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.warn('[IP Statistics] ⚠️ SUPABASE_SERVICE_ROLE_KEY가 설정되지 않았습니다. ANON_KEY를 사용하지만 RLS 정책 때문에 데이터 조회가 실패할 수 있습니다.')
+}
+
 const supabaseAdmin = createAdminClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  serviceRoleKey,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  }
 )
 
 /**
@@ -45,18 +57,30 @@ export async function getTopIps(limit: number = 10) {
     }
 
     // 직접 쿼리로 집계
+    console.log('[getTopIps] Querying ip_access_logs...')
     const { data: queryData, error: queryError } = await supabaseAdmin
       .from('ip_access_logs')
       .select('ip_address')
       .limit(10000)
 
     if (queryError) {
-      console.error('getTopIps query error:', queryError)
+      console.error('[getTopIps] Query error:', queryError)
+      console.error('[getTopIps] Error details:', {
+        message: queryError.message,
+        details: queryError.details,
+        hint: queryError.hint,
+        code: queryError.code,
+      })
       throw new Error(`IP 통계 조회 실패: ${queryError.message}`)
     }
 
+    console.log('[getTopIps] Query result:', {
+      dataLength: queryData?.length || 0,
+      hasData: !!queryData && queryData.length > 0,
+    })
+
     if (!queryData || queryData.length === 0) {
-      console.log('getTopIps: No data found')
+      console.log('[getTopIps] No data found in ip_access_logs table')
       return []
     }
 
@@ -116,6 +140,7 @@ export async function getHourlyStats(days: number = 1) {
       throw new Error('관리자만 접근할 수 있습니다.')
     }
 
+  console.log('[getHourlyStats] Querying ip_access_logs for last', days, 'days...')
   const { data, error } = await supabaseAdmin
     .from('ip_access_logs')
     .select('created_at, ip_address')
@@ -123,12 +148,23 @@ export async function getHourlyStats(days: number = 1) {
     .order('created_at', { ascending: true })
 
   if (error) {
-    console.error('getHourlyStats query error:', error)
+    console.error('[getHourlyStats] Query error:', error)
+    console.error('[getHourlyStats] Error details:', {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+    })
     throw new Error(`시간대별 통계 조회 실패: ${error.message}`)
   }
 
+  console.log('[getHourlyStats] Query result:', {
+    dataLength: data?.length || 0,
+    hasData: !!data && data.length > 0,
+  })
+
   if (!data || data.length === 0) {
-    console.log('getHourlyStats: No data found')
+    console.log('[getHourlyStats] No data found in ip_access_logs table for last', days, 'days')
     return []
   }
 
@@ -202,18 +238,30 @@ export async function getPathStats() {
       throw new Error('관리자만 접근할 수 있습니다.')
     }
 
+  console.log('[getPathStats] Querying ip_access_logs...')
   const { data, error } = await supabaseAdmin
     .from('ip_access_logs')
     .select('path, ip_address')
     .limit(10000)
 
   if (error) {
-    console.error('getPathStats query error:', error)
+    console.error('[getPathStats] Query error:', error)
+    console.error('[getPathStats] Error details:', {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+    })
     throw new Error(`경로별 통계 조회 실패: ${error.message}`)
   }
 
+  console.log('[getPathStats] Query result:', {
+    dataLength: data?.length || 0,
+    hasData: !!data && data.length > 0,
+  })
+
   if (!data || data.length === 0) {
-    console.log('getPathStats: No data found')
+    console.log('[getPathStats] No data found in ip_access_logs table')
     return []
   }
 
