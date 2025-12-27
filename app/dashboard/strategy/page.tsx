@@ -19,6 +19,7 @@ import { CustomerSegmentAnalysis } from '@/components/strategy/customer-segment-
 import { TrendAnalysis } from '@/components/strategy/trend-analysis'
 import { PredictionAnalysis } from '@/components/strategy/prediction-analysis'
 import { ExecutiveDashboard } from '@/components/strategy/executive-dashboard'
+import { ManagementInsights } from '@/components/strategy/management-insights'
 
 // 샘플 데이터 (실제 데이터가 없을 때 사용)
 const SAMPLE_PATIENT_DATA: PatientData[] = [
@@ -96,6 +97,9 @@ export default function StrategyPage() {
 
       {/* 필터 패널 */}
       <FilterPanel />
+
+      {/* 경영 인사이트 */}
+      <ManagementInsights data={filteredData} />
 
       {/* 전략 분석 탭 */}
       <Tabs defaultValue="executive" className="w-full">

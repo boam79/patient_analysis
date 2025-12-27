@@ -3,7 +3,7 @@
 import { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PatientData } from '@/stores/data-store'
-import { Users, TrendingUp, MapPin, Calendar, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { Users, TrendingUp, MapPin, Calendar, AlertCircle } from 'lucide-react'
 import { extractMonth, parseDate } from '@/lib/utils/date-helpers'
 
 interface ExecutiveDashboardProps {
@@ -260,56 +260,6 @@ export function ExecutiveDashboard({ data }: ExecutiveDashboardProps) {
           </CardContent>
         </Card>
       </div>
-
-      {/* 경고 및 권장사항 */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5" />
-            경영 인사이트
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {metrics.retentionRate < 30 && (
-              <div className="flex items-start gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
-                <div>
-                  <p className="font-medium text-yellow-900">재방문율이 낮습니다</p>
-                  <p className="text-sm text-yellow-700 mt-1">
-                    재방문율이 {metrics.retentionRate.toFixed(1)}%로 낮습니다. 환자 유지 전략 수립이 필요합니다.
-                  </p>
-                </div>
-              </div>
-            )}
-            
-            {metrics.growthRate < 0 && (
-              <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
-                <div>
-                  <p className="font-medium text-red-900">환자 수 감소 추세</p>
-                  <p className="text-sm text-red-700 mt-1">
-                    전월 대비 환자 수가 {Math.abs(metrics.growthRate).toFixed(1)}% 감소했습니다. 마케팅 강화가 필요합니다.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {metrics.topRegions.length > 0 && (
-              <div className="flex items-start gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <CheckCircle2 className="h-5 w-5 text-blue-600 mt-0.5" />
-                <div>
-                  <p className="font-medium text-blue-900">주요 시장 식별</p>
-                  <p className="text-sm text-blue-700 mt-1">
-                    {metrics.topRegions[0].region} 지역이 가장 큰 시장입니다. 
-                    이 지역에 집중 마케팅을 고려해보세요.
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
     </div>
   )
 }
