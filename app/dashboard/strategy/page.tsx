@@ -3,7 +3,6 @@
 import { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { FilterPanel } from '@/components/filter/filter-panel'
 import { useFilterStore } from '@/stores/filter-store'
 import { PatientData, useDataStore } from '@/stores/data-store'
 import { TrendingUp, Users, MapPin, Calendar, Target, BarChart3 } from 'lucide-react'
@@ -94,9 +93,6 @@ export default function StrategyPage() {
           </p>
         </div>
       </div>
-
-      {/* 필터 패널 */}
-      <FilterPanel />
 
       {/* 경영 인사이트 */}
       <ManagementInsights data={filteredData} />
