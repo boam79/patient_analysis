@@ -347,7 +347,7 @@ export function ManagementInsights({ data }: ManagementInsightsProps) {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {insights.map((insight) => {
             const styles = getCategoryStyles(insight.category)
             return (
