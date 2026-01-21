@@ -1,4 +1,4 @@
-# PDR Dashboard v4.1
+# PDR Dashboard v4.2.1
 
 **Patient Data Review Dashboard** - 환자 데이터 분석 및 재방문 패턴 시각화 대시보드
 
@@ -105,6 +105,43 @@ PDR Dashboard는 의료 데이터 분석을 위한 최신 웹 기반 대시보�
 - 🎨 **2열 그리드 레이아웃**: 경영 인사이트를 2열 그리드로 배치하여 화면 공간 효율성 향상 (모바일: 1열, 데스크톱: 2열)
 - 🔧 **전략 분석 페이지 UI 개선**: 전략 분석 페이지에서 필터 섹션 제거하여 경영 인사이트가 더욱 눈에 띄도록 레이아웃 최적화
 
+### 11. 통계 기반 경영 인사이트 고도화 v2.1 (2025-01-21)
+- 🇰🇷 **대한민국 의료 통계 기반 벤치마크 적용**: 가상 데이터 대신 실제 한국 의료 통계 활용
+  - 재방문율: 의원급 81%, 피부과/성형외과 66.1% (메디게이트 설문, 중랑구 파일럿 연구)
+  - 외래방문: 한국인 1인당 연간 18.0회, 월 1.5회 (보건복지부/OECD 2023)
+  - 성장률: 정상기 0.5~3%, 팬데믹 -12.9% (보건복지부 2016-2022)
+  - 만성질환: 고혈압 COC 0.81, 복약순응률 73.3% (국민건강보험공단)
+  - NPS: 재이용의향 32~35점 (화순전남대학교병원)
+- 📈 **통계 기반 동적 임계값**: Z-Score, 표준편차 기반 동적 임계값 적용
+  - Z-Score 기반 이상 탐지: |Z| > 3 (상위/하위 0.135%), |Z| > 2 (상위/하위 2.275%)
+  - 한국 의료 벤치마크 대비 상대적 위치 표시
+- 📊 **선형 회귀 기반 트렌드 분석**: 최근 6개월 데이터를 기반으로 상승/하락 추세 및 강도 자동 감지
+  - 트렌드 방향: increasing / decreasing / stable
+  - 트렌드 강도: strong (>15%) / moderate (10-15%) / weak (<10%)
+- 🎯 **허핀달-허쉬만 지수(HHI)**: 공정거래위원회 기준 적용
+  - HHI < 1000: 경쟁적 시장
+  - HHI 1000~1800: 중간 집중
+  - HHI > 2500: 고집중 시장
+- 💡 **통계적 근거 명시**: 각 인사이트에 한국 통계 출처 및 Z-Score 표시
+- 🔢 **신뢰도 지표**: 데이터 포인트 수와 분산 기반 신뢰도(0-100%) 제공
+- 🚨 **새로운 카테고리**: 기존 warning/info/success에 critical 카테고리 추가
+- 📐 **통계 유틸리티 라이브러리**: `lib/utils/statistical-insights.ts` 신규 생성
+  - 기본 통계: `calculateMean`, `calculateStdDev`, `calculateZScore`, `calculateMedian`, `calculatePercentile`
+  - IQR 기반 이상치 탐지: `calculateIQR`, `detectOutliersByIQR`
+  - 트렌드 분석: `analyzeTrend` (선형 회귀)
+  - 동적 임계값: `calculateDynamicThresholds`
+  - 이동평균: `calculateMovingAverage`
+  - 비교 분석: `compareWithBaseline`
+- 🔒 **프라이버시 보호**: AI API 연동 없이 클라이언트 사이드 순수 통계 분석으로 데이터 프라이버시 보장
+- 📋 **한국 의료 벤치마크 출처**:
+  - 보건복지부/OECD Health Statistics 2023
+  - 건강보험심사평가원(HIRA) 우울증 외래 적정성 평가
+  - 국민건강보험공단 만성질환 연구
+  - 공정거래위원회 HHI 시장집중도 기준
+  - 화순전남대학교병원 NPS 조사
+  - 메디게이트 피부과/성형외과 설문조사
+  - BMC Health Services Research 진료시간 연구
+
 ---
 
 ## 🛠️ 기술 스택
@@ -140,6 +177,12 @@ PDR Dashboard는 의료 데이터 분석을 위한 최신 웹 기반 대시보�
 - **Virtualization**: react-window
 - **Background Processing**: Web Worker
 - **Bundle Analysis**: @next/bundle-analyzer
+
+### Statistical Analysis (v4.2.1 신규)
+- **통계 라이브러리**: `lib/utils/statistical-insights.ts` (자체 개발)
+- **분석 기법**: Z-Score, 표준편차, IQR, 선형 회귀, 이동평균, HHI
+- **벤치마크**: 대한민국 의료 통계 (HIRA, 보건복지부, OECD, 공정거래위원회)
+- **프라이버시**: AI API 미사용, 클라이언트 사이드 순수 통계 분석
 - **Client Storage**: localStorage (Zustand persist)
 - **File Processing**: PapaParse (CSV), XLSX (Excel)
 
@@ -239,6 +282,9 @@ Patient_Analysis/
 │   ├── filter/              # 필터 컴포넌트
 │   ├── layout/              # 레이아웃 컴포넌트
 │   ├── map/                 # 지도 컴포넌트
+│   ├── strategy/            # 전략 분석 컴포넌트 (v4.2.1)
+│   │   ├── management-insights.tsx  # 경영 인사이트 (한국 벤치마크)
+│   │   └── executive-dashboard.tsx  # 경영 대시보드
 │   ├── tables/              # 테이블 컴포넌트
 │   ├── ui/                  # UI 기본 컴포넌트 (shadcn/ui)
 │   └── upload/              # 파일 업로드 컴포넌트
@@ -252,7 +298,11 @@ Patient_Analysis/
 │   ├── performance-utils.ts # 성능 유틸
 │   ├── preprocessor.ts      # 데이터 전처리
 │   ├── rbac.ts              # RBAC 유틸
-│   └── utils.ts             # 공통 유틸
+│   ├── utils.ts             # 공통 유틸
+│   └── utils/               # 유틸리티 서브모듈
+│       ├── date-helpers.ts      # 날짜 유틸
+│       ├── patient-filters.ts   # 환자 필터 유틸
+│       └── statistical-insights.ts # 통계 분석 (v4.2.1 신규)
 ├── hooks/                   # 커스텀 훅
 │   ├── use-debounce.ts
 │   ├── use-duckdb-worker.ts

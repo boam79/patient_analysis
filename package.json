@@ -1,6 +1,6 @@
 {
   "name": "pdr-dashboard",
-  "version": "4.1.0",
+  "version": "4.2.1",
   "private": true,
   "description": "환자 데이터 분석 대시보드 - PDR Dashboard v4.1",
   "scripts": {
