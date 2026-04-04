@@ -343,14 +343,28 @@ export default function DashboardPage() {
       }
     })
 
+    // 수술별 실제 재방문율 계산: 해당 수술을 받은 환자 중 2회 이상 방문한 비율
+    const patientVisitCountMap: Record<string, number> = {}
+    rawData.forEach((p) => {
+      const key = `${p.name}|${p.address}`
+      patientVisitCountMap[key] = (patientVisitCountMap[key] || 0) + 1
+    })
+
     // 산점도 데이터 (Top 10 수술)
     const scatter = Object.entries(surgeryStats)
-      .map(([surgeryName, stats]) => ({
-        surgeryName,
-        avgAge: stats.ages.reduce((sum, age) => sum + age, 0) / stats.ages.length,
-        recurrenceRate: Math.random() * 20 + 35, // 임시: 실제 재방문율 계산 필요
-        patientCount: stats.patientKeys.size,
-      }))
+      .map(([surgeryName, stats]) => {
+        const totalSurgeryPatients = stats.patientKeys.size
+        let returningCount = 0
+        stats.patientKeys.forEach((key) => {
+          if ((patientVisitCountMap[key] || 0) > 1) returningCount++
+        })
+        return {
+          surgeryName,
+          avgAge: stats.ages.reduce((sum, age) => sum + age, 0) / stats.ages.length,
+          recurrenceRate: totalSurgeryPatients > 0 ? (returningCount / totalSurgeryPatients) * 100 : 0,
+          patientCount: totalSurgeryPatients,
+        }
+      })
       .sort((a, b) => b.patientCount - a.patientCount)
       .slice(0, 10)
 

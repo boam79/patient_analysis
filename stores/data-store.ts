@@ -340,10 +340,9 @@ export const useDataStore = create<DataState & DataActions>()(
             lat = regionCoordinates[region].lat
             lng = regionCoordinates[region].lng
           }
-          // 우선순위 3: 서울 중심 기준 랜덤 (마지막 fallback)
+          // 우선순위 3: 좌표 미매칭 지역은 지도에서 제외 (랜덤 좌표 사용하지 않음)
           else {
-            lat = 37.5665 + (Math.random() - 0.5) * 0.5
-            lng = 126.9780 + (Math.random() - 0.5) * 0.5
+            return null
           }
           
           return {
@@ -355,8 +354,9 @@ export const useDataStore = create<DataState & DataActions>()(
             patientCount: data.count,
           }
         })
+        .filter((item): item is NonNullable<typeof item> => item !== null)
         .sort((a, b) => b.value - a.value)
-        .slice(0, 50) // 상위 50개 지역만 표시
+        .slice(0, 50) as MapData[] // 상위 50개 지역만 표시
 
           // 연령 피라미드 계산
           const ageGroupMap = new Map<string, { male: number; female: number }>()
@@ -491,27 +491,28 @@ export const useDataStore = create<DataState & DataActions>()(
             .slice(0, 10) // Top 10 지역
 
           // Boxplot 통계 계산 (Task 1.2)
-          // 사분위수 계산 헬퍼 함수
+          // 사분위수 계산 헬퍼 함수 — 선형 보간 방식 (표준 백분위 계산)
+          const interpolatedQuantile = (sorted: number[], p: number): number => {
+            if (sorted.length === 0) return 0
+            const pos = (sorted.length - 1) * p
+            const lower = Math.floor(pos)
+            const upper = Math.ceil(pos)
+            if (lower === upper) return sorted[lower]
+            return sorted[lower] * (upper - pos) + sorted[upper] * (pos - lower)
+          }
+
           const calculateQuartiles = (values: number[]) => {
             if (values.length === 0) {
               return { min: 0, q1: 0, median: 0, q3: 0, max: 0 }
             }
-            
             const sorted = [...values].sort((a, b) => a - b)
-            const min = sorted[0]
-            const max = sorted[sorted.length - 1]
-            
-            const median = sorted.length % 2 === 0
-              ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
-              : sorted[Math.floor(sorted.length / 2)]
-            
-            const q1Index = Math.floor(sorted.length * 0.25)
-            const q3Index = Math.floor(sorted.length * 0.75)
-            
-            const q1 = sorted[q1Index]
-            const q3 = sorted[q3Index]
-            
-            return { min, q1, median, q3, max }
+            return {
+              min: sorted[0],
+              q1: interpolatedQuantile(sorted, 0.25),
+              median: interpolatedQuantile(sorted, 0.5),
+              q3: interpolatedQuantile(sorted, 0.75),
+              max: sorted[sorted.length - 1],
+            }
           }
 
           // 지역별 재방문 간격 수집
@@ -552,44 +553,49 @@ export const useDataStore = create<DataState & DataActions>()(
             .sort((a, b) => b.median - a.median)
             .slice(0, 10) // Top 10 지역
 
-          // 월별 트렌드 계산 (Task 1.3)
-          // 환자별 첫 방문 월을 추적
+          // 월별 트렌드 계산 — YYYY-MM 형식으로 연도 분리
+          // 1단계: 전체 데이터를 날짜순으로 정렬하여 각 환자의 첫 방문을 정확히 파악
+          const sortedAll = [...rawData].sort(
+            (a, b) => new Date(a.visit_date).getTime() - new Date(b.visit_date).getTime()
+          )
+
           const patientFirstVisitMonth = new Map<string, string>()
-          const monthlyData = rawData.reduce((acc, patient) => {
+          const monthlyData = sortedAll.reduce((acc, patient) => {
             const date = new Date(patient.visit_date)
-            const month = `${date.getMonth() + 1}월`
-            
-            if (!acc[month]) {
-              acc[month] = { newPatients: new Set(), returningPatients: new Set() }
+            const year = date.getFullYear()
+            const month = date.getMonth() + 1
+            // YYYY-MM 형식으로 연도 구분
+            const monthKey = `${year}-${String(month).padStart(2, '0')}`
+
+            if (!acc[monthKey]) {
+              acc[monthKey] = { newPatients: new Set<string>(), returningPatients: new Set<string>() }
             }
 
             const key = patientKey(patient)
-            
-            // 해당 환자의 첫 방문 월 확인
+
             if (!patientFirstVisitMonth.has(key)) {
-              // 첫 방문이면 신규 환자로 분류
-              patientFirstVisitMonth.set(key, month)
-              acc[month].newPatients.add(key)
+              patientFirstVisitMonth.set(key, monthKey)
+              acc[monthKey].newPatients.add(key)
             } else {
-              // 이미 방문한 적이 있으면 재방문 환자로 분류
-              acc[month].returningPatients.add(key)
+              acc[monthKey].returningPatients.add(key)
             }
 
             return acc
           }, {} as Record<string, { newPatients: Set<string>; returningPatients: Set<string> }>)
 
-          const monthOrder = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월']
-          
-          const monthlyTrend: MonthlyTrendData[] = monthOrder
-            .filter(month => monthlyData[month])
-            .map(month => {
-              const data = monthlyData[month]
+          // 월 키를 날짜순으로 정렬
+          const monthlyTrend: MonthlyTrendData[] = Object.keys(monthlyData)
+            .sort()
+            .map((monthKey) => {
+              const data = monthlyData[monthKey]
               const newCount = data.newPatients.size
               const returningCount = data.returningPatients.size
               const total = newCount + returningCount
-              
+              // 표시용 레이블: "2024-01" → "2024년 1월"
+              const [y, m] = monthKey.split('-')
+              const label = `${y}년 ${parseInt(m)}월`
               return {
-                month,
+                month: label,
                 newPatients: newCount,
                 returningPatients: returningCount,
                 recurrenceRate: total > 0 ? (returningCount / total) * 100 : 0,
