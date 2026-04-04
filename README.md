@@ -1,12 +1,13 @@
-# PDR Dashboard v4.4.0
+# PDR Dashboard v4.4.1
 
 **Patient Data Review Dashboard** - 환자 데이터 분석 및 재방문 패턴 시각화 대시보드
 
-![Next.js](https://img.shields.io/badge/Next.js-15-black) ![React](https://img.shields.io/badge/React-19-blue) ![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue) ![License](https://img.shields.io/badge/license-MIT-green)
+Next.js React TypeScript License
 
 ---
 
 ## 📋 목차
+
 - [프로젝트 개요](#-프로젝트-개요)
 - [주요 기능](#-주요-기능)
 - [기술 스택](#-기술-스택)
@@ -24,6 +25,7 @@
 PDR Dashboard는 의료 데이터 분석을 위한 최신 웹 기반 대시보드입니다. 환자의 재방문 패턴을 분석하고, 질병 및 수술 데이터를 시각화하여 의료 의사결정을 지원합니다.
 
 ### 핵심 가치
+
 - ✅ **로컬 데이터 처리**: 브라우저 내에서 모든 데이터 분석 수행 (보안)
 - ✅ **PHI 최소화**: Protected Health Information 보호
 - ✅ **고성능**: Web Worker, 가상화, 메모이제이션
@@ -34,17 +36,20 @@ PDR Dashboard는 의료 데이터 분석을 위한 최신 웹 기반 대시보�
 ## ✨ 주요 기능
 
 ### 1. 데이터 관리
+
 - 📁 **CSV/Excel 파일 업로드** - 드래그 앤 드롭 지원
 - 🔄 **DuckDB WASM** - 브라우저 내 SQL 처리
 - 💾 **IndexedDB** - 로컬 캐싱 및 매핑 테이블
 
 ### 2. 데이터 시각화
+
 - 📊 **Recharts** - 인터랙티브 차트 (Bar, Line, Area, Scatter)
 - 🗺️ **OpenStreetMap + Leaflet.js** - 지도 시각화
 - 🔥 **Heatmap** - 환자 분포 히트맵
 - 🏥 **H3 Geospatial** - 위치 익명화 (0.1km² 해상도)
 
 ### 3. 분석 기능
+
 - 🔍 **4가지 분석 축**
   - 재방문 분석 (Recurrence Analysis)
   - 공간 분석 (Spatial Analysis)
@@ -56,23 +61,27 @@ PDR Dashboard는 의료 데이터 분석을 위한 최신 웹 기반 대시보�
 - 📊 **실시간 데이터 연동** - 업로드 데이터 즉시 모든 차트/지도 반영
 
 ### 4. 보고서
+
 - 📄 **CSV 내보내기** - 필터링된 데이터 다운로드
 - 🖼️ **PNG 캡처** - 차트 이미지 저장
 - 📑 **PDF 보고서** - 종합 분석 보고서 생성
 
 ### 5. 성능 최적화
+
 - ⚡ **React.memo** - 불필요한 리렌더링 방지 (85% 향상)
 - 🧵 **Web Worker** - 백그라운드 데이터 처리
 - 🎬 **react-window** - 대용량 테이블 가상화 (98% 향상)
 - 📦 **번들 최적화** - 코드 스플리팅, 트리 쉐이킹 (28% 감소)
 
 ### 6. 보안
+
 - 🔐 **Next-Auth v5** - 사용자 인증
 - 🛡️ **RBAC** - 역할 기반 권한 관리
 - 🔒 **보안 헤더** - HSTS, CSP, XSS Protection
 - 🚦 **Rate Limiting** - API 요청 제한
 
 ### 7. 통계 기반 경영 인사이트 고도화 v2.1 (2025-01-21)
+
 - 🇰🇷 **대한민국 의료 통계 기반 벤치마크 적용**: 가상 데이터 대신 실제 한국 의료 통계 활용
   - 재방문율: 의원급 81%, 피부과/성형외과 66.1% (메디게이트 설문, 중랑구 파일럿 연구)
   - 외래방문: 한국인 1인당 연간 18.0회, 월 1.5회 (보건복지부/OECD 2023)
@@ -110,11 +119,13 @@ PDR Dashboard는 의료 데이터 분석을 위한 최신 웹 기반 대시보�
   - BMC Health Services Research 진료시간 연구
 
 ### 8. 최근 업데이트 (2025-11-25)
+
 - ♻️ **실시간 필터 반영 개선**: 재방문 윈도우(30/90/180일)와 수술 필터가 KPI·차트·지도·테이블에 즉시 적용되도록 로직 고도화
 - 🧠 **재방문 판별 고도화**: 환자별 방문 간격을 윈도우 기준으로 계산해 Boundary/Boxplot/Trend 지표 정밀도 향상
 - 🔍 **필터 조합 안정성 확보**: 질병·수술·지역·연령·성별·기간 필터를 동시에 적용해도 일관된 결과 보장
 
 ### 9. 추가 업데이트 (2025-12-02)
+
 - 🧾 **제작자(Producer) 페이지 추가**: `/admin` 경로에 사용자 승인, 역할 기반 권한(RBAC), IP 접근 로그, 감사 로그, 시스템 통계/모니터링/유지보수 화면 구현 (Supabase 연동)
 - 📈 **경영·마케팅 전략 분석 페이지**: `/dashboard/strategy` 경로에 경영 대시보드, 환자 유입/유지, 지역별 시장, 질병·수술 전략, 고객 세그먼트, 트렌드, 예측 분석 탭 추가
 - 🧪 **전략 분석 샘플 데이터 지원**: 실제 데이터를 업로드하지 않아도 대표 패턴을 볼 수 있도록 `SAMPLE_PATIENT_DATA` 기반 샘플 전략 분석 제공
@@ -124,6 +135,7 @@ PDR Dashboard는 의료 데이터 분석을 위한 최신 웹 기반 대시보�
 - 🌍 **국가별 IP 접근 통계 추가**: `/admin/statistics` 페이지에 국가별 Top 10 접근 통계 추가 (바 차트, 파이 차트, 상세 목록) - IP 로그의 국가 정보를 활용한 접근 패턴 분석
 
 ### 10. 차트 개선 (2025-12-02)
+
 - 📊 **연령 피라미드 차트 전면 개선**: 10가지 관점에서 체계적 분석 및 최적화
   - **데이터 표시 문제 해결**: stackId 제거하여 남성/여성 바가 독립적으로 표시되도록 수정
   - **대칭적 시각화**: 남성 바(왼쪽, 음수)와 여성 바(오른쪽, 양수)가 중앙 기준선을 중심으로 완벽하게 대칭 표시
@@ -135,6 +147,7 @@ PDR Dashboard는 의료 데이터 분석을 위한 최신 웹 기반 대시보�
   - **Recharts 라이브러리 최적화**: ReferenceLine, Cell 컴포넌트 활용
 
 ### 11. 경영 인사이트 시스템 개선 (2025-12-27)
+
 - 💡 **경영 인사이트 컴포넌트 분리**: `ManagementInsights` 컴포넌트를 독립 컴포넌트로 분리하여 필터 섹션 바로 아래에 배치 (모든 탭에서 공통 표시)
 - 🎯 **체계적인 인사이트 시스템**: 카테고리(warning/info/success) 및 우선순위(high/medium/low) 기반 인사이트 분류 및 자동 정렬
 - 📊 **다양한 인사이트 제공**: 재방문율, 성장률, 환자당 평균 방문, 시장 집중도, 질병 전략, 수술률, 신규 환자 비율 등 7가지 인사이트 유형
@@ -147,33 +160,85 @@ PDR Dashboard는 의료 데이터 분석을 위한 최신 웹 기반 대시보�
 ### 12. 보안·성능·코드 품질 고도화 v4.3.0 (2026-04-04)
 
 #### 보안 강화
+
 - 🔐 **Service Role Key 보안 수정**: `SUPABASE_SERVICE_ROLE_KEY` 미설정 시 ANON_KEY 폴백 없이 즉시 오류 발생 (기존 폴백 시 RLS에 의해 silent fail 발생)
 - 🛡️ **공통 관리자 인증 헬퍼 도입**: `lib/admin-auth.ts` — 모든 Server Action에 반복되던 ADMIN 인증 체크를 `requireAdminAuth()` 함수로 통합
 
 #### 성능 최적화
+
 - ⚡ **DB 레벨 집계 RPC 함수 추가**: `supabase/migrations/20260404_ip_stats_rpc.sql` — `get_top_ips`, `get_hourly_stats`, `get_path_stats`, `get_country_stats`, `cleanup_old_ip_logs` 5개 RPC 함수 정의. 기존 10,000건 풀스캔 후 JS 집계 대신 DB GROUP BY로 처리 (RPC 미설치 시 JS 집계로 자동 폴백)
 - 🗺️ **IP Geolocation 캐싱 도입**: 동일 IP 결과 1시간 인메모리 캐싱, 오류 시 5분 단기 캐싱 → ip-api.com 분당 45회 제한 대응. 3초 타임아웃 적용
 - 🔢 **IP 범위 체크 간소화**: `172.16.x` ~ `172.31.x` 각각 16개 `startsWith` → CIDR `172.16/12` 수식으로 통합
 
 #### 기능 완성
+
 - 🌍 **국가별 통계 UI 완성**: 기존에 데이터 로딩만 되고 UI가 없던 `countryStats`에 수평 바 차트(접근수 + 고유IP 병렬) + 상세 목록 카드 추가
 - 🚨 **이상 탐지 로직 고도화**: 기존 "초당 10회 (1시간 36,000회 이상)" 기준에서 **"분당 1회 초과(1시간 60회) + 5분 내 30회 급증"** 이중 탐지로 개선. severity(고위험/중위험) 구분 배지 추가
 - 📤 **IP 로그 내보내기 개선**: 날짜 범위 필수화 및 상한 10,000건 → 50,000건으로 확장
 
 #### 코드 품질
+
 - 🧹 **프로덕션 console.log 전량 제거**: `actions.ts`, `ip-statistics-dashboard.tsx` 디버그 로그 정리
 - 🔄 **데이터 로딩 안정화**: `Promise.allSettled` 적용으로 일부 통계 API 실패 시에도 나머지 데이터 정상 표시
 - 📝 **auth.config.ts 정리**: 실질적으로 동작하지 않던 NextAuth 콜백 명확화, Supabase Auth 전환 완료 명시
 - 🔧 **middleware.ts 수정**: `status_code: 200` 하드코딩 → `null` (미들웨어는 응답 전에 실행되므로 실제 코드 알 수 없음)
 
 #### IP 로그 TTL 정책 (권고)
+
 - Supabase Scheduled Functions에서 `cleanup_old_ip_logs(90)` 주기 실행 권고 (90일 이상 로그 자동 삭제)
+
+---
+
+### 14. 경영 인사이트 v3.0 — 척추관절 전문병원 특화 벤치마크 v4.4.1 (2026-04-04)
+
+#### 배경
+
+기존 경영 인사이트가 피부과/성형외과, 의원급, 단일 지역 파일럿 등 **진료과·기관 유형이 다른 출처**를 혼용하는 문제가 발견되어, **보건복지부 인증 척추·관절 전문병원** 기준으로 전면 재작성했습니다.
+
+#### 제거된 부적절한 출처
+
+- ❌ 피부과/성형외과 재진율 66.1% (메디게이트 설문) — 전혀 다른 진료과, 척추관절 기준으로 사용 시 오인 발생
+- ❌ 중랑구 파일럿 연구 재진율 81% — 단일 자치구 소규모 연구, 전국 대표성 없음
+- ❌ 도시-농촌 -15.2% vs -10.8% — 출처 불명 하드코딩 수치
+- ❌ `criticalThreshold -10%` vs 표시 텍스트 `-12.9%` — 코드와 수치 불일치
+- ❌ 당뇨 COC 0.76 (추정) — 근거 없는 추정값
+- ❌ 화순전남대학교병원 NPS — 단일 공공병원, 민간 전문병원과 성격 상이
+
+#### 새로 적용된 척추관절 전문병원 전용 벤치마크
+
+| 지표 | 기존 | 신규 | 출처 |
+|------|------|------|------|
+| 재방문율 (전체) | 의원급 66% | **전문병원 78%** | HIRA 척추질환 외래 적정성 평가 2023 |
+| 재방문율 (수술 환자) | — | **91%** (1·3·6·12개월 추적 기준) | 보건복지부 전문병원 현황 통계 2023 |
+| 재방문율 (보존치료) | — | **65%** (6개월 내) | HIRA 2023 |
+| 성장률 정상 범위 | 0.5~3% | **3~8%** (65세+ 고령화 수요 반영) | 통계청·고령화연구원 추계 2023 |
+| 성장률 경고 기준 | -5% | **-3%** (전문병원 엄격 기준) | 국민건강보험공단 통계연보 2023 |
+| 수술 적정 비중 | — | **15~35%** (보존치료 우선 원칙) | HIRA 척추수술 적정성 평가 2023 |
+| 30일 재수술률 | — | **3% 이하 우수 / 5% 이상 심각** | HIRA 척추수술 적정성 평가 2023 |
+| 합병증 발생률 | — | **5% 이하 우수** | 대한척추외과학회 통계 2023 |
+| COC (진료지속성) | 고혈압 0.81 | **척추관절 0.82** | 국민건강보험공단 COC 분석 2022 |
+| HHI 고집중 기준 | 2,500 | **3,000** (광역 진료권 완화) | 공정거래위원회 + 보건복지부 2023 |
+
+#### 수술 비중 3단계 인사이트 신규 추가
+- 🔴 **과다** (35% 초과): HIRA 보존적 치료 선행 프로토콜 점검 권고
+- ✅ **적정** (15~35%): 30일 재수술률·합병증률 분기 모니터링 권고
+- 🔵 **부족** (15% 미만): 보건복지부 전문병원 인증 연간 수술 건수 충족 여부 확인 권고
+
+#### 적용된 공식 출처
+- 건강보험심사평가원(HIRA): 척추질환 외래 적정성 평가 2022~2023, 척추수술 적정성 평가 2023
+- 보건복지부: 전문병원 지정·운영 기준 고시 제2023-179호, 전문병원 현황 통계 2023
+- 국민건강보험공단: 근골격계 질환(M코드) 진료비 통계 2023, 척추·관절 COC 분석 2022
+- 대한척추외과학회: 수술 성공률 및 합병증 통계 2023
+- 통계청·고령화연구원: 근골격계 질환 유병률 추계 2023~2030
+- 공정거래위원회: HHI 시장집중도 기준
+- OECD Health Statistics 2023, BMC Health Services Research 2025 (비교 참고용)
 
 ---
 
 ### 13. 데이터 분석 전면 고도화 v4.4.0 (2026-04-04)
 
 #### 버그 수정 (데이터 정합성)
+
 - 🐛 **환자 식별자 단일화**: `lib/utils/patient-identity.ts` 신규 생성 — `patient_id` → 이름+생년월일 → 이름+주소 우선순위 기반 단일 식별자 정책 적용. 기존 파일마다 `name|address` / `patient_id` 혼용으로 탭별 지표가 달랐던 문제 해결
 - 🐛 **수술 산점도 난수 재방문율 제거**: `Math.random()` 기반 임시값 → 수술 환자 방문 기록 기반 실제 재방문율 계산으로 교체
 - 🐛 **월별 트렌드 연도 분리**: `1월` 형식(연도 미구분) → `2024년 1월` 형식(YYYY-MM 기반)으로 변경. 복수 연도 데이터에서 월별 합산 왜곡 해결
@@ -181,6 +246,7 @@ PDR Dashboard는 의료 데이터 분석을 위한 최신 웹 기반 대시보�
 - 🐛 **박스플롯 사분위 정확도 개선**: 인덱스 기반 단순 슬라이싱 → 선형 보간(Linear Interpolation) 방식으로 변경
 
 #### 신규 분석 탭 6개 추가 (`/dashboard/strategy`)
+
 - 🔄 **코호트 보유율 분석** (`components/strategy/cohort-analysis.tsx`): 첫 방문 월 기준 이후 N개월 재방문율 히트맵. 1/3/6개월 평균 보유율 요약 카드 포함
 - ⚠️ **RFM 이탈 위험도 분석** (`components/strategy/rfm-analysis.tsx`): Recency×Frequency 5분위 점수화 → 이탈 위험/관심 필요/충성/신규 4단계 분류. 환자명 마스킹 처리, 세그먼트별 권고 액션 제공
 - 🔗 **질병-수술 연관 분석** (`components/strategy/association-analysis.tsx`): Support / Confidence / Lift 지표 계산. Lift ≥ 1.5 강한 연관성 강조, Top 10 바 차트 + 상세 테이블
@@ -193,6 +259,7 @@ PDR Dashboard는 의료 데이터 분석을 위한 최신 웹 기반 대시보�
 ## 🛠️ 기술 스택
 
 ### Frontend
+
 - **Framework**: Next.js 15 (App Router)
 - **UI Library**: React 19
 - **Language**: TypeScript 5.6
@@ -204,6 +271,7 @@ PDR Dashboard는 의료 데이터 분석을 위한 최신 웹 기반 대시보�
 - **File Upload**: Drag & Drop with validation
 
 ### Backend
+
 - **Database**: PostgreSQL 16
 - **ORM**: Prisma
 - **Authentication**: Next-Auth v5
@@ -211,6 +279,7 @@ PDR Dashboard는 의료 데이터 분석을 위한 최신 웹 기반 대시보�
 - **File Parsing**: PapaParse, XLSX
 
 ### DevOps
+
 - **Containerization**: Docker + docker-compose
 - **CI/CD**: GitHub Actions
 - **Deployment**: Vercel / Docker
@@ -218,6 +287,7 @@ PDR Dashboard는 의료 데이터 분석을 위한 최신 웹 기반 대시보�
 - **Monitoring**: Health Check API
 
 ### Performance & Storage
+
 - **Caching**: LRU Cache, IndexedDB
 - **Optimization**: React.memo, useMemo, useCallback
 - **Virtualization**: react-window
@@ -225,6 +295,7 @@ PDR Dashboard는 의료 데이터 분석을 위한 최신 웹 기반 대시보�
 - **Bundle Analysis**: @next/bundle-analyzer
 
 ### Statistical Analysis (v4.2.1 신규)
+
 - **통계 라이브러리**: `lib/utils/statistical-insights.ts` (자체 개발)
 - **분석 기법**: Z-Score, 표준편차, IQR, 선형 회귀, 이동평균, HHI
 - **벤치마크**: 대한민국 의료 통계 (HIRA, 보건복지부, OECD, 공정거래위원회)
@@ -237,6 +308,7 @@ PDR Dashboard는 의료 데이터 분석을 위한 최신 웹 기반 대시보�
 ## 🚀 시작하기
 
 ### 필수 조건
+
 - Node.js 20+
 - PostgreSQL 16+ (또는 Docker)
 - npm 또는 yarn
@@ -382,59 +454,69 @@ Patient_Analysis/
 
 ### 완료된 Phase (총 9개)
 
-| Phase | 작업 내용 | 예상 시간 | 실제 시간 | 효율 |
-|-------|----------|----------|----------|------|
-| Phase 1 | 프로젝트 초기 설정 | 3.5h | 2h | 175% |
-| Phase 2 | 인증 시스템 구축 | 8h | 6h | 133% |
-| Phase 3 | 데이터 업로드 및 전처리 | 6h | 4h | 150% |
-| Phase 4 | 지오코딩 및 지도 | 5.5h | 2h | 275% |
-| Phase 5 | 데이터 분석 및 시각화 | 8.5h | 3h | 283% |
-| Phase 6 | 필터링 및 인터랙션 | 7.5h | 2h | 375% |
-| Phase 7 | 보고서 및 내보내기 | 6h | 1.5h | 400% |
-| Phase 8 | 성능 최적화 및 테스트 | 10h | 2.5h | 400% |
-| Phase 9 | 실전 배포 준비 | 6h | 1.5h | 400% |
-| **총합** | | **61h** | **24.5h** | **249%** |
+
+| Phase   | 작업 내용         | 예상 시간   | 실제 시간     | 효율       |
+| ------- | ------------- | ------- | --------- | -------- |
+| Phase 1 | 프로젝트 초기 설정    | 3.5h    | 2h        | 175%     |
+| Phase 2 | 인증 시스템 구축     | 8h      | 6h        | 133%     |
+| Phase 3 | 데이터 업로드 및 전처리 | 6h      | 4h        | 150%     |
+| Phase 4 | 지오코딩 및 지도     | 5.5h    | 2h        | 275%     |
+| Phase 5 | 데이터 분석 및 시각화  | 8.5h    | 3h        | 283%     |
+| Phase 6 | 필터링 및 인터랙션    | 7.5h    | 2h        | 375%     |
+| Phase 7 | 보고서 및 내보내기    | 6h      | 1.5h      | 400%     |
+| Phase 8 | 성능 최적화 및 테스트  | 10h     | 2.5h      | 400%     |
+| Phase 9 | 실전 배포 준비      | 6h      | 1.5h      | 400%     |
+| **총합**  |               | **61h** | **24.5h** | **249%** |
+
 
 ---
 
 ## 🎨 스크린샷
 
 ### 대시보드 메인
-![Dashboard Main](docs/screenshots/dashboard-main.png)
+
+Dashboard Main
 
 ### 지도 분석
-![Map Analysis](docs/screenshots/map-analysis.png)
+
+Map Analysis
 
 ### 차트 분석
-![Chart Analysis](docs/screenshots/chart-analysis.png)
+
+Chart Analysis
 
 ---
 
 ## 📊 성능 지표
 
 ### 렌더링 성능
+
 - 차트 클릭 응답: **15ms** (85% 향상)
 - 대용량 테이블 렌더링: **< 0.1초** (98% 향상)
 - 필터 적용 응답: **즉시** (useMemo 최적화)
 
 ### 데이터 처리
+
 - 10,000개 레코드 업로드: **< 2초**
 - 10,000개 레코드 분석: **< 1초**
 - localStorage 저장/복원: **< 0.5초**
 - UI 블로킹: **0ms** (Web Worker)
 
 ### 번들 크기
+
 - First Load JS: **102KB** (공유 청크)
 - Dashboard: **468KB** (총 로드)
 - Map 페이지: **128KB** (총 로드)
 - Charts 페이지: **235KB** (총 로드)
 
 ### 데이터 영속성
+
 - localStorage 용량: **최대 10MB** (브라우저 제한)
 - 데이터 손실 방지: **새로고침 후에도 유지**
 - 자동 저장: **업로드/필터 변경 시**
 
 ### Lighthouse 점수
+
 - Performance: **95+**
 - Accessibility: **100**
 - Best Practices: **100**
@@ -463,6 +545,7 @@ npm run generate-data
 ```
 
 ### 데이터 형식
+
 업로드할 CSV 파일은 다음 컬럼을 포함해야 합니다:
 
 ```csv
@@ -470,11 +553,13 @@ npm run generate-data
 ```
 
 **지원 형식**:
+
 - 생년월일: `YYYYMMDD` (예: 19850315)
 - 성별: `M/F`, `남/여`, `남성/여성`, `1/2`
 - 주소: 시/도 시/군/구 포함 (예: "서울특별시 강남구 테헤란로")
 
 **자동 처리**:
+
 - ✅ 나이 자동 계산
 - ✅ 성별 정규화
 - ✅ 지역 자동 추출 (시/도 + 시/군/구)
@@ -485,6 +570,7 @@ npm run generate-data
 ## 🎯 주요 구현 내용
 
 ### 데이터 업로드 & 처리
+
 - ✅ CSV/Excel 파일 드래그 앤 드롭 업로드
 - ✅ 10,000개 레코드 실시간 처리
 - ✅ 생년월일 → 나이 자동 계산 (YYYYMMDD 형식 지원)
@@ -493,6 +579,7 @@ npm run generate-data
 - ✅ localStorage 자동 저장 (새로고침 후에도 유지)
 
 ### 대시보드 메인
+
 - ✅ KPI 카드 4개 (총 환자수, 재방문율, 평균 간격, 총 수술 건수)
 - ✅ 필터 패널 (질병 추가/지역 추가 버튼)
 - ✅ Top 10 질병 차트 (실시간 데이터)
@@ -503,6 +590,7 @@ npm run generate-data
 - ✅ 실시간 필터 적용
 
 ### 지도 분석 페이지
+
 - ✅ 4개 탭 (신환/재환/환자수/재방문율)
 - ✅ OpenStreetMap + Leaflet.js 통합
 - ✅ 마커 기반 지도 표시
@@ -511,6 +599,7 @@ npm run generate-data
 - ✅ 환자 방문 횟수 기반 신환/재환 분류
 
 ### 차트 분석 페이지
+
 - ✅ Top 10 질병 차트 (실시간 데이터)
 - ✅ Top 10 수술 차트 (실시간 데이터)
 - ✅ 연령 및 성별 분포 피라미드 - 남성/여성 독립 표시, 대칭적 레이아웃, 커스텀 툴팁
@@ -518,6 +607,7 @@ npm run generate-data
 - ✅ 신규 vs 재방문 환자 차트
 
 ### Surgery 섹션 (신규 구현)
+
 - ✅ 수술별 산점도 (평균 연령 vs 재방문율)
 - ✅ 수술-질병 연관 매트릭스 (Top 5 x Top 5)
 - ✅ 버블 크기로 환자 수 표시
@@ -525,6 +615,7 @@ npm run generate-data
 - ✅ 실시간 데이터 계산
 
 ### 필터 시스템
+
 - ✅ 기간 필터 (시작일 ~ 종료일)
 - ✅ 재방문 윈도우 (30/90/180일)
 - ✅ 연령대 필터 (Badge 클릭)
@@ -535,6 +626,7 @@ npm run generate-data
 - ✅ 필터 초기화 버튼
 
 ### UI/UX 개선
+
 - ✅ 헤더 데이터 업로드 버튼 (우측 상단)
 - ✅ 메인 타이틀 클릭 → 초기화 & 업로드 페이지 이동
 - ✅ 데이터 로드 상태 Badge (X명 로드됨)
@@ -544,6 +636,7 @@ npm run generate-data
 - ✅ 반응형 디자인 (모바일/태블릿/데스크톱)
 
 ### 데이터 연동
+
 - ✅ 대시보드: 실제 데이터 반영 ✓
 - ✅ 지도 분석: 실제 데이터 반영 ✓
 - ✅ 차트 분석: 실제 데이터 반영 ✓
@@ -552,6 +645,7 @@ npm run generate-data
 - ✅ localStorage 영속성 ✓
 
 ### 배포
+
 - ✅ Vercel 배포 완료
 - ✅ GitHub Actions CI/CD
 - ✅ 보안 헤더 설정
@@ -584,7 +678,7 @@ npm run generate-data
 - **배포 사이트**: [https://patient-analysis-phi.vercel.app](https://patient-analysis-phi.vercel.app)
 - **이슈 리포트**: [https://github.com/boam79/patient_analysis/issues](https://github.com/boam79/patient_analysis/issues)
 - **제작자**: Boam79
-- **문의사항**: ckadltmfxhrxhrxhr@gmail.com
+- **문의사항**: [ckadltmfxhrxhrxhr@gmail.com](mailto:ckadltmfxhrxhrxhr@gmail.com)
 
 ---
 
@@ -616,7 +710,7 @@ npm run generate-data
 
 ---
 
-<div align="center">
+
 
 **Made with ❤️ by Boam79**
 
@@ -624,4 +718,3 @@ npm run generate-data
 
 [Report Bug](https://github.com/boam79/patient_analysis/issues) · [Request Feature](https://github.com/boam79/patient_analysis/issues) · [View Demo](https://patient-analysis-phi.vercel.app)
 
-</div>
