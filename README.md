@@ -1,4 +1,4 @@
-# PDR Dashboard v4.2.1
+# PDR Dashboard v4.3.0
 
 **Patient Data Review Dashboard** - 환자 데이터 분석 및 재방문 패턴 시각화 대시보드
 
@@ -104,6 +104,33 @@ PDR Dashboard는 의료 데이터 분석을 위한 최신 웹 기반 대시보�
 - ✅ **구체적인 권장사항**: 각 인사이트에 맞춤형 권장사항 및 실행 가능한 액션 아이템 제공
 - 🎨 **2열 그리드 레이아웃**: 경영 인사이트를 2열 그리드로 배치하여 화면 공간 효율성 향상 (모바일: 1열, 데스크톱: 2열)
 - 🔧 **전략 분석 페이지 UI 개선**: 전략 분석 페이지에서 필터 섹션 제거하여 경영 인사이트가 더욱 눈에 띄도록 레이아웃 최적화
+
+### 12. 보안·성능·코드 품질 고도화 v4.3.0 (2026-04-04)
+
+#### 보안 강화
+- 🔐 **Service Role Key 보안 수정**: `SUPABASE_SERVICE_ROLE_KEY` 미설정 시 ANON_KEY 폴백 없이 즉시 오류 발생 (기존 폴백 시 RLS에 의해 silent fail 발생)
+- 🛡️ **공통 관리자 인증 헬퍼 도입**: `lib/admin-auth.ts` — 모든 Server Action에 반복되던 ADMIN 인증 체크를 `requireAdminAuth()` 함수로 통합
+
+#### 성능 최적화
+- ⚡ **DB 레벨 집계 RPC 함수 추가**: `supabase/migrations/20260404_ip_stats_rpc.sql` — `get_top_ips`, `get_hourly_stats`, `get_path_stats`, `get_country_stats`, `cleanup_old_ip_logs` 5개 RPC 함수 정의. 기존 10,000건 풀스캔 후 JS 집계 대신 DB GROUP BY로 처리 (RPC 미설치 시 JS 집계로 자동 폴백)
+- 🗺️ **IP Geolocation 캐싱 도입**: 동일 IP 결과 1시간 인메모리 캐싱, 오류 시 5분 단기 캐싱 → ip-api.com 분당 45회 제한 대응. 3초 타임아웃 적용
+- 🔢 **IP 범위 체크 간소화**: `172.16.x` ~ `172.31.x` 각각 16개 `startsWith` → CIDR `172.16/12` 수식으로 통합
+
+#### 기능 완성
+- 🌍 **국가별 통계 UI 완성**: 기존에 데이터 로딩만 되고 UI가 없던 `countryStats`에 수평 바 차트(접근수 + 고유IP 병렬) + 상세 목록 카드 추가
+- 🚨 **이상 탐지 로직 고도화**: 기존 "초당 10회 (1시간 36,000회 이상)" 기준에서 **"분당 1회 초과(1시간 60회) + 5분 내 30회 급증"** 이중 탐지로 개선. severity(고위험/중위험) 구분 배지 추가
+- 📤 **IP 로그 내보내기 개선**: 날짜 범위 필수화 및 상한 10,000건 → 50,000건으로 확장
+
+#### 코드 품질
+- 🧹 **프로덕션 console.log 전량 제거**: `actions.ts`, `ip-statistics-dashboard.tsx` 디버그 로그 정리
+- 🔄 **데이터 로딩 안정화**: `Promise.allSettled` 적용으로 일부 통계 API 실패 시에도 나머지 데이터 정상 표시
+- 📝 **auth.config.ts 정리**: 실질적으로 동작하지 않던 NextAuth 콜백 명확화, Supabase Auth 전환 완료 명시
+- 🔧 **middleware.ts 수정**: `status_code: 200` 하드코딩 → `null` (미들웨어는 응답 전에 실행되므로 실제 코드 알 수 없음)
+
+#### IP 로그 TTL 정책 (권고)
+- Supabase Scheduled Functions에서 `cleanup_old_ip_logs(90)` 주기 실행 권고 (90일 이상 로그 자동 삭제)
+
+---
 
 ### 11. 통계 기반 경영 인사이트 고도화 v2.1 (2025-01-21)
 - 🇰🇷 **대한민국 의료 통계 기반 벤치마크 적용**: 가상 데이터 대신 실제 한국 의료 통계 활용

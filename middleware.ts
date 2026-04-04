@@ -58,7 +58,8 @@ export async function middleware(request: NextRequest) {
               referer: referer,
               country: country,
               city: city,
-              status_code: 200,
+              // 미들웨어는 응답 전에 실행되므로 실제 상태 코드를 알 수 없어 null로 기록
+              status_code: null,
               response_time: responseTime,
             })
 

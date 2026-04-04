@@ -73,9 +73,12 @@ export function IpLogViewer({ logs: initialLogs }: IpLogViewerProps) {
   const handleExport = async () => {
     startTransition(async () => {
       try {
+        // 날짜 미입력 시 기본값: 최근 30일
+        const defaultStart = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+        const defaultEnd = new Date().toISOString()
         const data = await exportIpLogs(
-          startDate || undefined,
-          endDate || undefined,
+          startDate ? new Date(startDate).toISOString() : defaultStart,
+          endDate ? new Date(endDate + 'T23:59:59').toISOString() : defaultEnd,
           searchTerm || undefined
         )
 

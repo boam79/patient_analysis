@@ -1,364 +1,277 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { requireAdminAuth } from '@/lib/admin-auth'
 
-// Service Role Key 확인 및 경고
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-  console.warn('[IP Statistics] ⚠️ SUPABASE_SERVICE_ROLE_KEY가 설정되지 않았습니다. ANON_KEY를 사용하지만 RLS 정책 때문에 데이터 조회가 실패할 수 있습니다.')
-}
+function getSupabaseAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-const supabaseAdmin = createAdminClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  serviceRoleKey,
-  {
+  if (!url || !key) {
+    throw new Error(
+      'SUPABASE_SERVICE_ROLE_KEY 환경 변수가 설정되지 않았습니다.'
+    )
+  }
+
+  return createAdminClient(url, key, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
     },
-  }
-)
-
-/**
- * Top 10 접근 IP 통계
- */
-export async function getTopIps(limit: number = 10) {
-  try {
-    const supabase = await createClient()
-    
-    // ADMIN 역할 확인
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError) {
-      console.error('getTopIps auth error:', authError)
-      throw new Error(`인증 오류: ${authError.message}`)
-    }
-    
-    if (!user) {
-      console.error('getTopIps: No user found')
-      throw new Error('인증이 필요합니다.')
-    }
-
-    const { data: profile, error: profileError } = await supabase
-      .from('user_profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (profileError) {
-      console.error('getTopIps profile error:', profileError)
-      throw new Error(`프로필 조회 실패: ${profileError.message}`)
-    }
-
-    if (!profile || profile.role !== 'ADMIN') {
-      console.error('getTopIps: Not admin, role:', profile?.role)
-      throw new Error('관리자만 접근할 수 있습니다.')
-    }
-
-    // 직접 쿼리로 집계
-    console.log('[getTopIps] Querying ip_access_logs...')
-    const { data: queryData, error: queryError } = await supabaseAdmin
-      .from('ip_access_logs')
-      .select('ip_address')
-      .limit(10000)
-
-    if (queryError) {
-      console.error('[getTopIps] Query error:', queryError)
-      console.error('[getTopIps] Error details:', {
-        message: queryError.message,
-        details: queryError.details,
-        hint: queryError.hint,
-        code: queryError.code,
-      })
-      throw new Error(`IP 통계 조회 실패: ${queryError.message}`)
-    }
-
-    console.log('[getTopIps] Query result:', {
-      dataLength: queryData?.length || 0,
-      hasData: !!queryData && queryData.length > 0,
-    })
-
-    if (!queryData || queryData.length === 0) {
-      console.log('[getTopIps] No data found in ip_access_logs table')
-      return []
-    }
-
-    // 클라이언트 사이드에서 집계
-    const ipCounts = new Map<string, number>()
-    queryData.forEach(log => {
-      if (log.ip_address) {
-        ipCounts.set(log.ip_address, (ipCounts.get(log.ip_address) || 0) + 1)
-      }
-    })
-
-    const result = Array.from(ipCounts.entries())
-      .map(([ip, count]) => ({ 
-        ip_address: String(ip || ''), 
-        access_count: Number(count || 0) 
-      }))
-      .sort((a, b) => b.access_count - a.access_count)
-      .slice(0, limit)
-      .filter(item => item.ip_address && item.access_count > 0)
-
-    console.log('[getTopIps] Final result:', JSON.stringify(result), 'count:', result.length)
-    return result
-  } catch (error: any) {
-    console.error('getTopIps error:', error)
-    throw error
-  }
+  })
 }
 
 /**
- * 시간대별 접근 통계 (최근 24시간)
+ * Top N 접근 IP 통계
+ * Supabase RPC가 설치된 경우 DB 집계를 사용하고, 없으면 JS 집계로 폴백합니다.
+ */
+export async function getTopIps(limit: number = 10) {
+  await requireAdminAuth()
+  const supabaseAdmin = getSupabaseAdmin()
+
+  // DB 레벨 RPC 집계 시도
+  const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc('get_top_ips', {
+    limit_count: limit,
+  })
+
+  if (!rpcError && rpcData) {
+    return rpcData as Array<{ ip_address: string; access_count: number }>
+  }
+
+  // RPC 미설치 시 JS 집계 폴백
+  const { data, error } = await supabaseAdmin
+    .from('ip_access_logs')
+    .select('ip_address')
+    .limit(10000)
+
+  if (error) {
+    throw new Error(`IP 통계 조회 실패: ${error.message}`)
+  }
+
+  if (!data || data.length === 0) return []
+
+  const ipCounts = new Map<string, number>()
+  data.forEach((log) => {
+    if (log.ip_address) {
+      ipCounts.set(log.ip_address, (ipCounts.get(log.ip_address) || 0) + 1)
+    }
+  })
+
+  return Array.from(ipCounts.entries())
+    .map(([ip, count]) => ({ ip_address: ip, access_count: count }))
+    .sort((a, b) => b.access_count - a.access_count)
+    .slice(0, limit)
+    .filter((item) => item.ip_address && item.access_count > 0)
+}
+
+/**
+ * 시간대별 접근 통계 (최근 N일)
  */
 export async function getHourlyStats(days: number = 1) {
-  try {
-    const supabase = await createClient()
-    
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError) {
-      console.error('getHourlyStats auth error:', authError)
-      throw new Error(`인증 오류: ${authError.message}`)
-    }
-    
-    if (!user) {
-      console.error('getHourlyStats: No user found')
-      throw new Error('인증이 필요합니다.')
-    }
+  await requireAdminAuth()
+  const supabaseAdmin = getSupabaseAdmin()
 
-    const { data: profile, error: profileError } = await supabase
-      .from('user_profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
 
-    if (profileError) {
-      console.error('getHourlyStats profile error:', profileError)
-      throw new Error(`프로필 조회 실패: ${profileError.message}`)
-    }
+  // DB 레벨 RPC 집계 시도
+  const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc('get_hourly_stats', {
+    since_time: since,
+  })
 
-    if (!profile || profile.role !== 'ADMIN') {
-      console.error('getHourlyStats: Not admin, role:', profile?.role)
-      throw new Error('관리자만 접근할 수 있습니다.')
-    }
+  if (!rpcError && rpcData) {
+    return rpcData as Array<{ hour: string; access_count: number; unique_ips: number }>
+  }
 
-  console.log('[getHourlyStats] Querying ip_access_logs for last', days, 'days...')
+  // RPC 미설치 시 JS 집계 폴백
   const { data, error } = await supabaseAdmin
     .from('ip_access_logs')
     .select('created_at, ip_address')
-    .gte('created_at', new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString())
+    .gte('created_at', since)
     .order('created_at', { ascending: true })
 
   if (error) {
-    console.error('[getHourlyStats] Query error:', error)
-    console.error('[getHourlyStats] Error details:', {
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      code: error.code,
-    })
     throw new Error(`시간대별 통계 조회 실패: ${error.message}`)
   }
 
-  console.log('[getHourlyStats] Query result:', {
-    dataLength: data?.length || 0,
-    hasData: !!data && data.length > 0,
-  })
+  if (!data || data.length === 0) return []
 
-  if (!data || data.length === 0) {
-    console.log('[getHourlyStats] No data found in ip_access_logs table for last', days, 'days')
-    return []
-  }
-
-  // 시간대별 집계 (UTC 기준)
   const hourlyStats = new Map<string, { count: number; uniqueIps: Set<string> }>()
-  
-  data.forEach(log => {
-    if (log.created_at && log.ip_address) {
-      // UTC 시간으로 파싱하여 시간대 문제 방지
-      const date = new Date(log.created_at)
-      // UTC 기준으로 시간 추출
-      const year = date.getUTCFullYear()
-      const month = date.getUTCMonth()
-      const day = date.getUTCDate()
-      const hour = date.getUTCHours()
-      
-      // UTC 기준으로 시간 키 생성 (YYYY-MM-DDTHH:00:00.000Z 형식)
-      const hourKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hour).padStart(2, '0')}:00:00.000Z`
-      
-      if (!hourlyStats.has(hourKey)) {
-        hourlyStats.set(hourKey, { count: 0, uniqueIps: new Set() })
-      }
-      
-      const stats = hourlyStats.get(hourKey)!
-      stats.count++
-      stats.uniqueIps.add(log.ip_address)
-    }
+
+  data.forEach((log) => {
+    if (!log.created_at || !log.ip_address) return
+
+    const date = new Date(log.created_at)
+    const hourKey = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}T${String(date.getUTCHours()).padStart(2, '0')}:00:00.000Z`
+
+    const entry = hourlyStats.get(hourKey) ?? { count: 0, uniqueIps: new Set<string>() }
+    entry.count++
+    entry.uniqueIps.add(log.ip_address)
+    hourlyStats.set(hourKey, entry)
   })
 
-    const result = Array.from(hourlyStats.entries())
-      .map(([hour, stats]) => ({
-        hour: String(hour || ''),
-        access_count: Number(stats.count || 0),
-        unique_ips: Number(stats.uniqueIps.size || 0),
-      }))
-      .sort((a, b) => a.hour.localeCompare(b.hour))
-      // 필터 조건 완화: hour만 있으면 통과 (access_count가 0이어도 표시)
-      .filter(item => item.hour)
-
-    console.log('[getHourlyStats] Final result:', JSON.stringify(result), 'count:', result.length)
-    return result
-  } catch (error: any) {
-    console.error('getHourlyStats error:', error)
-    throw error
-  }
+  return Array.from(hourlyStats.entries())
+    .map(([hour, stats]) => ({
+      hour,
+      access_count: stats.count,
+      unique_ips: stats.uniqueIps.size,
+    }))
+    .sort((a, b) => a.hour.localeCompare(b.hour))
 }
 
 /**
  * 경로별 접근 통계
  */
 export async function getPathStats() {
-  try {
-    const supabase = await createClient()
-    
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError) {
-      console.error('getPathStats auth error:', authError)
-      throw new Error(`인증 오류: ${authError.message}`)
-    }
-    
-    if (!user) {
-      console.error('getPathStats: No user found')
-      throw new Error('인증이 필요합니다.')
-    }
+  await requireAdminAuth()
+  const supabaseAdmin = getSupabaseAdmin()
 
-    const { data: profile, error: profileError } = await supabase
-      .from('user_profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
+  // DB 레벨 RPC 집계 시도
+  const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc('get_path_stats')
 
-    if (profileError) {
-      console.error('getPathStats profile error:', profileError)
-      throw new Error(`프로필 조회 실패: ${profileError.message}`)
-    }
+  if (!rpcError && rpcData) {
+    return rpcData as Array<{ path: string; access_count: number; unique_ips: number }>
+  }
 
-    if (!profile || profile.role !== 'ADMIN') {
-      console.error('getPathStats: Not admin, role:', profile?.role)
-      throw new Error('관리자만 접근할 수 있습니다.')
-    }
-
-  console.log('[getPathStats] Querying ip_access_logs...')
+  // RPC 미설치 시 JS 집계 폴백
   const { data, error } = await supabaseAdmin
     .from('ip_access_logs')
     .select('path, ip_address')
     .limit(10000)
 
   if (error) {
-    console.error('[getPathStats] Query error:', error)
-    console.error('[getPathStats] Error details:', {
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      code: error.code,
-    })
     throw new Error(`경로별 통계 조회 실패: ${error.message}`)
   }
 
-  console.log('[getPathStats] Query result:', {
-    dataLength: data?.length || 0,
-    hasData: !!data && data.length > 0,
-  })
+  if (!data || data.length === 0) return []
 
-  if (!data || data.length === 0) {
-    console.log('[getPathStats] No data found in ip_access_logs table')
-    return []
-  }
-
-  // 경로별 집계
   const pathStats = new Map<string, { count: number; uniqueIps: Set<string> }>()
-  
-  data.forEach(log => {
-    if (log.path && log.ip_address) {
-      if (!pathStats.has(log.path)) {
-        pathStats.set(log.path, { count: 0, uniqueIps: new Set() })
-      }
-      
-      const stats = pathStats.get(log.path)!
-      stats.count++
-      stats.uniqueIps.add(log.ip_address)
-    }
+
+  data.forEach((log) => {
+    if (!log.path || !log.ip_address) return
+
+    const entry = pathStats.get(log.path) ?? { count: 0, uniqueIps: new Set<string>() }
+    entry.count++
+    entry.uniqueIps.add(log.ip_address)
+    pathStats.set(log.path, entry)
   })
 
-    const result = Array.from(pathStats.entries())
-      .map(([path, stats]) => ({
-        path: String(path || ''),
-        access_count: Number(stats.count || 0),
-        unique_ips: Number(stats.uniqueIps.size || 0),
-      }))
-      .sort((a, b) => b.access_count - a.access_count)
-      .filter(item => item.path && item.access_count > 0)
+  return Array.from(pathStats.entries())
+    .map(([path, stats]) => ({
+      path,
+      access_count: stats.count,
+      unique_ips: stats.uniqueIps.size,
+    }))
+    .sort((a, b) => b.access_count - a.access_count)
+    .filter((item) => item.path && item.access_count > 0)
+}
 
-    console.log('[getPathStats] Final result:', JSON.stringify(result), 'count:', result.length)
-    return result
-  } catch (error: any) {
-    console.error('getPathStats error:', error)
-    throw error
+/**
+ * 국가별 접근 통계
+ */
+export async function getCountryStats(limit: number = 10) {
+  await requireAdminAuth()
+  const supabaseAdmin = getSupabaseAdmin()
+
+  // DB 레벨 RPC 집계 시도
+  const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc('get_country_stats', {
+    limit_count: limit,
+  })
+
+  if (!rpcError && rpcData) {
+    return rpcData as Array<{ country: string; access_count: number; unique_ips: number }>
   }
+
+  // RPC 미설치 시 JS 집계 폴백
+  const { data, error } = await supabaseAdmin
+    .from('ip_access_logs')
+    .select('country, ip_address')
+    .not('country', 'is', null)
+    .limit(10000)
+
+  if (error) {
+    throw new Error(`국가별 통계 조회 실패: ${error.message}`)
+  }
+
+  if (!data || data.length === 0) return []
+
+  const countryStats = new Map<string, { count: number; uniqueIps: Set<string> }>()
+
+  data.forEach((log) => {
+    if (!log.country || !log.ip_address) return
+
+    const entry = countryStats.get(log.country) ?? { count: 0, uniqueIps: new Set<string>() }
+    entry.count++
+    entry.uniqueIps.add(log.ip_address)
+    countryStats.set(log.country, entry)
+  })
+
+  return Array.from(countryStats.entries())
+    .map(([country, stats]) => ({
+      country,
+      access_count: stats.count,
+      unique_ips: stats.uniqueIps.size,
+    }))
+    .sort((a, b) => b.access_count - a.access_count)
+    .slice(0, limit)
+    .filter((item) => item.country && item.access_count > 0)
 }
 
 /**
  * 이상 접근 패턴 감지
+ * - 최근 1시간 내 동일 IP가 60회 이상 접근한 경우 탐지 (분당 1회 초과)
+ * - 최근 5분 내 동일 IP가 30회 이상 접근한 경우 급증 탐지
  */
 export async function detectAnomalies() {
-  const supabase = await createClient()
-  
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    throw new Error('인증이 필요합니다.')
-  }
+  await requireAdminAuth()
+  const supabaseAdmin = getSupabaseAdmin()
 
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
 
-  if (!profile || profile.role !== 'ADMIN') {
-    throw new Error('관리자만 접근할 수 있습니다.')
-  }
-
-  // 최근 1시간 내 접근 로그
-  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
-  
   const { data, error } = await supabaseAdmin
     .from('ip_access_logs')
     .select('ip_address, created_at')
-    .gte('created_at', oneHourAgo.toISOString())
+    .gte('created_at', oneHourAgo)
 
   if (error) {
     throw new Error(`이상 패턴 감지 실패: ${error.message}`)
   }
 
-  // IP별 접근 횟수 계산
-  const ipCounts = new Map<string, number>()
-  data?.forEach(log => {
-    ipCounts.set(log.ip_address, (ipCounts.get(log.ip_address) || 0) + 1)
+  if (!data || data.length === 0) return []
+
+  // IP별 1시간 카운트 및 5분 카운트
+  const hourCounts = new Map<string, number>()
+  const fiveMinCounts = new Map<string, number>()
+
+  data.forEach((log) => {
+    if (!log.ip_address) return
+    hourCounts.set(log.ip_address, (hourCounts.get(log.ip_address) || 0) + 1)
+
+    if (log.created_at >= fiveMinutesAgo) {
+      fiveMinCounts.set(log.ip_address, (fiveMinCounts.get(log.ip_address) || 0) + 1)
+    }
   })
 
-  // 초당 10회 이상 접근한 IP 탐지
-  const anomalies: Array<{ ip_address: string; access_count: number; rate: number }> = []
-  
-  ipCounts.forEach((count, ip) => {
-    const rate = count / 3600 // 초당 접근 횟수
-    if (rate >= 10) {
+  const anomalies: Array<{
+    ip_address: string
+    access_count: number
+    rate_per_minute: number
+    burst_5min: number
+    severity: 'high' | 'medium'
+  }> = []
+
+  hourCounts.forEach((count, ip) => {
+    const ratePerMinute = count / 60
+    const burst = fiveMinCounts.get(ip) || 0
+
+    // 분당 1회 초과(1시간 60회 이상) 또는 5분 내 30회 이상(급증)
+    if (ratePerMinute >= 1 || burst >= 30) {
       anomalies.push({
         ip_address: ip,
         access_count: count,
-        rate: Math.round(rate * 100) / 100,
+        rate_per_minute: Math.round(ratePerMinute * 100) / 100,
+        burst_5min: burst,
+        severity: burst >= 30 ? 'high' : 'medium',
       })
     }
   })
@@ -368,37 +281,28 @@ export async function detectAnomalies() {
 
 /**
  * IP 로그 내보내기 (CSV)
+ * 날짜 범위 필터를 필수로 받아 대용량 내보내기를 방지합니다.
  */
-export async function exportIpLogs(startDate?: string, endDate?: string, ipAddress?: string) {
-  const supabase = await createClient()
-  
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    throw new Error('인증이 필요합니다.')
-  }
+export async function exportIpLogs(
+  startDate: string,
+  endDate: string,
+  ipAddress?: string
+) {
+  await requireAdminAuth()
+  const supabaseAdmin = getSupabaseAdmin()
 
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile || profile.role !== 'ADMIN') {
-    throw new Error('관리자만 접근할 수 있습니다.')
+  if (!startDate || !endDate) {
+    throw new Error('내보내기 시 시작일과 종료일은 필수입니다.')
   }
 
   let query = supabaseAdmin
     .from('ip_access_logs')
     .select('*')
+    .gte('created_at', startDate)
+    .lte('created_at', endDate)
     .order('created_at', { ascending: false })
-    .limit(10000)
+    .limit(50000)
 
-  if (startDate) {
-    query = query.gte('created_at', startDate)
-  }
-  if (endDate) {
-    query = query.lte('created_at', endDate)
-  }
   if (ipAddress) {
     query = query.eq('ip_address', ipAddress)
   }
@@ -411,4 +315,3 @@ export async function exportIpLogs(startDate?: string, endDate?: string, ipAddre
 
   return data || []
 }
-

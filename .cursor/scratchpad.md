@@ -1121,6 +1121,66 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
 
 ---
 
+---
+
+## 🔧 코드 품질 고도화 (2026-04-04)
+
+### 배경 및 동기
+기존 코드 분석을 통해 발견된 보안·성능·유지보수 문제를 전면 개선했습니다.
+
+### 완료된 작업
+
+#### 1. 공통 관리자 인증 헬퍼 생성 (`lib/admin-auth.ts`) ✅
+- 모든 Server Action에서 반복되던 ADMIN 인증 체크 코드를 `requireAdminAuth()` 함수로 추출
+- `SUPABASE_SERVICE_ROLE_KEY` 미설정 시 명확한 오류 메시지 반환
+
+#### 2. `app/admin/logs/actions.ts` 전면 리팩토링 ✅
+- **보안**: `SUPABASE_SERVICE_ROLE_KEY` 없을 때 ANON_KEY 폴백 제거 → 즉시 오류 throw
+- **성능**: Supabase RPC 함수 우선 호출 + 미설치 시 JS 집계로 폴백하는 이중 구조 적용
+- **이상 탐지 개선**: 기존 "초당 10회 (1시간 36,000회)" 기준에서 "분당 1회(1시간 60회) 초과 + 5분 내 30회 급증" 이중 탐지로 변경, severity(high/medium) 구분 추가
+- **내보내기 개선**: `exportIpLogs` 날짜 범위 필수화, 상한 10,000건 → 50,000건
+- **코드 정리**: 디버그용 `console.log` 전량 제거
+
+#### 3. Supabase RPC SQL 마이그레이션 파일 생성 (`supabase/migrations/20260404_ip_stats_rpc.sql`) ✅
+- DB 레벨 GROUP BY 집계 RPC 함수 5개 작성 (get_top_ips, get_hourly_stats, get_path_stats, get_country_stats, cleanup_old_ip_logs)
+- service_role만 실행 가능하도록 권한 설정
+- TTL 정책 함수(`cleanup_old_ip_logs`) 포함 — Supabase Scheduled Functions에서 주기 실행 권장
+- **설치 방법**: Supabase 대시보드 > SQL Editor에서 해당 파일 내용을 실행
+
+#### 4. `countryStats` UI 완성 (`components/admin/logs/ip-statistics-dashboard.tsx`) ✅
+- 국가별 수평 BarChart 추가 (접근수 + 고유IP 병렬 표시)
+- 국가별 상세 목록 카드 추가 (순위, 국가명, 접근수, 고유IP 수)
+- 미사용이던 `MapPin` 아이콘 실제 사용으로 전환
+- 이상 탐지 알림 카드: severity(고위험/중위험) 구분 + 5분 내 급증 배지 추가
+- 데이터 로딩을 `Promise.allSettled`로 변경 → 일부 실패해도 나머지 데이터 표시
+- 디버그용 `console.log` 전량 제거
+
+#### 5. `lib/ip-geolocation.ts` 개선 ✅
+- **인메모리 캐싱**: 동일 IP 결과 1시간 캐싱 → ip-api.com 분당 45회 제한 대응
+- **오류 시 단기 캐싱**: API 실패/타임아웃 시 5분간 재시도 차단
+- **IP 범위 체크**: `172.16.x` ~ `172.31.x` 각각 16개 `startsWith` → CIDR `172.16/12` 범위 수식으로 단순화
+- **타임아웃 처리**: `AbortSignal.timeout(3000)`으로 3초 제한
+- 캐시 모니터링 유틸(`getGeoCacheSize`, `purgeExpiredGeoCache`) 추가
+
+#### 6. `middleware.ts` 수정 ✅
+- `status_code: 200` 하드코딩 → `status_code: null` 변경 (미들웨어는 응답 전에 실행되므로 실제 상태 코드를 알 수 없음)
+
+#### 7. `auth.config.ts` 정리 ✅
+- 실제로 동작하지 않던 NextAuth `authorized` 콜백을 항상 `true` 반환으로 변경
+- 명확한 주석 추가: 인증 시스템이 Supabase Auth로 완전 전환됨을 문서화
+- 향후 next-auth 의존성 및 Prisma Account/Session 모델 정리 권고 사항 기록
+
+#### 8. `components/admin/logs/ip-log-viewer.tsx` 수정 ✅
+- `exportIpLogs` 필수 날짜 파라미터 적용: 미입력 시 최근 30일 기본값 사용
+
+### 교훈 (Lessons)
+- **Service Role Key 폴백 금지**: `SUPABASE_SERVICE_ROLE_KEY`가 없으면 ANON_KEY로 폴백하지 않고 즉시 오류를 발생시켜야 한다. 폴백 시 RLS로 인해 silent fail이 발생한다.
+- **DB 집계 우선**: 통계 집계는 JS에서 처리하는 것보다 DB RPC 함수를 사용하는 것이 성능과 정확도 면에서 우수하다.
+- **외부 API 캐싱 필수**: ip-api.com과 같은 rate-limited API는 반드시 캐싱 레이어를 둬야 한다.
+- **이중 인증 시스템 주의**: auth.config.ts(NextAuth)와 lib/supabase/middleware.ts(Supabase Auth)가 동시에 존재하면 혼란을 야기한다.
+
+---
+
 ## 📄 관련 문서
 - **작업 완료 보고서**: `/docs/CHART_DATA_VERIFICATION_COMPLETE.md`
 - **배포 준비 가이드**: `/docs/PHASE4_DEPLOYMENT_READY.md`

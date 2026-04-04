@@ -76,36 +76,35 @@ function analyzeCohortRetention(data: PatientData[]): CohortRetentionMatrix {
 ### 1.2 환자 세그멘테이션 (Patient Segmentation)
 
 #### 🎯 목적
-RFM 분석 기반 환자 그룹 자동 분류
+RF 분석 기반 환자 그룹 자동 분류 (Recency, Frequency)
 
 #### 💡 구현 내용
 
-**1.2.1 RFM 스코어 계산**
+**1.2.1 RF 스코어 계산**
 ```typescript
-interface RFMScore {
+interface RFScore {
   patientId: string
   recency: number      // 최근 방문일 (점수 1-5)
   frequency: number    // 방문 횟수 (점수 1-5)
-  monetary: number     // 총 진료비 (점수 1-5)
   segment: PatientSegment
 }
 
 enum PatientSegment {
-  CHAMPIONS = '챔피언',          // RFM 모두 높음
-  LOYAL = '충성 고객',           // RF 높음
+  CHAMPIONS = '챔피언',          // RF 모두 높음
+  LOYAL = '충성 고객',           // RF 모두 높음
   AT_RISK = '이탈 위험',         // F 높지만 R 낮음
-  CANT_LOSE = '놓칠 수 없는 고객', // FM 높지만 R 낮음
-  NEW = '신규 환자',             // R 높지만 F 낮음
-  LOST = '이탈 고객'             // RFM 모두 낮음
+  PROMISING = '잠재 고객',       // R 높지만 F 낮음
+  NEW = '신규 환자',             // R 높고 F 낮음
+  LOST = '이탈 고객'             // RF 모두 낮음
 }
 ```
 
 **1.2.2 자동 세그멘테이션**
 ```typescript
 function segmentPatients(data: PatientData[]): Map<PatientSegment, PatientData[]> {
-  const rfmScores = calculateRFM(data)
+  const rfScores = calculateRF(data)
   
-  return rfmScores.reduce((segments, score) => {
+  return rfScores.reduce((segments, score) => {
     const segment = classifySegment(score)
     if (!segments.has(segment)) {
       segments.set(segment, [])
@@ -115,15 +114,18 @@ function segmentPatients(data: PatientData[]): Map<PatientSegment, PatientData[]
   }, new Map())
 }
 
-function classifySegment(rfm: RFMScore): PatientSegment {
-  if (rfm.recency >= 4 && rfm.frequency >= 4 && rfm.monetary >= 4) {
+function classifySegment(rf: RFScore): PatientSegment {
+  if (rf.recency >= 4 && rf.frequency >= 4) {
     return PatientSegment.CHAMPIONS
   }
-  if (rfm.recency >= 3 && rfm.frequency >= 4) {
+  if (rf.recency >= 3 && rf.frequency >= 4) {
     return PatientSegment.LOYAL
   }
-  if (rfm.recency <= 2 && rfm.frequency >= 4) {
+  if (rf.recency <= 2 && rf.frequency >= 4) {
     return PatientSegment.AT_RISK
+  }
+  if (rf.recency >= 4 && rf.frequency <= 2) {
+    return PatientSegment.NEW
   }
   // ... 추가 분류 로직
 }
@@ -153,263 +155,9 @@ const SEGMENT_STRATEGIES: Record<PatientSegment, Strategy> = {
 
 ---
 
-### 1.3 예측 분석 (Predictive Analytics)
-
-#### 🎯 목적
-머신러닝 기반 환자 행동 예측
-
-#### 💡 구현 내용
-
-**1.3.1 재방문 확률 예측**
-```typescript
-// 간단한 로지스틱 회귀 모델
-interface PredictionModel {
-  features: {
-    daysSinceLastVisit: number
-    totalVisits: number
-    avgInterval: number
-    diseaseCategory: string
-    ageGroup: string
-  }
-  probability: number // 0-1
-}
-
-function predictRevisit(patient: PatientData, model: MLModel): number {
-  const features = extractFeatures(patient)
-  return model.predict(features) // 재방문 확률 (0-1)
-}
-```
-
-**1.3.2 이탈 위험 예측**
-```typescript
-function identifyChurnRisk(
-  data: PatientData[],
-  threshold: number = 0.3
-): ChurnRiskReport {
-  const predictions = data.map(patient => ({
-    patientId: patient.patient_id,
-    churnProbability: predictChurn(patient),
-    riskLevel: getRiskLevel(predictChurn(patient))
-  }))
-  
-  return {
-    highRisk: predictions.filter(p => p.churnProbability > 0.7),
-    mediumRisk: predictions.filter(p => p.churnProbability > 0.4 && p.churnProbability <= 0.7),
-    lowRisk: predictions.filter(p => p.churnProbability <= 0.4),
-  }
-}
-```
-
-**1.3.3 수요 예측**
-```typescript
-// 시계열 예측 (ARIMA 모델)
-function forecastDemand(
-  historicalData: PatientData[],
-  months: number = 6
-): ForecastResult {
-  const timeSeries = aggregateByMonth(historicalData)
-  const model = new ARIMAModel(timeSeries)
-  
-  return {
-    forecast: model.predict(months),
-    confidence: model.getConfidenceInterval(0.95),
-    seasonality: model.detectSeasonality()
-  }
-}
-```
-
-#### 📊 예상 효과
-- ✅ 이탈 환자 조기 개입 (리텐션 20% 향상)
-- ✅ 인력/자원 배치 최적화
-- ✅ 수익 예측 정확도 향상
-
----
-
-### 1.4 경쟁 분석 (Competitive Analysis)
-
-#### 🎯 목적
-지역별 시장 점유율 및 경쟁 강도 분석
-
-#### 💡 구현 내용
-
-**1.4.1 시장 점유율 분석**
-```typescript
-interface MarketShareAnalysis {
-  region: string
-  totalMarket: number        // 추정 시장 크기
-  ourShare: number           // 우리 병원 점유율
-  potentialShare: number     // 잠재 점유율
-  competitionIndex: number   // 경쟁 강도 (0-100)
-  growthRate: number         // 성장률
-}
-
-function analyzeMarketShare(
-  data: PatientData[],
-  populationData: RegionPopulation[]
-): MarketShareAnalysis[] {
-  return populationData.map(region => {
-    const ourPatients = data.filter(p => p.region === region.name).length
-    const estimatedMarket = region.population * region.healthcareUtilization
-    
-    return {
-      region: region.name,
-      totalMarket: estimatedMarket,
-      ourShare: (ourPatients / estimatedMarket) * 100,
-      potentialShare: calculatePotential(region),
-      competitionIndex: calculateCompetition(region),
-      growthRate: calculateGrowth(data, region.name)
-    }
-  })
-}
-```
-
-**1.4.2 진입 기회 분석**
-```typescript
-// 높은 성장 + 낮은 경쟁 = 좋은 기회
-function identifyOpportunities(
-  marketAnalysis: MarketShareAnalysis[]
-): OpportunityReport {
-  return marketAnalysis
-    .filter(m => m.growthRate > 10 && m.competitionIndex < 50)
-    .sort((a, b) => b.potentialShare - a.potentialShare)
-    .map(market => ({
-      region: market.region,
-      opportunity: 'high',
-      reason: `높은 성장률(${market.growthRate}%)과 낮은 경쟁(${market.competitionIndex})`,
-      estimatedRevenue: market.potentialShare * market.totalMarket
-    }))
-}
-```
-
-#### 📊 예상 효과
-- ✅ 신규 진출 지역 식별
-- ✅ 마케팅 자원 효율적 배분
-- ✅ 전략적 의사결정 지원
-
----
-
 ## 2. 경영 전략 인사이트 고도화
 
-### 2.1 AI 기반 자동 인사이트 생성
-
-#### 🎯 목적
-데이터 패턴을 자동으로 분석하여 실행 가능한 인사이트 제공
-
-#### 💡 구현 내용
-
-**2.1.1 이상 탐지 (Anomaly Detection)**
-```typescript
-interface Anomaly {
-  type: 'spike' | 'drop' | 'trend_change'
-  metric: string
-  value: number
-  expected: number
-  deviation: number
-  date: string
-  severity: 'low' | 'medium' | 'high'
-}
-
-function detectAnomalies(data: PatientData[]): Anomaly[] {
-  const timeSeries = createTimeSeries(data)
-  const anomalies: Anomaly[] = []
-  
-  // Z-score 기반 이상치 탐지
-  timeSeries.forEach((point, index) => {
-    const zscore = calculateZScore(point, timeSeries)
-    if (Math.abs(zscore) > 2.5) {
-      anomalies.push({
-        type: point.value > point.expected ? 'spike' : 'drop',
-        metric: 'daily_visits',
-        value: point.value,
-        expected: point.expected,
-        deviation: Math.abs(zscore),
-        date: point.date,
-        severity: Math.abs(zscore) > 3 ? 'high' : 'medium'
-      })
-    }
-  })
-  
-  return anomalies
-}
-```
-
-**2.1.2 트렌드 분석**
-```typescript
-interface TrendInsight {
-  metric: string
-  direction: 'increasing' | 'decreasing' | 'stable'
-  strength: number // 0-1
-  significance: number // p-value
-  forecast: number[] // 향후 3개월 예측
-  recommendation: string
-}
-
-function analyzeTrends(data: PatientData[]): TrendInsight[] {
-  const metrics = ['visits', 'retention', 'revenue', 'surgery_rate']
-  
-  return metrics.map(metric => {
-    const timeSeries = extractMetric(data, metric)
-    const trend = linearRegression(timeSeries)
-    
-    return {
-      metric,
-      direction: trend.slope > 0 ? 'increasing' : 'decreasing',
-      strength: Math.abs(trend.rSquared),
-      significance: trend.pValue,
-      forecast: forecastLinear(trend, 3),
-      recommendation: generateRecommendation(trend, metric)
-    }
-  })
-}
-```
-
-**2.1.3 상관관계 분석**
-```typescript
-interface CorrelationInsight {
-  variable1: string
-  variable2: string
-  correlation: number // -1 to 1
-  pValue: number
-  insight: string
-}
-
-function findCorrelations(data: PatientData[]): CorrelationInsight[] {
-  const variables = [
-    'age', 'visit_frequency', 'surgery_count', 
-    'retention_rate', 'avg_interval'
-  ]
-  
-  const correlations: CorrelationInsight[] = []
-  
-  // 모든 변수 쌍에 대해 상관관계 계산
-  for (let i = 0; i < variables.length; i++) {
-    for (let j = i + 1; j < variables.length; j++) {
-      const corr = calculateCorrelation(data, variables[i], variables[j])
-      
-      if (Math.abs(corr.value) > 0.5 && corr.pValue < 0.05) {
-        correlations.push({
-          variable1: variables[i],
-          variable2: variables[j],
-          correlation: corr.value,
-          pValue: corr.pValue,
-          insight: generateCorrelationInsight(variables[i], variables[j], corr.value)
-        })
-      }
-    }
-  }
-  
-  return correlations
-}
-```
-
-#### 📊 예상 효과
-- ✅ 숨겨진 패턴 자동 발견
-- ✅ 의사결정 속도 50% 향상
-- ✅ 데이터 기반 경영 문화 정착
-
----
-
-### 2.2 맞춤형 인사이트 대시보드
+### 2.1 맞춤형 인사이트 대시보드
 
 #### 🎯 목적
 사용자 역할별 맞춤형 인사이트 제공
@@ -435,9 +183,9 @@ interface RoleDashboard {
 
 const ROLE_DASHBOARDS: Record<UserRole, DashboardConfig> = {
   [UserRole.CEO]: {
-    kpis: ['revenue', 'growth_rate', 'patient_satisfaction', 'market_share'],
-    insights: ['financial_performance', 'strategic_opportunities', 'risk_factors'],
-    priority: ['revenue_trends', 'market_expansion']
+    kpis: ['total_patients', 'growth_rate', 'patient_satisfaction', 'retention_rate'],
+    insights: ['patient_trends', 'strategic_opportunities', 'risk_factors'],
+    priority: ['growth_trends', 'market_expansion']
   },
   [UserRole.CMO]: {
     kpis: ['new_patients', 'retention_rate', 'marketing_roi', 'referral_rate'],
@@ -502,29 +250,6 @@ function generateSmartAlerts(
           priority: 'medium',
           estimatedImpact: '20% 재방문율 향상',
           estimatedEffort: '1시간'
-        }
-      ],
-      createdAt: new Date(),
-      read: false
-    })
-  }
-  
-  // 성장 기회 알림
-  const opportunities = identifyOpportunities(analyzeMarketShare(data))
-  if (opportunities.length > 0) {
-    alerts.push({
-      id: generateId(),
-      severity: 'info',
-      category: 'growth',
-      title: `${opportunities[0].region} 지역 진출 기회 발견`,
-      description: `높은 성장률(${opportunities[0].growthRate}%)과 낮은 경쟁 강도`,
-      data: opportunities[0],
-      recommendations: [
-        {
-          action: '지역 마케팅 캠페인 계획',
-          priority: 'medium',
-          estimatedImpact: `연간 ${opportunities[0].estimatedRevenue.toLocaleString()}원 추가 수익`,
-          estimatedEffort: '1주'
         }
       ],
       createdAt: new Date(),
@@ -641,293 +366,320 @@ function trackGoalProgress(
 
 ---
 
-## 3. 보안 강화 방안
+## 3. 브라우저 보안 강화 방안
 
-### 3.1 데이터 암호화
+### 3.1 클라이언트 사이드 데이터 보호
 
 #### 🎯 목적
-PHI(Protected Health Information) 보호 및 규정 준수
+로컬 환경에서 환자 데이터 보호 및 안전한 데이터 처리
 
 #### 💡 구현 내용
 
-**3.1.1 클라이언트 사이드 암호화**
+**3.1.1 브라우저 메모리 보호**
 ```typescript
-import { AES, enc } from 'crypto-js'
-
-class DataEncryption {
-  private encryptionKey: string
-  
-  constructor() {
-    // 사용자별 고유 키 생성 (비밀번호 기반)
-    this.encryptionKey = this.deriveKey()
-  }
-  
-  private deriveKey(): string {
-    // PBKDF2로 강력한 키 유도
-    return CryptoJS.PBKDF2(userPassword, salt, {
-      keySize: 256/32,
-      iterations: 10000
-    }).toString()
-  }
-  
-  encrypt(data: PatientData[]): string {
-    const jsonStr = JSON.stringify(data)
-    return AES.encrypt(jsonStr, this.encryptionKey).toString()
-  }
-  
-  decrypt(encrypted: string): PatientData[] {
-    const decrypted = AES.decrypt(encrypted, this.encryptionKey)
-    return JSON.parse(decrypted.toString(enc.Utf8))
-  }
-}
-
-// localStorage 저장 시 암호화
-function saveEncrypted(key: string, data: any) {
-  const encryption = new DataEncryption()
-  const encrypted = encryption.encrypt(data)
-  localStorage.setItem(key, encrypted)
-}
-```
-
-**3.1.2 민감 정보 마스킹**
-```typescript
-interface MaskedPatientData extends Omit<PatientData, 'name' | 'patient_id' | 'address'> {
-  hashedId: string // 원본 ID 대신 해시값
-  displayName: string // "환자 A", "환자 B"
+// 민감 정보 자동 마스킹
+interface MaskedPatientData extends Omit<PatientData, 'name' | 'address'> {
+  displayId: string // "환자-001", "환자-002"
   regionOnly: string // 상세 주소 대신 지역만
 }
 
 function maskSensitiveData(data: PatientData[]): MaskedPatientData[] {
   return data.map((patient, index) => ({
     ...patient,
-    hashedId: hashString(patient.patient_id),
-    displayName: `환자 ${String.fromCharCode(65 + (index % 26))}`,
+    displayId: `환자-${String(index + 1).padStart(3, '0')}`,
     regionOnly: patient.region,
-    // 원본 필드 제거
+    // 원본 제거
     name: undefined!,
-    patient_id: undefined!,
     address: undefined!
   }))
 }
+
+// UI 표시용 데이터만 마스킹
+const maskedData = maskSensitiveData(rawData)
 ```
 
-**3.1.3 데이터 익명화**
+**3.1.2 localStorage 보안 강화**
 ```typescript
-// K-anonymity 적용 (k=5)
-function anonymizeData(data: PatientData[], k: number = 5): AnonymizedData[] {
-  // 연령을 범위로 변환 (35 → 30-39)
-  // 주소를 광역시/도 수준으로 일반화
-  // 희귀 질병을 카테고리로 그룹화
+// 브라우저 종료 시 자동 삭제 (sessionStorage 활용)
+class SecureStorage {
+  // 중요 데이터는 sessionStorage에만 저장
+  saveTemporary(key: string, data: any) {
+    try {
+      sessionStorage.setItem(key, JSON.stringify(data))
+      console.log('데이터가 세션에만 저장됨 (브라우저 종료 시 자동 삭제)')
+    } catch (error) {
+      console.error('저장 실패:', error)
+    }
+  }
   
-  return data.map(patient => ({
-    ...patient,
-    age: Math.floor(patient.age / 10) * 10, // 30대, 40대 등
-    region: extractProvince(patient.region), // 서울, 경기 등
-    disease_name: generalizeDiseases(patient.disease_name, data)
+  // 통계 데이터만 localStorage에 저장
+  savePersistent(key: string, data: any) {
+    const allowedKeys = ['chart_data', 'kpi_summary', 'filter_settings']
+    if (!allowedKeys.includes(key)) {
+      console.warn('민감 데이터는 localStorage에 저장하지 않습니다')
+      return
+    }
+    localStorage.setItem(key, JSON.stringify(data))
+  }
+  
+  // 앱 종료 시 정리
+  clearAll() {
+    sessionStorage.clear()
+    const keysToKeep = ['filter_settings', 'user_preferences']
+    Object.keys(localStorage).forEach(key => {
+      if (!keysToKeep.includes(key)) {
+        localStorage.removeItem(key)
+      }
+    })
+  }
+}
+
+// 브라우저 종료 전 이벤트
+window.addEventListener('beforeunload', () => {
+  const storage = new SecureStorage()
+  storage.clearAll()
+})
+```
+
+**3.1.3 데이터 유출 방지**
+```typescript
+// 개발자 도구에서 데이터 보호
+class DataProtection {
+  private data: PatientData[] = []
+  
+  setData(newData: PatientData[]) {
+    // 원본은 비공개 변수로 보호
+    this.data = newData
+  }
+  
+  getData(): PatientData[] {
+    // 프로덕션 환경에서는 마스킹된 데이터만 반환
+    if (process.env.NODE_ENV === 'production') {
+      return maskSensitiveData(this.data)
+    }
+    return this.data
+  }
+  
+  getStatistics() {
+    // 통계만 노출
+    return {
+      totalCount: this.data.length,
+      dateRange: getDateRange(this.data),
+      topDiseases: getTopDiseases(this.data, 5)
+    }
+  }
+}
+
+// 콘솔 로그 제한
+if (process.env.NODE_ENV === 'production') {
+  console.log = () => {}
+  console.info = () => {}
+  // error와 warn만 허용
+}
+```
+
+#### 📊 예상 효과
+- ✅ 브라우저 메모리에서 민감 정보 최소화
+- ✅ 세션 종료 시 자동 데이터 삭제
+- ✅ 개발자 도구를 통한 데이터 접근 차단
+
+---
+
+### 3.2 파일 업로드 보안
+
+#### 🎯 목적
+악성 파일 차단 및 안전한 파일 처리
+
+#### 💡 구현 내용
+
+**3.2.1 파일 검증**
+```typescript
+interface FileValidation {
+  isValid: boolean
+  error?: string
+}
+
+function validateFile(file: File): FileValidation {
+  // 파일 크기 제한 (100MB)
+  const maxSize = 100 * 1024 * 1024
+  if (file.size > maxSize) {
+    return {
+      isValid: false,
+      error: '파일 크기가 100MB를 초과합니다'
+    }
+  }
+  
+  // 확장자 검증
+  const allowedExtensions = ['.csv', '.xlsx', '.xls']
+  const extension = file.name.toLowerCase().slice(file.name.lastIndexOf('.'))
+  if (!allowedExtensions.includes(extension)) {
+    return {
+      isValid: false,
+      error: '허용되지 않는 파일 형식입니다 (CSV, Excel만 가능)'
+    }
+  }
+  
+  // MIME 타입 검증
+  const allowedTypes = [
+    'text/csv',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  ]
+  if (!allowedTypes.includes(file.type)) {
+    return {
+      isValid: false,
+      error: 'MIME 타입이 일치하지 않습니다'
+    }
+  }
+  
+  return { isValid: true }
+}
+
+// 사용
+function handleFileUpload(file: File) {
+  const validation = validateFile(file)
+  if (!validation.isValid) {
+    alert(validation.error)
+    return
+  }
+  
+  // 파일 처리 진행
+  processFile(file)
+}
+```
+
+**3.2.2 스크립트 삽입 방지**
+```typescript
+// CSV 파싱 시 수식 실행 방지
+function sanitizeCell(value: any): string {
+  if (typeof value !== 'string') return String(value)
+  
+  // Excel 수식 방지 (=, +, -, @로 시작하는 셀)
+  const dangerousChars = ['=', '+', '-', '@']
+  if (dangerousChars.includes(value.charAt(0))) {
+    return `'${value}` // 앞에 ' 추가하여 텍스트로 처리
+  }
+  
+  // HTML/Script 태그 제거
+  return value
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<[^>]+>/g, '')
+}
+
+function parseCSVSafely(data: any[]): PatientData[] {
+  return data.map(row => ({
+    patient_id: sanitizeCell(row.patient_id),
+    name: sanitizeCell(row.name),
+    // ... 모든 필드 sanitize
   }))
 }
 ```
 
 #### 📊 예상 효과
-- ✅ 개인정보 보호법 완벽 준수
-- ✅ 데이터 유출 시 피해 최소화
-- ✅ 환자 신뢰도 향상
+- ✅ 악성 파일 업로드 차단
+- ✅ 스크립트 삽입 공격 방지
+- ✅ 안전한 파일 처리
 
 ---
 
-### 3.2 접근 제어 강화
+### 3.3 UI 보안
 
 #### 🎯 목적
-세분화된 권한 관리 및 감사 추적
+사용자 인터페이스에서 민감 정보 노출 방지
 
 #### 💡 구현 내용
 
-**3.2.1 속성 기반 접근 제어 (ABAC)**
+**3.3.1 화면 캡처 방지 (선택사항)**
 ```typescript
-interface AccessPolicy {
-  subject: {
-    role: string
-    department: string
-    level: number
-  }
-  resource: {
-    type: 'patient_data' | 'report' | 'analytics'
-    sensitivity: 'public' | 'internal' | 'confidential' | 'restricted'
-  }
-  action: 'read' | 'write' | 'delete' | 'export'
-  context: {
-    time?: TimeRange
-    location?: string
-    ipWhitelist?: string[]
-  }
+// 특정 영역 캡처 방지 (CSS)
+.sensitive-data {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }
 
-class AccessControl {
-  evaluate(policy: AccessPolicy): boolean {
-    // 역할 체크
-    if (!this.checkRole(policy.subject.role, policy.action)) {
-      return false
-    }
-    
-    // 민감도 체크
-    if (policy.resource.sensitivity === 'restricted' && 
-        policy.subject.level < 3) {
-      return false
-    }
-    
-    // 시간 제한 체크
-    if (policy.context.time && 
-        !this.isWithinTimeRange(policy.context.time)) {
-      return false
-    }
-    
-    // IP 화이트리스트 체크
-    if (policy.context.ipWhitelist && 
-        !this.isIpWhitelisted(policy.context.ipWhitelist)) {
-      return false
-    }
-    
-    return true
+// 우클릭 방지 (선택사항)
+document.addEventListener('contextmenu', (e) => {
+  if (e.target.closest('.sensitive-data')) {
+    e.preventDefault()
   }
+})
+```
+
+**3.3.2 데이터 표시 제어**
+```typescript
+// 환자 이름 마스킹 옵션
+interface DisplayOptions {
+  showFullName: boolean
+  showAddress: boolean
+  showPatientId: boolean
+}
+
+function DisplayPatientData({ patient, options }: Props) {
+  return (
+    <div>
+      <span>
+        {options.showFullName 
+          ? patient.name 
+          : `${patient.name.charAt(0)}**`
+        }
+      </span>
+      <span>
+        {options.showAddress 
+          ? patient.address 
+          : patient.region
+        }
+      </span>
+    </div>
+  )
 }
 ```
 
-**3.2.2 감사 로그**
+**3.3.3 자동 로그아웃 (비활동 시)**
 ```typescript
-interface AuditLog {
-  id: string
-  timestamp: Date
-  userId: string
-  action: string
-  resource: string
-  result: 'success' | 'denied' | 'error'
-  ipAddress: string
-  userAgent: string
-  details: any
-}
-
-function logAccess(event: AuditLog) {
-  // 변조 방지를 위해 블록체인 스타일 해시 체인 사용
-  const previousHash = getLastLogHash()
-  const currentHash = hashLog(event, previousHash)
+class InactivityTimer {
+  private timeout: number = 30 * 60 * 1000 // 30분
+  private timer: NodeJS.Timeout | null = null
   
-  saveLog({
-    ...event,
-    hash: currentHash,
-    previousHash
-  })
-  
-  // 중요 이벤트는 즉시 알림
-  if (event.result === 'denied' || event.action === 'export') {
-    notifySecurityTeam(event)
-  }
-}
-```
-
-**3.2.3 이상 행동 탐지**
-```typescript
-interface BehaviorPattern {
-  userId: string
-  typicalActions: string[]
-  typicalTime: TimeRange
-  typicalIpRanges: string[]
-}
-
-function detectAnomalousAccess(
-  event: AuditLog,
-  patterns: BehaviorPattern
-): boolean {
-  const score = calculateAnomalyScore(event, patterns)
-  
-  if (score > 0.8) {
-    // 매우 이상한 패턴
-    blockUser(event.userId)
-    sendSecurityAlert('High risk activity detected', event)
-    return true
-  } else if (score > 0.6) {
-    // 의심스러운 패턴
-    requireMFA(event.userId)
-    sendSecurityAlert('Suspicious activity detected', event)
-    return true
+  start() {
+    this.reset()
+    
+    // 사용자 활동 감지
+    ['mousedown', 'keydown', 'scroll', 'touchstart'].forEach(event => {
+      document.addEventListener(event, () => this.reset())
+    })
   }
   
-  return false
+  reset() {
+    if (this.timer) clearTimeout(this.timer)
+    
+    this.timer = setTimeout(() => {
+      this.onTimeout()
+    }, this.timeout)
+  }
+  
+  onTimeout() {
+    // 데이터 정리
+    sessionStorage.clear()
+    
+    // 경고 메시지
+    alert('비활동으로 인해 데이터가 초기화되었습니다. 다시 업로드해주세요.')
+    
+    // 업로드 페이지로 이동
+    window.location.href = '/dashboard/upload'
+  }
 }
+
+// 앱 시작 시 활성화
+const inactivityTimer = new InactivityTimer()
+inactivityTimer.start()
 ```
 
 #### 📊 예상 효과
-- ✅ 무단 접근 차단
-- ✅ 내부자 위협 대응
-- ✅ 규정 준수 입증 가능
-
----
-
-### 3.3 보안 모니터링
-
-#### 🎯 목적
-실시간 보안 위협 탐지 및 대응
-
-#### 💡 구현 내용
-
-**3.3.1 실시간 보안 대시보드**
-```typescript
-interface SecurityMetrics {
-  failedLogins: number
-  blockedIps: string[]
-  suspiciousActivities: Activity[]
-  dataExports: number
-  activeUsers: number
-  vulnerabilityScore: number
-}
-
-function getSecurityStatus(): SecurityStatus {
-  const last24h = getLast24Hours()
-  
-  return {
-    overallStatus: calculateSecurityScore(last24h),
-    metrics: {
-      failedLogins: countFailedLogins(last24h),
-      blockedIps: getBlockedIps(last24h),
-      suspiciousActivities: detectSuspiciousActivities(last24h),
-      dataExports: countDataExports(last24h),
-      activeUsers: countActiveUsers(last24h),
-      vulnerabilityScore: scanVulnerabilities()
-    },
-    alerts: getActiveAlerts(),
-    recommendations: generateSecurityRecommendations()
-  }
-}
-```
-
-**3.3.2 자동 위협 대응**
-```typescript
-class ThreatResponse {
-  async handleThreat(threat: SecurityThreat) {
-    switch (threat.severity) {
-      case 'critical':
-        await this.isolateUser(threat.userId)
-        await this.lockData()
-        await this.notifyIncidentResponse()
-        break
-        
-      case 'high':
-        await this.requireMFA(threat.userId)
-        await this.increaseMonitoring(threat.userId)
-        await this.notifySecurityTeam()
-        break
-        
-      case 'medium':
-        await this.logAndMonitor(threat)
-        break
-    }
-  }
-}
-```
-
-#### 📊 예상 효과
-- ✅ 보안 사고 조기 발견
-- ✅ 대응 시간 90% 단축
-- ✅ 자동화된 위협 대응
+- ✅ 화면 공유 시 민감 정보 보호
+- ✅ 자동 데이터 정리로 유출 방지
+- ✅ 사용자 제어 가능한 보안 수준
 
 ---
 
@@ -936,21 +688,73 @@ class ThreatResponse {
 ### 4.1 문제 분석
 
 #### 현재 상황
-- CSV 파일을 한 번에 메모리로 로드
+- CSV/Excel 파일을 한 번에 메모리로 로드
 - 50,000행 이상 시 브라우저 메모리 부족 (Heap Out of Memory)
 - PapaParse가 전체 파일을 파싱하여 배열로 반환
 - 처리 중 UI 블로킹 발생
 
-#### 메모리 사용 추정
+#### 파일 크기 vs 메모리 사용량
+
+**실제 파일 크기 (프로젝트 테스트 결과)**
 ```
-50,000 rows × 15 columns × 50 bytes/cell = 37.5 MB (원본)
-+ JSON 파싱 오버헤드 (2x) = 75 MB
-+ React 상태 관리 (2x) = 150 MB
-+ localStorage 직렬화 시도 (2x) = 300 MB
------------------------------------------
-총 메모리 사용량: ~300-500 MB
-브라우저 힙 제한: ~500 MB (모바일), ~2 GB (데스크톱)
+10,000 rows → 948 KB
+15,000 rows → 1.4 MB
+20,000 rows → 1.9 MB
+30,000 rows → 2.8 MB
+50,000 rows → 약 4.7 MB (추정)
+100,000 rows → 약 9.4 MB (추정)
+
+→ CSV 파일: 1행당 약 95 bytes (한글 이름, 주소 포함)
+→ Excel (.xlsx): CSV 대비 30-50% 더 작음 (압축)
 ```
+
+**메모리 사용량 (JavaScript 객체)**
+```
+파일 읽기: 1.9 MB (20,000행 기준)
+↓
+파싱 후 JavaScript 객체 배열:
+20,000 rows × 9 columns × 평균 40 bytes/cell = 7.2 MB
+(실제: 문자열 오버헤드, 객체 헤더 등으로 약 15 MB)
+
+↓ React 상태 관리
+rawData 저장: 15 MB
+processedData 생성: 15 MB
+chartData 계산: 10 MB
+= 40 MB
+
+↓ 추가 처리
+필터링된 복사본: 15 MB
+정렬/검색 임시 배열: 15 MB
+렌더링 버퍼: 10 MB
+= 40 MB
+
+총 메모리 사용량: ~80 MB (20,000행)
+```
+
+**메모리 증폭 비율**
+```
+파일 크기: 1.9 MB
+메모리 사용: 80 MB
+증폭 비율: 약 42배
+
+50,000행 추정:
+파일 크기: 4.7 MB
+메모리 사용: 200 MB
+증폭 비율: 약 42배
+```
+
+**문제: 메모리 증폭**
+- 파일 크기: **1.9 MB** (20,000행)
+- 메모리 사용: **80 MB** (약 **42배 증폭**)
+- 원인: JavaScript 문자열 오버헤드, 객체 구조, 중복 데이터, 불필요한 복사
+
+**브라우저 제한**
+- 모바일: ~500 MB 힙 메모리
+- 데스크톱: ~2 GB 힙 메모리
+- 20,000행: **안전** (80 MB)
+- 50,000행: **안전** (200 MB)
+- 100,000행: **경고** (400 MB, 모바일 위험)
+- 200,000행 이상: **메모리 부족** (800 MB+)
 
 ---
 
@@ -1564,45 +1368,41 @@ async function progressiveAnalysis(data: PatientData[]) {
 
 ## 5. 구현 로드맵
 
-### Phase 1: 고급 분석 기능 (4주)
+### Phase 1: 고급 분석 기능 (2주)
 
 | 주차 | 작업 | 산출물 |
 |------|------|--------|
 | 1주차 | 코호트 분석 구현 | 코호트 대시보드 |
-| 2주차 | RFM 세그멘테이션 | 세그먼트 분류 및 전략 |
-| 3주차 | 예측 분석 (재방문/이탈) | 예측 모델 및 API |
-| 4주차 | 경쟁 분석 도구 | 시장 분석 대시보드 |
+| 2주차 | RF 세그멘테이션 | 세그먼트 분류 및 전략 |
 
 **예상 효과**:
 - 재방문율 15-20% 향상
-- 이탈 예방 30% 개선
+- 맞춤형 마케팅 전략 수립
 
 ---
 
-### Phase 2: 인사이트 고도화 (3주)
+### Phase 2: 인사이트 고도화 (2주)
 
 | 주차 | 작업 | 산출물 |
 |------|------|--------|
-| 1주차 | AI 인사이트 생성 엔진 | 자동 인사이트 |
-| 2주차 | 역할별 대시보드 | CEO/CMO/COO 대시보드 |
-| 3주차 | 벤치마킹 및 목표 추적 | 목표 관리 시스템 |
+| 1주차 | 역할별 대시보드 | CEO/CMO/COO 대시보드 |
+| 2주차 | 벤치마킹 및 목표 추적 | 목표 관리 시스템 |
 
 **예상 효과**:
-- 의사결정 속도 50% 향상
-- 데이터 활용도 3배 증가
+- 의사결정 속도 향상
+- 데이터 활용도 증가
 
 ---
 
-### Phase 3: 보안 강화 (2주)
+### Phase 3: 브라우저 보안 강화 (1주)
 
 | 주차 | 작업 | 산출물 |
 |------|------|--------|
-| 1주차 | 암호화 및 마스킹 | 데이터 보호 시스템 |
-| 2주차 | ABAC 및 감사 로그 | 접근 제어 강화 |
+| 1주차 | 데이터 마스킹 및 세션 관리 | 로컬 데이터 보호 시스템 |
 
 **예상 효과**:
-- 보안 규정 완벽 준수
-- 환자 신뢰도 향상
+- 민감 정보 자동 보호
+- 세션 종료 시 자동 삭제
 
 ---
 
@@ -1621,24 +1421,21 @@ async function progressiveAnalysis(data: PatientData[]) {
 
 ---
 
-### 총 예상 기간: 12주 (3개월)
+### 총 예상 기간: 6주 (1.5개월)
 
 ### 우선순위
 
 #### 🔴 높음 (즉시 구현 권장)
-1. **대용량 파일 처리 최적화** - 현재 가장 큰 문제
-2. **보안 강화** - 규정 준수 필수
-3. **AI 인사이트 생성** - 사용자 가치 극대화
+1. **대용량 파일 처리 최적화** - 현재 가장 큰 문제 (50,000행 이상 메모리 부족)
+2. **브라우저 보안 강화** - 로컬 데이터 보호
 
 #### 🟡 중간 (3개월 내)
-4. **코호트 분석** - 재방문율 향상
-5. **RFM 세그멘테이션** - 마케팅 효율화
-6. **역할별 대시보드** - 사용성 개선
+3. **코호트 분석** - 재방문율 향상
+4. **RF 세그멘테이션** - 맞춤형 마케팅
+5. **역할별 대시보드** - 사용성 개선
 
 #### 🟢 낮음 (6개월 내)
-7. **예측 분석** - 고급 기능
-8. **경쟁 분석** - 전략적 기능
-9. **벤치마킹** - 부가 기능
+6. **벤치마킹** - 부가 기능
 
 ---
 
@@ -1646,11 +1443,10 @@ async function progressiveAnalysis(data: PatientData[]) {
 
 | 항목 | 투자 | 효과 | ROI |
 |------|------|------|-----|
-| 대용량 처리 | 3주 | 사용자 이탈 방지, 대형 병원 진출 | 300% |
-| 보안 강화 | 2주 | 규정 준수, 신뢰도 향상 | 200% |
-| AI 인사이트 | 3주 | 재방문율 20% 향상 | 400% |
-| 코호트 분석 | 1주 | 마케팅 ROI 30% 향상 | 250% |
-| 예측 분석 | 3주 | 이탈 예방, 수익 예측 | 350% |
+| 대용량 처리 | 3주 | 100만 행 이상 처리, 메모리 80% 절감 | 400% |
+| 브라우저 보안 | 1주 | 민감 정보 보호, 자동 데이터 삭제 | 150% |
+| 코호트 분석 | 1주 | 재방문율 15-20% 향상 | 250% |
+| RF 세그멘테이션 | 1주 | 맞춤형 마케팅, 이탈 예방 | 200% |
 
 ---
 
@@ -1659,10 +1455,10 @@ async function progressiveAnalysis(data: PatientData[]) {
 본 제안서는 PDR Dashboard v4.1의 다음 단계 진화를 위한 종합적인 로드맵을 제시합니다.
 
 ### 핵심 메시지
-1. **대용량 데이터 처리는 최우선 과제** - 현재 가장 큰 제약사항
-2. **보안은 선택이 아닌 필수** - 의료 데이터의 특성상 규정 준수 필요
-3. **AI 인사이트로 차별화** - 단순 시각화를 넘어 실행 가능한 전략 제공
-4. **단계적 구현으로 위험 최소화** - 12주 동안 점진적 개선
+1. **대용량 데이터 처리는 최우선 과제** - 현재 가장 큰 제약사항 (50,000행 이상 메모리 부족)
+2. **로컬 환경 보안 강화** - 브라우저 기반 데이터 보호 (서버 없이도 안전하게)
+3. **데이터 기반 인사이트로 차별화** - 단순 시각화를 넘어 실행 가능한 전략 제공
+4. **단계적 구현으로 위험 최소화** - 6주 동안 점진적 개선
 
 ### 다음 단계
 1. 이해관계자 리뷰 및 피드백
