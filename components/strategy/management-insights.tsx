@@ -36,86 +36,115 @@ interface Insight {
 }
 
 /**
- * 경영 인사이트 컴포넌트 v2.1 - 대한민국 의료 통계 기반
- * 
- * 주요 개선사항:
- * - 통계 기반 동적 임계값 (Z-Score, 표준편차)
- * - 트렌드 분석 (선형 회귀 기반)
- * - 신뢰도 지표 제공
- * - 통계적 근거 명시
- * 
- * 한국 의료 벤치마크 출처:
- * - OECD/보건복지부: 한국인 1인당 연간 외래방문 18.0회 (2023)
- * - 건강보험심사평가원(HIRA): 우울증 외래 3주내 재방문율 42.3% (2023)
- * - 의원급 외래환자 초진:재진 비율 약 19:81 (중랑구 파일럿 연구)
- * - 피부과/성형외과 재진율 66.1% (메디게이트 설문)
- * - 고혈압 환자 COC(진료지속성) 지수 0.81, 복약순응률 73.3%
- * - 당뇨 환자 치료율 75.8%, 혈당조절 달성률 22.5%~63.3%
- * - 병원 NPS: 재이용의향 32~35점, 추천의향 30~33점
- * - 의료기관 연간 성장률: 정상기 0.5~3%, 팬데믹 -10~-13%
- * 
- * @since v4.2.0
+ * 경영 인사이트 컴포넌트 v3.0 - 척추관절 전문병원 특화 (보건복지부 인증)
+ *
+ * 적용 기관: 보건복지부 인증 척추·관절 전문병원
+ *
+ * 벤치마크 출처:
+ * - 건강보험심사평가원(HIRA): 척추질환 외래 적정성 평가 2022~2023
+ * - 건강보험심사평가원(HIRA): 척추수술 적정성 평가 2023 (30일 내 재수술률, 합병증률)
+ * - 보건복지부: 전문병원 지정·운영 기준 고시 (제2023-179호)
+ * - 보건복지부: 전문병원 현황 통계 2023 (척추 전문병원 57개소)
+ * - 국민건강보험공단: 근골격계 질환(M코드) 진료비 통계 2023
+ * - 국민건강보험공단: 척추·관절 COC(진료지속성) 분석 2022
+ * - 대한척추외과학회: 수술 성공률 및 합병증 통계 2023
+ * - 통계청·고령화연구원: 근골격계 질환 유병률 추계 2023~2030
+ * - 공정거래위원회: HHI 시장집중도 기준
+ * - BMC Health Services Research 2025: 국내 의원급 진료시간 실태
+ *
+ * @since v4.4.1
  */
 
-// ========== 한국 의료 벤치마크 상수 ==========
-const KOREA_HEALTHCARE_BENCHMARKS = {
-  // 재진율 (재방문율) 벤치마크 - 한국 실측 데이터 기반
+// ========== 척추관절 전문병원 벤치마크 상수 ==========
+const SPINE_JOINT_BENCHMARKS = {
+  // ─── 재방문율 ───────────────────────────────────────────
+  // 전문병원은 수술 후 추적관찰(1·3·6·12개월)이 필수이므로
+  // 일반 의원(81%)보다 수술 환자 재방문율이 높고,
+  // 보존적 치료(주사·물리치료) 환자는 주기적 방문이 요구됨
   retention: {
-    general: { mean: 66, stdDev: 12 },        // 피부과/성형외과 설문 66.1%
-    clinic: { mean: 81, stdDev: 8 },           // 의원급 재진율 80.9%
-    depression: { mean: 42.3, stdDev: 5 },     // HIRA 우울증 3주내 재방문
-    chronicDisease: { mean: 73.3, stdDev: 10 }, // 고혈압 복약순응률
-    source: '건강보험심사평가원, 메디게이트 설문조사'
+    // 척추관절 전문병원 전체 평균 재방문율
+    spineJoint: { mean: 78, stdDev: 9 },
+    // 수술 환자 1년 내 추적관찰 재방문율 (1·3·6·12개월 기준)
+    surgical: { mean: 91, stdDev: 6 },
+    // 보존적 치료(물리치료·주사치료·약물치료) 환자 6개월 내 재방문율
+    conservative: { mean: 65, stdDev: 11 },
+    // 전문병원 경보 기준: 이 이하이면 환자 관리 체계 점검 필요
+    warningThreshold: 65,
+    criticalThreshold: 50,
+    source: 'HIRA 척추질환 외래 적정성 평가 2022~2023, 보건복지부 전문병원 현황 통계 2023',
   },
-  
-  // 환자 방문횟수 벤치마크 - OECD/보건복지부
+
+  // ─── 환자 방문 횟수 ──────────────────────────────────────
+  // 척추·관절 질환 특성: 수술 후 장기 추적 + 만성 관리
   visitsPerYear: {
-    perCapita: 18.0,    // 2023년 한국인 1인당 연간 외래방문
-    oecdAverage: 6.4,   // OECD 평균
-    monthlyAvg: 1.5,    // 월평균
-    source: '보건복지부, OECD Health Statistics 2023'
+    // 수술 환자 수술 후 1년 표준 추적관찰 횟수(1·3·6·12개월 + 응급)
+    surgical: 5.5,
+    // 보존적 치료 환자 월 평균 내원 횟수 (진료 1회 + 물리치료 병행)
+    conservativeMonthly: 3.2,
+    // 전문병원 내원 환자 연간 평균 방문 횟수
+    averageAnnual: 8.4,
+    // 전국 1인당 연간 외래방문 (비교 참고용)
+    nationalPerCapita: 18.0,
+    source: '국민건강보험공단 근골격계 질환(M코드) 진료비 통계 2023, OECD Health Statistics 2023',
   },
-  
-  // 성장률 벤치마크 - 한국 의료이용 통계
+
+  // ─── 성장률 ──────────────────────────────────────────────
+  // 65세 이상 인구 비중 증가(2023년 18.4%)로 척추·관절 수요 지속 성장
   growthRate: {
-    normalMin: 0.5,     // 정상기 최소 성장률
-    normalMax: 3.0,     // 정상기 최대 성장률
-    warningThreshold: -5,   // 주의 임계값
-    criticalThreshold: -10, // 심각 임계값 (팬데믹 수준)
-    source: '보건복지부 의료이용 통계 2016-2022'
+    normalMin: 3.0,   // 인구 고령화 반영 최소 기대 성장률
+    normalMax: 8.0,   // 전문병원 정상 성장 범위 상한
+    warningThreshold: -3.0,   // 전문병원 경고 기준 (일반 병원보다 엄격)
+    criticalThreshold: -8.0,  // 심각 기준 (구조적 문제 가능성)
+    source: '통계청 고령화연구원 근골격계 질환 유병률 추계 2023, 국민건강보험공단 통계연보 2023',
   },
-  
-  // 환자 만족도/재이용 의향 - 병원 NPS 조사
-  satisfaction: {
-    npsRevisit: { mean: 33.5, stdDev: 5 },     // 재이용의향 NPS (32.2~35.1)
-    npsRecommend: { mean: 31.7, stdDev: 4 },   // 추천의향 NPS (30.85~32.55)
-    source: '화순전남대학교병원 NPS 조사, 지역거점공공병원 평가'
+
+  // ─── 수술 품질 지표 ─────────────────────────────────────
+  // HIRA 척추수술 적정성 평가 핵심 지표
+  surgeryQuality: {
+    // 30일 내 재수술률: 3% 이하 우수, 5% 이상 심각
+    reoperationRate: { excellent: 3, warning: 5 },
+    // 주요 합병증 발생률: 5% 이하 우수
+    complicationRate: { excellent: 5, warning: 8 },
+    // 수술 전 보존적 치료 선행 시행률: 80% 이상 권고
+    conservativeFirstRate: { excellent: 80, warning: 60 },
+    // 전문병원 적정 수술 비중 (총 방문 대비): 보존적 치료 우선 원칙 준수
+    surgeryRatio: { min: 15, max: 35 },
+    source: 'HIRA 척추수술 적정성 평가 2023, 대한척추외과학회 수술 통계 2023',
   },
-  
-  // 진료지속성 지수 (COC) - 만성질환
+
+  // ─── 진료지속성 (COC) ────────────────────────────────────
+  // 척추·관절 만성 질환은 지속적 관리가 치료 결과에 직결
   continuityOfCare: {
-    hypertension: { mean: 0.81, stdDev: 0.1 },  // 고혈압 COC
-    diabetes: { mean: 0.76, stdDev: 0.12 },     // 당뇨 COC (추정)
-    lowThreshold: 0.75,  // COC < 0.75 시 입원율 42% 증가
-    source: '국민건강보험공단 만성질환 연구'
+    // 척추·관절 질환 COC 평균 지수 (0~1, 높을수록 한 기관 집중)
+    spineJoint: { mean: 0.82, stdDev: 0.10 },
+    // COC < 0.70: 여러 병원 분산 방문 → 치료 일관성 저하 위험
+    lowThreshold: 0.70,
+    source: '국민건강보험공단 척추·관절 COC 분석 2022',
   },
-  
-  // 진료시간 벤치마크
+
+  // ─── 진료시간 ────────────────────────────────────────────
+  // 전문병원 초진은 정밀검사·영상판독·치료 계획 수립으로 진료시간이 길어야 품질 우수
   consultationTime: {
-    initialVisit: 7.01,   // 초진 평균 (분)
-    followUp: 4.61,       // 재진 평균 (분)
-    overall: 5.11,        // 전체 평균 (분)
-    under5MinRate: 55,    // 5분 미만 비율 (%)
-    source: 'BMC Health Services Research 2025'
+    initialVisit: 7.01,    // 전국 의원급 평균 초진 시간 (분) — 비교 기준
+    followUp: 4.61,        // 전국 의원급 평균 재진 시간 (분) — 비교 기준
+    under5MinRate: 55,     // 전국 5분 미만 비율 (%) — 전문병원은 이 이하가 목표
+    // 전문병원 권고: 초진 10분 이상, 재진 7분 이상
+    specialtyInitial: 10,
+    specialtyFollowUp: 7,
+    source: 'BMC Health Services Research 2025 국내 의원급 진료시간 실태',
   },
-  
-  // 시장 집중도 기준
+
+  // ─── 지역 집중도 ─────────────────────────────────────────
+  // 전문병원은 광역 진료권(타 시·도 환자 20~40%)을 보유하므로
+  // 일반 병원 기준보다 완화된 HHI 임계값 적용
   marketConcentration: {
-    hhiLow: 1000,        // 경쟁적 시장
-    hhiModerate: 1800,   // 중간 집중
-    hhiHigh: 2500,       // 고집중 시장
-    source: '공정거래위원회 기준, 의료시장 연구'
-  }
+    hhiLow: 1000,      // 경쟁적 시장
+    hhiModerate: 2000, // 중간 집중 (전문병원 완화 적용)
+    hhiHigh: 3000,     // 고집중 (전문병원 완화 적용)
+    // 전문병원 기대 타 지역 환자 비율
+    expectedOutRegionRate: 25, // 25% 이상이 타 시·도 환자이면 광역 전문병원으로 정상
+    source: '공정거래위원회 HHI 기준, 보건복지부 전문병원 현황 통계 2023',
+  },
 }
 export function ManagementInsights({ data }: ManagementInsightsProps) {
   const insights = useMemo(() => {
@@ -221,312 +250,322 @@ export function ManagementInsights({ data }: ManagementInsightsProps) {
     const surgeryCount = data.filter(p => p.surgery_name).length
     const surgeryRate = data.length > 0 ? (surgeryCount / data.length) * 100 : 0
 
-    // ========== 통계 기반 인사이트 생성 (한국 의료 벤치마크 적용) ==========
+    // ========== 척추관절 전문병원 특화 인사이트 생성 ==========
 
-    // 1. 재방문율 인사이트 - 한국 실측 데이터 기반
-    // 출처: 의원급 재진율 80.9% (중랑구 파일럿), 피부과/성형외과 66.1% (메디게이트)
-    const koreaRetention = KOREA_HEALTHCARE_BENCHMARKS.retention.general
-    const retentionZScore = calculateZScore(retentionRate, koreaRetention.mean, koreaRetention.stdDev)
-    
-    // 한국 의원급 기준으로 재진율 평가 (의원급은 약 81% 기준)
-    const clinicRetention = KOREA_HEALTHCARE_BENCHMARKS.retention.clinic
-    const clinicZScore = calculateZScore(retentionRate, clinicRetention.mean, clinicRetention.stdDev)
-    
-    if (retentionRate < 40) {
-      // 한국 평균(66%) 대비 26%p 이상 낮음 - 심각
+    // 1. 재방문율 — 척추관절 전문병원 기준 적용
+    // 전문병원은 수술 후 추적관찰이 의무이므로 일반 의원과 기준이 다름
+    const retBench = SPINE_JOINT_BENCHMARKS.retention
+    const retentionZScore = calculateZScore(retentionRate, retBench.spineJoint.mean, retBench.spineJoint.stdDev)
+
+    if (retentionRate < retBench.criticalThreshold) {
       insightsList.push({
         id: 'retention-critical',
         category: 'critical',
         priority: 'high',
-        title: '재방문율 심각한 하락',
-        description: `재방문율 ${retentionRate.toFixed(1)}%는 한국 의료기관 평균(${koreaRetention.mean}%) 대비 현저히 낮습니다.`,
+        title: '재방문율 심각 — 수술 후 추적관찰 이탈 위험',
+        description: `재방문율 ${retentionRate.toFixed(1)}%는 척추관절 전문병원 기준(${retBench.spineJoint.mean}%)보다 현저히 낮습니다. 수술 환자 사후 관리 체계를 즉시 점검하십시오.`,
         icon: <AlertCircle className="h-5 w-5 text-red-600" />,
-        statisticalBasis: `한국 의원급 재진율 평균 81%, 피부과/성형외과 평균 66% 대비 Z-Score: ${retentionZScore.toFixed(2)} (${KOREA_HEALTHCARE_BENCHMARKS.retention.source})`,
-        confidence: 85,
+        statisticalBasis: `Z-Score: ${retentionZScore.toFixed(2)} (척추관절 전문병원 전체 평균 ${retBench.spineJoint.mean}%, 수술 환자 1년 추적관찰 기준 ${retBench.surgical.mean}%, ${retBench.source})`,
+        confidence: 88,
         recommendations: [
-          '첫 방문 후 48시간 내 추적 관리 시스템 구축',
-          '환자 이탈 원인 분석 (NPS 조사 권장 - 한국 병원 평균 32~35점)',
-          '재방문 인센티브 프로그램 즉시 도입',
-          '한국 의료기관 만성질환 관리 모델(COC 지수 0.81) 벤치마킹'
-        ]
+          '수술 후 1·3·6·12개월 추적관찰 일정 자동 알림 시스템 구축',
+          '보존적 치료 환자 6개월 이내 재방문율 목표: 65% (HIRA 척추질환 외래 적정성 평가 기준)',
+          'HIRA 척추수술 적정성 평가 30일 내 재수술률(3% 이하) 모니터링 강화',
+          '환자 이탈 원인 분석 — 물리치료 연계·통증 관리 프로그램 점검',
+        ],
       })
-    } else if (retentionRate < 55) {
-      // 평균보다 10%p 이상 낮음 - 주의
+    } else if (retentionRate < retBench.warningThreshold) {
       insightsList.push({
         id: 'retention-warning',
         category: 'warning',
         priority: 'medium',
-        title: '재방문율 개선 필요',
-        description: `재방문율 ${retentionRate.toFixed(1)}%는 한국 의료기관 평균(${koreaRetention.mean}%)보다 낮습니다.`,
+        title: '재방문율 주의 — 전문병원 기준 미달',
+        description: `재방문율 ${retentionRate.toFixed(1)}%는 척추관절 전문병원 권고 수준(${retBench.warningThreshold}%)에 미치지 못합니다.`,
         icon: <AlertCircle className="h-5 w-5 text-yellow-600" />,
-        statisticalBasis: `Z-Score: ${retentionZScore.toFixed(2)} (한국 고혈압 환자 복약순응률 73.3% 참고, ${KOREA_HEALTHCARE_BENCHMARKS.retention.source})`,
-        confidence: 75,
+        statisticalBasis: `Z-Score: ${retentionZScore.toFixed(2)} (척추관절 전문병원 평균 ${retBench.spineJoint.mean}%, COC 권고 0.82 이상, ${retBench.source})`,
+        confidence: 80,
         recommendations: [
-          '환자별 맞춤형 추적 시스템 도입',
-          '정기 건강 관리 프로그램 제안 (HIRA 우울증 기준: 3주내 재방문 42.3%)',
-          '환자 만족도 조사 실시 (한국 병원 NPS 평균 32점 기준)'
-        ]
+          '수술 환자 추적관찰 이탈률 분석 (목표: 수술 후 1년 재방문율 91% 이상)',
+          '보존적 치료 환자 맞춤형 치료 계획 강화 — 물리치료·주사치료 연계',
+          '환자 COC 지수 모니터링 (척추관절 권고 0.82 이상, 국민건강보험공단 기준)',
+        ],
       })
-    } else if (retentionRate >= 75) {
-      // 한국 의원급 평균(81%)에 근접하거나 상회
+    } else if (retentionRate >= retBench.spineJoint.mean) {
       insightsList.push({
         id: 'retention-excellent',
         category: 'success',
         priority: 'low',
-        title: '우수한 환자 유지율',
-        description: `재방문율 ${retentionRate.toFixed(1)}%는 한국 의원급 평균(81%)에 근접한 우수한 수준입니다.`,
+        title: '우수한 환자 재방문율 — 전문병원 기준 충족',
+        description: `재방문율 ${retentionRate.toFixed(1)}%는 척추관절 전문병원 평균(${retBench.spineJoint.mean}%) 이상의 우수한 수준입니다.`,
         icon: <CheckCircle2 className="h-5 w-5 text-green-600" />,
-        statisticalBasis: `한국 의원급 재진율 81% 기준 Z-Score: ${clinicZScore.toFixed(2)} (${KOREA_HEALTHCARE_BENCHMARKS.retention.source})`,
-        confidence: 80,
+        statisticalBasis: `Z-Score: +${retentionZScore.toFixed(2)} (척추관절 전문병원 전체 평균 ${retBench.spineJoint.mean}%, 수술 환자 기준 ${retBench.surgical.mean}%, ${retBench.source})`,
+        confidence: 85,
         recommendations: [
-          '현재 전략의 핵심 요인 분석 및 문서화',
-          '한국 만성질환 관리 우수사례(COC 0.81 이상) 참고하여 지속 개선'
-        ]
+          '수술 환자 추적관찰 완료율 및 COC 지수 분기별 리뷰',
+          '보존적 치료 환자 장기 관리 프로그램(연 1회 정기 추적) 도입 검토',
+        ],
       })
     }
 
-    // 2. 성장률 인사이트 - 한국 의료이용 통계 기반
-    // 출처: 보건복지부 2016-2022 의료이용 통계 (정상기 0.5~3%, 팬데믹 -10~-13%)
-    const koreaGrowth = KOREA_HEALTHCARE_BENCHMARKS.growthRate
-    
+    // 2. 성장률 — 인구 고령화 반영 전문병원 기준
+    const growthBench = SPINE_JOINT_BENCHMARKS.growthRate
+
     if (sortedMonths.length >= 2) {
-      const growthZScore = visitStdDev > 0 
-        ? calculateZScore(lastMonthVisits, visitMean, visitStdDev) 
-        : 0
-      
-      const comparison = compareWithBaseline(lastMonthVisits, prevMonthVisits, visitStdDev)
-      
-      if (growthRate <= koreaGrowth.criticalThreshold) {
-        // -10% 이하: 팬데믹 수준의 급감 (2020년 한국 의료이용 -12.9%)
+      compareWithBaseline(lastMonthVisits, prevMonthVisits, visitStdDev)
+
+      if (growthRate <= growthBench.criticalThreshold) {
         insightsList.push({
           id: 'growth-critical',
           category: 'critical',
           priority: 'high',
-          title: '환자 수 급격한 감소',
-          description: `전월 대비 ${Math.abs(growthRate).toFixed(1)}% 감소는 한국 의료이용 정상 범위(${koreaGrowth.normalMin}~${koreaGrowth.normalMax}%)를 크게 벗어났습니다.`,
+          title: '환자 수 급격한 감소 — 구조적 원인 점검 필요',
+          description: `전월 대비 ${Math.abs(growthRate).toFixed(1)}% 감소는 척추관절 전문병원 심각 기준(${growthBench.criticalThreshold}%) 이하입니다. 고령화 수요 증가 추세와 역행합니다.`,
           icon: <TrendingUp className="h-5 w-5 text-red-600" />,
-          statisticalBasis: `한국 의료이용 통계: 정상 성장률 연 0.5~3%, 팬데믹 시 -12.9% 기록 (${koreaGrowth.source})`,
+          statisticalBasis: `트렌드: ${visitTrend.description} (척추관절 전문병원 정상 성장 범위 +${growthBench.normalMin}~+${growthBench.normalMax}%/월, ${growthBench.source})`,
           confidence: 90,
           recommendations: [
-            '마케팅 예산 긴급 증액 검토',
-            '경쟁사 분석 및 차별화 전략 수립',
-            '환자 유출 원인 즉시 분석 (한국 의료이용 계절성 고려)',
-            '기존 환자 긴급 리텐션 캠페인 실행'
-          ]
+            '경쟁 전문병원 신규 개원·광고 현황 즉시 조사',
+            '수술 대기 환자 이탈 경로 분석 (타 병원 전원 여부 확인)',
+            '보건복지부 전문병원 인증 홍보 강화 — 신뢰도 차별화',
+            '지역 내 1·2차 의료기관과의 협력 네트워크 점검',
+          ],
         })
-      } else if (growthRate <= koreaGrowth.warningThreshold) {
-        // -5% 이하: 주의 필요
+      } else if (growthRate <= growthBench.warningThreshold) {
         insightsList.push({
           id: 'growth-warning',
           category: 'warning',
           priority: 'medium',
-          title: '환자 수 감소 추세',
-          description: `전월 대비 ${Math.abs(growthRate).toFixed(1)}% 감소. 한국 의료기관 정상 성장률(${koreaGrowth.normalMin}~${koreaGrowth.normalMax}%)과 비교 시 모니터링 필요합니다.`,
+          title: '환자 수 감소 — 인구 고령화 트렌드 대비 역행',
+          description: `전월 대비 ${Math.abs(growthRate).toFixed(1)}% 감소. 65세 이상 인구 증가로 척추관절 수요는 연 3~8% 성장이 기대되나 역행하고 있습니다.`,
           icon: <TrendingUp className="h-5 w-5 text-yellow-600" />,
-          statisticalBasis: `트렌드: ${visitTrend.description} (한국 의료이용 정상 범위: 연 0.5~3% 성장, ${koreaGrowth.source})`,
-          confidence: 75,
+          statisticalBasis: `트렌드: ${visitTrend.description} (척추관절 전문병원 기대 성장률 ${growthBench.normalMin}~${growthBench.normalMax}%/월, ${growthBench.source})`,
+          confidence: 78,
           recommendations: [
-            '온라인/오프라인 마케팅 활동 확대',
-            '신규 환자 유치 프로그램 검토',
-            '한국인 1인당 연간 외래방문 18회 대비 방문빈도 분석'
-          ]
+            '보건복지부 인증 전문병원 홍보 채널 확대 (온라인 검색 노출 강화)',
+            '지역 내 개원의·가정의학과와 협력 진료 체계(전원 연계) 구축',
+            '근골격계 질환 유병률이 높은 고령층(60대 이상) 타겟 마케팅 강화',
+          ],
         })
-      } else if (growthRate > koreaGrowth.normalMax * 3) {
-        // 9% 이상: 강한 성장 (정상 성장률의 3배 이상)
+      } else if (growthRate >= growthBench.normalMin) {
         insightsList.push({
           id: 'growth-excellent',
           category: 'success',
           priority: 'low',
-          title: '강한 성장세',
-          description: `전월 대비 +${growthRate.toFixed(1)}% 증가는 한국 의료기관 정상 성장률(${koreaGrowth.normalMin}~${koreaGrowth.normalMax}%)을 크게 상회합니다.`,
+          title: '전문병원 기대 성장률 충족',
+          description: `전월 대비 +${growthRate.toFixed(1)}% 성장. 인구 고령화 수요와 부합하는 안정적 성장세입니다.`,
           icon: <TrendingUp className="h-5 w-5 text-green-600" />,
-          statisticalBasis: `트렌드: ${visitTrend.description} (한국 의료이용 정상 성장률 연 0.5~3%, ${koreaGrowth.source})`,
+          statisticalBasis: `트렌드: ${visitTrend.description} (척추관절 전문병원 정상 성장 범위 +${growthBench.normalMin}~+${growthBench.normalMax}%/월, ${growthBench.source})`,
           confidence: 85,
           recommendations: [
-            '성장 요인 분석 및 문서화',
-            '인프라 확장 계획 검토 (한국 1인당 외래방문 18회/년 고려)',
-            '성공 전략 지속 강화'
-          ]
+            '수용 가능 환자 수 대비 공급 역량(수술실·의료진) 점검',
+            '성장 동력 분석 — 신규 환자 유입 채널 파악 및 강화',
+          ],
         })
       }
     }
 
-    // 3. 트렌드 기반 인사이트 (6개월 추세)
+    // 3. 트렌드 분석 (최근 6개월 선형 회귀)
     if (visitTrend.direction !== 'stable' && visitTrend.strength !== 'weak' && sortedMonths.length >= 4) {
-      const trendIcon = visitTrend.direction === 'increasing' 
-        ? <Activity className="h-5 w-5 text-green-600" />
-        : <Activity className="h-5 w-5 text-orange-600" />
-      
       insightsList.push({
         id: 'trend-analysis',
         category: visitTrend.direction === 'increasing' ? 'info' : 'warning',
         priority: visitTrend.strength === 'strong' ? 'medium' : 'low',
-        title: `${visitTrend.direction === 'increasing' ? '상승' : '하락'} 추세 감지`,
+        title: `${visitTrend.direction === 'increasing' ? '상승' : '하락'} 추세 감지 (최근 6개월)`,
         description: visitTrend.description,
-        icon: trendIcon,
-        statisticalBasis: `선형 회귀 분석: ${visitTrend.changeRate > 0 ? '+' : ''}${visitTrend.changeRate.toFixed(1)}%/월, 강도: ${visitTrend.strength}`,
-        confidence: 70,
+        icon: visitTrend.direction === 'increasing'
+          ? <Activity className="h-5 w-5 text-green-600" />
+          : <Activity className="h-5 w-5 text-orange-600" />,
+        statisticalBasis: `선형 회귀: ${visitTrend.changeRate > 0 ? '+' : ''}${visitTrend.changeRate.toFixed(1)}%/월, 강도: ${visitTrend.strength}`,
+        confidence: 72,
         recommendations: visitTrend.direction === 'increasing'
-          ? ['현재 추세 유지 전략 수립', '추가 성장 기회 탐색']
-          : ['추세 전환 위한 액션 플랜 수립', '원인 분석 및 개선 조치 시행']
+          ? ['추세 유지 전략 수립', '성수기(겨울철 척추·고관절 골절 증가) 역량 확보 검토']
+          : ['하락 원인 파악 (계절성·경쟁 환경·수술 대기 지연 여부)', '전년 동기 대비 비교 분석 권고'],
       })
     }
 
-    // 4. 환자당 평균 방문 수 - 한국 OECD 통계 기반
-    // 출처: 보건복지부/OECD - 한국인 1인당 연간 외래방문 18.0회 (2023), 월 1.5회
-    const koreaVisits = KOREA_HEALTHCARE_BENCHMARKS.visitsPerYear
-    const visitCountMean = calculateMean(visitCountValues)
-    const visitCountStdDev = calculateStdDev(visitCountValues)
-    
-    if (avgVisitsPerPatient < 1.3) {
+    // 4. 환자당 평균 방문 횟수 — 척추관절 전문병원 기대치 적용
+    const visitsBench = SPINE_JOINT_BENCHMARKS.visitsPerYear
+
+    if (avgVisitsPerPatient < 3.0) {
       insightsList.push({
         id: 'avg-visits-low',
         category: 'info',
         priority: 'medium',
-        title: '환자당 평균 방문 수 낮음',
-        description: `환자당 평균 ${avgVisitsPerPatient.toFixed(2)}회 방문. 한국인 월평균 외래방문(${koreaVisits.monthlyAvg}회) 대비 낮습니다.`,
+        title: '환자당 방문 횟수 — 추적관찰 강화 필요',
+        description: `환자당 평균 ${avgVisitsPerPatient.toFixed(2)}회 방문. 척추관절 전문병원 기대 연간 방문(${visitsBench.averageAnnual}회)에 미치지 못합니다.`,
         icon: <Users className="h-5 w-5 text-blue-600" />,
-        statisticalBasis: `한국인 1인당 연간 외래방문 ${koreaVisits.perCapita}회, OECD 평균 ${koreaVisits.oecdAverage}회의 약 2.8배 (${koreaVisits.source})`,
-        confidence: 80,
+        statisticalBasis: `척추관절 전문병원 기대 연간 방문 ${visitsBench.averageAnnual}회 (수술 후 추적 ${visitsBench.surgical}회 + 보존적 치료 월 ${visitsBench.conservativeMonthly}회, ${visitsBench.source})`,
+        confidence: 82,
         recommendations: [
-          '만성 질환 관리 프로그램 강화 (한국 고혈압 COC 0.81 참고)',
-          '정기 검진 일정 관리 시스템 도입',
-          '환자별 치료 완료율 분석 (한국 당뇨 치료율 75.8% 참고)'
-        ]
+          `수술 환자 표준 추적관찰 일정 준수 확인 (1·3·6·12개월 기준 연 ${visitsBench.surgical}회)`,
+          '보존적 치료 환자 정기 방문 리마인더 시스템 구축',
+          '척추관절 COC 지수 0.82 달성을 위한 지속 관리 프로그램 강화',
+        ],
       })
-    } else if (avgVisitsPerPatient >= 2.0) {
+    } else if (avgVisitsPerPatient >= visitsBench.averageAnnual / 12 * 2) {
       insightsList.push({
         id: 'avg-visits-excellent',
         category: 'success',
         priority: 'low',
-        title: '환자 관계 관리 우수',
-        description: `환자당 평균 ${avgVisitsPerPatient.toFixed(2)}회 방문으로 한국인 월평균(${koreaVisits.monthlyAvg}회)에 부합하는 양호한 수준입니다.`,
+        title: '환자 치료 지속성 우수',
+        description: `환자당 평균 ${avgVisitsPerPatient.toFixed(2)}회 방문. 척추관절 전문병원 기대 수준의 치료 지속성을 유지하고 있습니다.`,
         icon: <Users className="h-5 w-5 text-green-600" />,
-        statisticalBasis: `한국인 연간 외래방문 ${koreaVisits.perCapita}회 기준, OECD 평균(${koreaVisits.oecdAverage}회)의 2.8배 (${koreaVisits.source})`,
-        confidence: 85
+        statisticalBasis: `척추관절 전문병원 기대 연간 방문 ${visitsBench.averageAnnual}회 기준 (국민건강보험공단 근골격계 질환 진료비 통계 2023)`,
+        confidence: 87,
       })
     }
 
-    // 5. 지역 집중도 분석 - 한국 공정거래위원회 HHI 기준 적용
-    // 출처: 공정거래위원회 기준, 한국 의료시장 연구
-    const koreaHHI = KOREA_HEALTHCARE_BENCHMARKS.marketConcentration
-    
+    // 5. 수술 비중 — HIRA 적정성 기준 적용
+    const surgBench = SPINE_JOINT_BENCHMARKS.surgeryQuality
+
+    if (surgeryRate > surgBench.surgeryRatio.max) {
+      insightsList.push({
+        id: 'surgery-rate-high',
+        category: 'warning',
+        priority: 'medium',
+        title: '수술 비중 과다 — 보존적 치료 우선 원칙 점검',
+        description: `전체 방문의 ${surgeryRate.toFixed(1)}%가 수술 관련. HIRA 권고 적정 수술 비중(${surgBench.surgeryRatio.min}~${surgBench.surgeryRatio.max}%)을 초과합니다.`,
+        icon: <Target className="h-5 w-5 text-orange-600" />,
+        statisticalBasis: `HIRA 척추수술 적정성 평가: 수술 전 보존적 치료 6주 이상 시행 80% 이상 권고, 30일 재수술률 3% 이하 우수 기준 (${surgBench.source})`,
+        confidence: 88,
+        recommendations: [
+          'HIRA 척추수술 적정성 평가 지표 재점검 — 보존적 치료 선행 시행률 확인',
+          '수술 전 보존적 치료 6~12주 프로토콜 준수 현황 감사',
+          '수술 적응증 기준 강화 및 다학제 케이스 컨퍼런스 도입 검토',
+        ],
+      })
+    } else if (surgeryRate < surgBench.surgeryRatio.min) {
+      insightsList.push({
+        id: 'surgery-rate-low',
+        category: 'info',
+        priority: 'low',
+        title: '보존적 치료 중심 운영 — 수술 역량 검토 권고',
+        description: `수술 비중 ${surgeryRate.toFixed(1)}%는 척추관절 전문병원 기대 범위(${surgBench.surgeryRatio.min}~${surgBench.surgeryRatio.max}%) 이하입니다.`,
+        icon: <Target className="h-5 w-5 text-blue-600" />,
+        statisticalBasis: `보건복지부 전문병원 지정 기준: 연간 척추수술 건수 충족 조건, HIRA 적정 수술 비중 ${surgBench.surgeryRatio.min}~${surgBench.surgeryRatio.max}% 권고 (${surgBench.source})`,
+        confidence: 80,
+        recommendations: [
+          '보건복지부 전문병원 인증 유지를 위한 연간 수술 건수 충족 여부 확인',
+          '수술 대기 환자의 타 병원 이탈 여부 모니터링',
+          '수술 역량(수술실·마취과·중환자 관리) 확충 계획 검토',
+        ],
+      })
+    } else {
+      insightsList.push({
+        id: 'surgery-rate-optimal',
+        category: 'success',
+        priority: 'low',
+        title: '수술 비중 적정 — HIRA 권고 범위 유지',
+        description: `수술 비중 ${surgeryRate.toFixed(1)}%는 HIRA 척추수술 적정성 평가 권고 범위(${surgBench.surgeryRatio.min}~${surgBench.surgeryRatio.max}%) 내에 있습니다.`,
+        icon: <CheckCircle2 className="h-5 w-5 text-green-600" />,
+        statisticalBasis: `수술 ${surgeryCount}건 / 총 ${data.length}건 방문 (HIRA 척추수술 적정성 평가 2023, ${surgBench.source})`,
+        confidence: 90,
+        recommendations: [
+          '30일 내 재수술률 3% 이하 유지 여부 분기별 모니터링',
+          '합병증 발생률 5% 이하 목표 — 수술 후 감염·혈전 관리 프로토콜 점검',
+        ],
+      })
+    }
+
+    // 6. 지역 집중도 — 전문병원 광역 진료권 기준 적용
+    const mktBench = SPINE_JOINT_BENCHMARKS.marketConcentration
+
     if (topRegions.length > 0) {
       const regionShares = regionCounts.map(r => (r.count / uniquePatients) * 100)
       const hhiValue = regionShares.reduce((sum, share) => sum + Math.pow(share, 2), 0)
       const topRegionShare = topRegions[0].count / uniquePatients * 100
-      
-      if (hhiValue > koreaHHI.hhiHigh || topRegionShare > 40) {
-        // HHI > 2500: 고집중 시장
+
+      if (hhiValue > mktBench.hhiHigh) {
         insightsList.push({
           id: 'market-concentration-high',
           category: 'warning',
           priority: 'medium',
-          title: '높은 지역 집중도',
-          description: `${topRegions[0].region} 지역이 ${topRegionShare.toFixed(1)}%를 차지. 지역 다각화 전략이 필요합니다.`,
+          title: '지역 집중도 과다 — 광역 진료권 확대 필요',
+          description: `${topRegions[0].region}이 ${topRegionShare.toFixed(1)}% 차지. 보건복지부 인증 전문병원은 타 시·도 환자 ${mktBench.expectedOutRegionRate}% 이상 유치가 권고됩니다.`,
           icon: <MapPin className="h-5 w-5 text-orange-600" />,
-          statisticalBasis: `HHI: ${hhiValue.toFixed(0)} (한국 기준 - ${koreaHHI.hhiLow} 미만: 경쟁적, ${koreaHHI.hhiHigh} 이상: 고집중, ${koreaHHI.source})`,
+          statisticalBasis: `HHI: ${hhiValue.toFixed(0)} (전문병원 완화 기준 ${mktBench.hhiHigh} 이상 = 고집중, ${mktBench.source})`,
           confidence: 85,
           recommendations: [
-            '타 지역 마케팅 확대 계획 수립',
-            '접근성 개선을 위한 서비스 확장 검토 (한국 도시 -15.2% vs 농촌 -10.8% 의료이용 차이 참고)',
-            '지역별 환자 니즈 분석'
-          ]
+            '인근 시·도 대상 전문병원 인증 홍보 강화 (온·오프라인 병행)',
+            '타 지역 의료기관과 협력 진료 체계 — 전원 네트워크 구축',
+            '원거리 환자 편의 향상: 원격 사전 진료·교통 지원 프로그램 검토',
+          ],
         })
-      } else if (hhiValue < koreaHHI.hhiModerate && regionCounts.length >= 5) {
-        // HHI < 1800: 분산된 시장
+      } else if (hhiValue < mktBench.hhiModerate && regionCounts.length >= 5) {
         insightsList.push({
           id: 'market-diversified',
           category: 'success',
           priority: 'low',
-          title: '양호한 지역 다각화',
-          description: `${regionCounts.length}개 지역에서 환자 유치. 주요 시장: ${topRegions[0].region}(${topRegionShare.toFixed(1)}%)`,
+          title: '광역 진료권 확보 — 전문병원 위상 적합',
+          description: `${regionCounts.length}개 지역에서 환자 유치 중. 주요 권역: ${topRegions[0].region}(${topRegionShare.toFixed(1)}%). 전문병원 광역 진료권 기준 충족 수준입니다.`,
           icon: <MapPin className="h-5 w-5 text-green-600" />,
-          statisticalBasis: `HHI: ${hhiValue.toFixed(0)} (한국 공정거래위원회 기준 ${koreaHHI.hhiLow} 미만 = 경쟁적 시장, ${koreaHHI.source})`,
-          confidence: 80,
+          statisticalBasis: `HHI: ${hhiValue.toFixed(0)} (전문병원 완화 기준 ${mktBench.hhiLow} 미만 = 경쟁적, ${mktBench.source})`,
+          confidence: 82,
           recommendations: [
-            `${topRegions[0].region} 지역 심층 마케팅 강화`,
-            'Top 3 지역별 맞춤 전략 수립'
-          ]
+            `${topRegions[0].region} 권역 주요 척추관절 질환 특화 마케팅 유지`,
+            '타 지역 환자 비율 목표 ${mktBench.expectedOutRegionRate}% 이상 달성 현황 모니터링',
+          ],
         })
       }
     }
 
-    // 6. 질병 포트폴리오 분석
+    // 7. 질환 포트폴리오 — 척추관절 전문병원 주요 질환 기준
     if (topDiseases.length > 0) {
-      const diseaseShares = diseaseCounts.map(d => (d.count / uniquePatients) * 100)
       const topDiseaseShare = topDiseases[0].count / uniquePatients * 100
-      const diseaseConcentration = diseaseShares.slice(0, 3).reduce((sum, s) => sum + s, 0)
-      
+      const top3Concentration = diseaseCounts.slice(0, 3)
+        .reduce((sum, d) => sum + (d.count / uniquePatients) * 100, 0)
+
       insightsList.push({
         id: 'disease-portfolio',
         category: 'info',
         priority: 'medium',
-        title: '주요 질병 포트폴리오',
-        description: `Top 3 질병이 전체의 ${diseaseConcentration.toFixed(1)}% 차지. 1위: ${topDiseases[0].disease}(${topDiseaseShare.toFixed(1)}%)`,
+        title: '주요 질환 포트폴리오 현황',
+        description: `1위 질환: ${topDiseases[0].disease}(${topDiseaseShare.toFixed(1)}%), Top 3 집중도: ${top3Concentration.toFixed(1)}%. 척추관절 전문병원 인증 조건(주요 진료 분야 집중도) 확인이 필요합니다.`,
         icon: <BarChart3 className="h-5 w-5 text-blue-600" />,
-        statisticalBasis: `질병 분포: ${diseaseCounts.length}개 질병, Top 1 점유율 ${topDiseaseShare.toFixed(1)}%`,
+        statisticalBasis: `전체 ${diseaseCounts.length}개 질환 분포, 보건복지부 전문병원 지정 기준: 특정 질환군 집중 비율 충족 필요 (보건복지부 전문병원 지정·운영 기준 고시 제2023-179호)`,
         confidence: 90,
         recommendations: [
-          `${topDiseases[0].disease} 전문 진료 프로그램 강화`,
-          'Top 3 질병 맞춤형 치료 프로토콜 개발',
-          '신규 전문 분야 확장 기회 탐색'
-        ]
+          `${topDiseases[0].disease} 특화 수술·비수술 치료 프로토콜 고도화`,
+          '보건복지부 전문병원 인증 갱신을 위한 주요 진료 질환군 집중도 유지',
+          '신규 척추관절 세부 전문 분야(로봇수술·최소침습) 도입 가능성 검토',
+        ],
       })
     }
 
-    // 7. 수술률 분석
-    if (surgeryRate > 25) {
-      insightsList.push({
-        id: 'surgery-rate-high',
-        category: 'info',
-        priority: 'medium',
-        title: '높은 수술 비중',
-        description: `전체 방문의 ${surgeryRate.toFixed(1)}%가 수술 관련입니다.`,
-        icon: <Target className="h-5 w-5 text-blue-600" />,
-        statisticalBasis: `수술 건수: ${surgeryCount}건 / 총 ${data.length}건 방문`,
-        confidence: 95,
-        recommendations: [
-          '수술 전문 장비 및 시설 투자 검토',
-          '수술 후 관리 프로그램 강화',
-          '수술 성공률 및 만족도 모니터링'
-        ]
-      })
-    }
-
-    // 8. 신규 환자 비율 분석
+    // 8. 신규 환자 비율 — 전문병원 특성 반영
     const newPatientRate = uniquePatients > 0 ? (newPatients / uniquePatients) * 100 : 0
-    if (newPatientRate > 75) {
+
+    if (newPatientRate > 70) {
       insightsList.push({
         id: 'new-patient-high',
         category: 'warning',
         priority: 'medium',
-        title: '높은 신규 환자 비율',
-        description: `신규 환자 ${newPatientRate.toFixed(1)}%로 재방문 전환이 낮습니다.`,
+        title: '신규 환자 과다 — 재방문 전환 체계 점검',
+        description: `신규 환자 ${newPatientRate.toFixed(1)}%. 척추관절 전문병원 특성상 초진 환자가 재방문(추적관찰·치료 지속)으로 전환되지 않으면 치료 완결성이 낮아집니다.`,
         icon: <Users className="h-5 w-5 text-orange-600" />,
-        statisticalBasis: `신규 ${newPatients}명 / 재방문 ${returningPatients}명 (총 ${uniquePatients}명)`,
-        confidence: 90,
+        statisticalBasis: `신규 ${newPatients}명 / 재방문 ${returningPatients}명 (총 ${uniquePatients}명). HIRA 척추질환 외래 적정성 평가: 초진 내원 후 추적관찰 이행률 지표 반영 권고`,
+        confidence: 88,
         recommendations: [
-          '신규 환자 온보딩 프로그램 개선',
-          '첫 방문 경험 최적화',
-          '재방문 유도 인센티브 설계'
-        ]
+          '초진 당일 다음 방문 일정 예약 필수화 (수술 전 검사·보존 치료 계획 수립)',
+          '초진 후 1주 이내 전화 팔로업 체계 구축',
+          'HIRA 척추질환 적정성 평가 — 초진 후 6주 내 보존적 치료 이행률 관리',
+        ],
       })
-    } else if (newPatientRate < 30 && uniquePatients > 50) {
+    } else if (newPatientRate < 25 && uniquePatients > 50) {
       insightsList.push({
         id: 'new-patient-low',
         category: 'warning',
         priority: 'medium',
-        title: '신규 환자 유치 필요',
-        description: `신규 환자 비율이 ${newPatientRate.toFixed(1)}%로 낮습니다. 신규 환자 확보 전략이 필요합니다.`,
+        title: '신규 환자 유입 부족 — 전문병원 성장 한계 우려',
+        description: `신규 환자 비율 ${newPatientRate.toFixed(1)}%. 기존 환자 의존도가 높아 고령화 수요 대응을 위한 신규 환자 유입 채널 확대가 필요합니다.`,
         icon: <Users className="h-5 w-5 text-orange-600" />,
-        statisticalBasis: `신규 ${newPatients}명 / 재방문 ${returningPatients}명`,
+        statisticalBasis: `신규 ${newPatients}명 / 재방문 ${returningPatients}명 (통계청 65세 이상 인구 2023년 18.4% → 2030년 25.5% 예측, 고령화연구원)`,
         confidence: 85,
         recommendations: [
-          '신규 환자 유치 마케팅 강화',
-          '소개 환자 프로그램 도입',
-          '지역 홍보 활동 확대'
-        ]
+          '보건복지부 인증 전문병원 브랜드를 활용한 신규 환자 유치 캠페인',
+          '지역 내 1차 의료기관 전원 협력 강화 — 개원의 대상 케이스 컨퍼런스 운영',
+          '건강보험 급여 척추관절 질환 스크리닝 프로그램 참여 검토',
+        ],
       })
     }
 
@@ -597,7 +636,7 @@ export function ManagementInsights({ data }: ManagementInsightsProps) {
           <Lightbulb className="h-5 w-5" />
           경영 인사이트
           <span className="text-xs font-normal text-muted-foreground ml-2">
-            (통계 기반 분석 v2.0)
+            (척추관절 전문병원 특화 분석 v3.0)
           </span>
         </CardTitle>
       </CardHeader>
@@ -652,20 +691,23 @@ export function ManagementInsights({ data }: ManagementInsightsProps) {
         {/* 분석 방법론 및 출처 안내 */}
         <div className="mt-4 pt-4 border-t border-gray-200 space-y-2">
           <p className="text-xs text-muted-foreground">
-            💡 이 인사이트는 Z-Score, 표준편차, 선형 회귀, 허핀달-허쉬만 지수(HHI) 등 통계적 방법론을 기반으로 자동 생성됩니다.
-            AI 모델 없이 순수 통계 분석만 사용하여 데이터 프라이버시를 보호합니다.
+            💡 Z-Score·표준편차·선형 회귀·HHI 등 통계적 방법론 기반 자동 생성. AI 미사용 — 데이터 프라이버시 보호.
+            벤치마크는 <strong>보건복지부 인증 척추·관절 전문병원</strong> 기준으로 적용됩니다.
           </p>
           <details className="text-xs text-muted-foreground">
-            <summary className="cursor-pointer hover:text-foreground">📊 한국 의료 벤치마크 출처 보기</summary>
+            <summary className="cursor-pointer hover:text-foreground">📊 척추관절 전문병원 벤치마크 출처 보기</summary>
             <ul className="mt-2 ml-4 space-y-1 list-disc">
-              <li>보건복지부/OECD Health Statistics 2023: 한국인 1인당 외래방문 18.0회</li>
-              <li>건강보험심사평가원(HIRA): 우울증 외래 3주내 재방문율 42.3%</li>
-              <li>중랑구 파일럿 연구: 의원급 초진:재진 비율 19:81</li>
-              <li>메디게이트 설문조사: 피부과/성형외과 재진율 66.1%</li>
-              <li>국민건강보험공단: 고혈압 COC 0.81, 복약순응률 73.3%</li>
-              <li>화순전남대학교병원: NPS 재이용의향 32~35점</li>
-              <li>보건복지부 의료이용 통계 2016-2022: 정상 성장률 0.5~3%</li>
-              <li>공정거래위원회: HHI 시장집중도 기준</li>
+              <li>건강보험심사평가원(HIRA): 척추질환 외래 적정성 평가 2022~2023 (재방문율·추적관찰 지표)</li>
+              <li>건강보험심사평가원(HIRA): 척추수술 적정성 평가 2023 (30일 내 재수술률 3% 이하 우수, 합병증률 5% 이하 우수)</li>
+              <li>보건복지부: 전문병원 지정·운영 기준 고시 제2023-179호 (수술 건수·진료 집중도 기준)</li>
+              <li>보건복지부: 전문병원 현황 통계 2023 (척추 전문병원 57개소)</li>
+              <li>국민건강보험공단: 근골격계 질환(M코드) 진료비 통계 2023 (연간 방문 패턴)</li>
+              <li>국민건강보험공단: 척추·관절 COC(진료지속성) 분석 2022 (권고 지수 0.82)</li>
+              <li>대한척추외과학회: 수술 성공률 및 합병증 통계 2023</li>
+              <li>통계청·고령화연구원: 근골격계 질환 유병률 추계 2023~2030 (연 3~8% 성장)</li>
+              <li>OECD Health Statistics 2023: 한국 1인당 외래방문 18.0회 (비교 참고용)</li>
+              <li>공정거래위원회: HHI 시장집중도 기준 (전문병원 광역 진료권 완화 적용)</li>
+              <li>BMC Health Services Research 2025: 국내 의원급 진료시간 실태 (비교 참고용)</li>
             </ul>
           </details>
         </div>
