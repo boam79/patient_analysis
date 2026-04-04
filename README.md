@@ -97,57 +97,13 @@ PDR Dashboard는 의료 데이터 분석을 위한 최신 웹 기반 대시보�
   - **에러 처리 강화**: 빈 데이터 처리 및 null/undefined 방어 로직 추가
   - **Recharts 라이브러리 최적화**: ReferenceLine, Cell 컴포넌트 활용
 
-### 10. 경영 인사이트 시스템 개선 (2025-12-27)
+### 10. 경영 인사이트 시스템 개선 (2024-12-27)
 - 💡 **경영 인사이트 컴포넌트 분리**: `ManagementInsights` 컴포넌트를 독립 컴포넌트로 분리하여 필터 섹션 바로 아래에 배치 (모든 탭에서 공통 표시)
 - 🎯 **체계적인 인사이트 시스템**: 카테고리(warning/info/success) 및 우선순위(high/medium/low) 기반 인사이트 분류 및 자동 정렬
 - 📊 **다양한 인사이트 제공**: 재방문율, 성장률, 환자당 평균 방문, 시장 집중도, 질병 전략, 수술률, 신규 환자 비율 등 7가지 인사이트 유형
 - ✅ **구체적인 권장사항**: 각 인사이트에 맞춤형 권장사항 및 실행 가능한 액션 아이템 제공
 - 🎨 **2열 그리드 레이아웃**: 경영 인사이트를 2열 그리드로 배치하여 화면 공간 효율성 향상 (모바일: 1열, 데스크톱: 2열)
 - 🔧 **전략 분석 페이지 UI 개선**: 전략 분석 페이지에서 필터 섹션 제거하여 경영 인사이트가 더욱 눈에 띄도록 레이아웃 최적화
-
-### 13. 데이터 분석 전면 고도화 v4.4.0 (2026-04-04)
-
-#### 버그 수정 (데이터 정합성)
-- 🐛 **환자 식별자 단일화**: `lib/utils/patient-identity.ts` 신규 생성 — `patient_id` → 이름+생년월일 → 이름+주소 우선순위 기반 단일 식별자 정책 적용. 기존 파일마다 `name|address` / `patient_id` 혼용으로 탭별 지표가 달랐던 문제 해결
-- 🐛 **수술 산점도 난수 재방문율 제거**: `Math.random()` 기반 임시값 → 수술 환자 방문 기록 기반 실제 재방문율 계산으로 교체
-- 🐛 **월별 트렌드 연도 분리**: `1월` 형식(연도 미구분) → `2024년 1월` 형식(YYYY-MM 기반)으로 변경. 복수 연도 데이터에서 월별 합산 왜곡 해결
-- 🐛 **지도 랜덤 좌표 제거**: 미매칭 지역에 랜덤 좌표 대신 null 반환 → 지도에서 제외 처리로 변경
-- 🐛 **박스플롯 사분위 정확도 개선**: 인덱스 기반 단순 슬라이싱 → 선형 보간(Linear Interpolation) 방식으로 변경
-
-#### 신규 분석 탭 6개 추가 (`/dashboard/strategy`)
-- 🔄 **코호트 보유율 분석** (`components/strategy/cohort-analysis.tsx`): 첫 방문 월 기준 이후 N개월 재방문율 히트맵. 1/3/6개월 평균 보유율 요약 카드 포함
-- ⚠️ **RFM 이탈 위험도 분석** (`components/strategy/rfm-analysis.tsx`): Recency×Frequency 5분위 점수화 → 이탈 위험/관심 필요/충성/신규 4단계 분류. 환자명 마스킹 처리, 세그먼트별 권고 액션 제공
-- 🔗 **질병-수술 연관 분석** (`components/strategy/association-analysis.tsx`): Support / Confidence / Lift 지표 계산. Lift ≥ 1.5 강한 연관성 강조, Top 10 바 차트 + 상세 테이블
-- ☀️ **계절성 지수 및 예측** (`components/strategy/seasonal-forecast.tsx`): 월별 계절성 지수(100 기준) + 지수 평활법(α=0.3) 기반 3개월 예측 + 95% 신뢰구간 차트. 계절 집중 질환 Top 8
-- 🚨 **시계열 이상 탐지** (`components/strategy/anomaly-detection.tsx`): Z-Score 기반 월별 방문 급증/급감 탐지(|Z| ≥ 2σ). 3개월 이동평균 + Z-Score 오버레이 차트. 질환별 이상 탐지 테이블
-- 🗺️ **환자 여정 분석** (`components/strategy/patient-journey.tsx`): 질환 → 수술 여부 → 보유 상태(충성/이탈위험/신규) 흐름도. 자동 인사이트(수술 후 충성 비율, 비수술 이탈 위험 비율) 제공
-
----
-
-### 12. 보안·성능·코드 품질 고도화 v4.3.0 (2026-04-04)
-
-#### 보안 강화
-- 🔐 **Service Role Key 보안 수정**: `SUPABASE_SERVICE_ROLE_KEY` 미설정 시 ANON_KEY 폴백 없이 즉시 오류 발생 (기존 폴백 시 RLS에 의해 silent fail 발생)
-- 🛡️ **공통 관리자 인증 헬퍼 도입**: `lib/admin-auth.ts` — 모든 Server Action에 반복되던 ADMIN 인증 체크를 `requireAdminAuth()` 함수로 통합
-
-#### 성능 최적화
-- ⚡ **DB 레벨 집계 RPC 함수 추가**: `supabase/migrations/20260404_ip_stats_rpc.sql` — `get_top_ips`, `get_hourly_stats`, `get_path_stats`, `get_country_stats`, `cleanup_old_ip_logs` 5개 RPC 함수 정의. 기존 10,000건 풀스캔 후 JS 집계 대신 DB GROUP BY로 처리 (RPC 미설치 시 JS 집계로 자동 폴백)
-- 🗺️ **IP Geolocation 캐싱 도입**: 동일 IP 결과 1시간 인메모리 캐싱, 오류 시 5분 단기 캐싱 → ip-api.com 분당 45회 제한 대응. 3초 타임아웃 적용
-- 🔢 **IP 범위 체크 간소화**: `172.16.x` ~ `172.31.x` 각각 16개 `startsWith` → CIDR `172.16/12` 수식으로 통합
-
-#### 기능 완성
-- 🌍 **국가별 통계 UI 완성**: 기존에 데이터 로딩만 되고 UI가 없던 `countryStats`에 수평 바 차트(접근수 + 고유IP 병렬) + 상세 목록 카드 추가
-- 🚨 **이상 탐지 로직 고도화**: 기존 "초당 10회 (1시간 36,000회 이상)" 기준에서 **"분당 1회 초과(1시간 60회) + 5분 내 30회 급증"** 이중 탐지로 개선. severity(고위험/중위험) 구분 배지 추가
-- 📤 **IP 로그 내보내기 개선**: 날짜 범위 필수화 및 상한 10,000건 → 50,000건으로 확장
-
-#### 코드 품질
-- 🧹 **프로덕션 console.log 전량 제거**: `actions.ts`, `ip-statistics-dashboard.tsx` 디버그 로그 정리
-- 🔄 **데이터 로딩 안정화**: `Promise.allSettled` 적용으로 일부 통계 API 실패 시에도 나머지 데이터 정상 표시
-- 📝 **auth.config.ts 정리**: 실질적으로 동작하지 않던 NextAuth 콜백 명확화, Supabase Auth 전환 완료 명시
-- 🔧 **middleware.ts 수정**: `status_code: 200` 하드코딩 → `null` (미들웨어는 응답 전에 실행되므로 실제 코드 알 수 없음)
-
-#### IP 로그 TTL 정책 (권고)
-- Supabase Scheduled Functions에서 `cleanup_old_ip_logs(90)` 주기 실행 권고 (90일 이상 로그 자동 삭제)
 
 ---
 
@@ -187,6 +143,52 @@ PDR Dashboard는 의료 데이터 분석을 위한 최신 웹 기반 대시보�
   - 화순전남대학교병원 NPS 조사
   - 메디게이트 피부과/성형외과 설문조사
   - BMC Health Services Research 진료시간 연구
+
+---
+
+### 12. 보안·성능·코드 품질 고도화 v4.3.0 (2026-04-04)
+
+#### 보안 강화
+- 🔐 **Service Role Key 보안 수정**: `SUPABASE_SERVICE_ROLE_KEY` 미설정 시 ANON_KEY 폴백 없이 즉시 오류 발생 (기존 폴백 시 RLS에 의해 silent fail 발생)
+- 🛡️ **공통 관리자 인증 헬퍼 도입**: `lib/admin-auth.ts` — 모든 Server Action에 반복되던 ADMIN 인증 체크를 `requireAdminAuth()` 함수로 통합
+
+#### 성능 최적화
+- ⚡ **DB 레벨 집계 RPC 함수 추가**: `supabase/migrations/20260404_ip_stats_rpc.sql` — `get_top_ips`, `get_hourly_stats`, `get_path_stats`, `get_country_stats`, `cleanup_old_ip_logs` 5개 RPC 함수 정의. 기존 10,000건 풀스캔 후 JS 집계 대신 DB GROUP BY로 처리 (RPC 미설치 시 JS 집계로 자동 폴백)
+- 🗺️ **IP Geolocation 캐싱 도입**: 동일 IP 결과 1시간 인메모리 캐싱, 오류 시 5분 단기 캐싱 → ip-api.com 분당 45회 제한 대응. 3초 타임아웃 적용
+- 🔢 **IP 범위 체크 간소화**: `172.16.x` ~ `172.31.x` 각각 16개 `startsWith` → CIDR `172.16/12` 수식으로 통합
+
+#### 기능 완성
+- 🌍 **국가별 통계 UI 완성**: 기존에 데이터 로딩만 되고 UI가 없던 `countryStats`에 수평 바 차트(접근수 + 고유IP 병렬) + 상세 목록 카드 추가
+- 🚨 **이상 탐지 로직 고도화**: 기존 "초당 10회 (1시간 36,000회 이상)" 기준에서 **"분당 1회 초과(1시간 60회) + 5분 내 30회 급증"** 이중 탐지로 개선. severity(고위험/중위험) 구분 배지 추가
+- 📤 **IP 로그 내보내기 개선**: 날짜 범위 필수화 및 상한 10,000건 → 50,000건으로 확장
+
+#### 코드 품질
+- 🧹 **프로덕션 console.log 전량 제거**: `actions.ts`, `ip-statistics-dashboard.tsx` 디버그 로그 정리
+- 🔄 **데이터 로딩 안정화**: `Promise.allSettled` 적용으로 일부 통계 API 실패 시에도 나머지 데이터 정상 표시
+- 📝 **auth.config.ts 정리**: 실질적으로 동작하지 않던 NextAuth 콜백 명확화, Supabase Auth 전환 완료 명시
+- 🔧 **middleware.ts 수정**: `status_code: 200` 하드코딩 → `null` (미들웨어는 응답 전에 실행되므로 실제 코드 알 수 없음)
+
+#### IP 로그 TTL 정책 (권고)
+- Supabase Scheduled Functions에서 `cleanup_old_ip_logs(90)` 주기 실행 권고 (90일 이상 로그 자동 삭제)
+
+---
+
+### 13. 데이터 분석 전면 고도화 v4.4.0 (2026-04-04)
+
+#### 버그 수정 (데이터 정합성)
+- 🐛 **환자 식별자 단일화**: `lib/utils/patient-identity.ts` 신규 생성 — `patient_id` → 이름+생년월일 → 이름+주소 우선순위 기반 단일 식별자 정책 적용. 기존 파일마다 `name|address` / `patient_id` 혼용으로 탭별 지표가 달랐던 문제 해결
+- 🐛 **수술 산점도 난수 재방문율 제거**: `Math.random()` 기반 임시값 → 수술 환자 방문 기록 기반 실제 재방문율 계산으로 교체
+- 🐛 **월별 트렌드 연도 분리**: `1월` 형식(연도 미구분) → `2024년 1월` 형식(YYYY-MM 기반)으로 변경. 복수 연도 데이터에서 월별 합산 왜곡 해결
+- 🐛 **지도 랜덤 좌표 제거**: 미매칭 지역에 랜덤 좌표 대신 null 반환 → 지도에서 제외 처리로 변경
+- 🐛 **박스플롯 사분위 정확도 개선**: 인덱스 기반 단순 슬라이싱 → 선형 보간(Linear Interpolation) 방식으로 변경
+
+#### 신규 분석 탭 6개 추가 (`/dashboard/strategy`)
+- 🔄 **코호트 보유율 분석** (`components/strategy/cohort-analysis.tsx`): 첫 방문 월 기준 이후 N개월 재방문율 히트맵. 1/3/6개월 평균 보유율 요약 카드 포함
+- ⚠️ **RFM 이탈 위험도 분석** (`components/strategy/rfm-analysis.tsx`): Recency×Frequency 5분위 점수화 → 이탈 위험/관심 필요/충성/신규 4단계 분류. 환자명 마스킹 처리, 세그먼트별 권고 액션 제공
+- 🔗 **질병-수술 연관 분석** (`components/strategy/association-analysis.tsx`): Support / Confidence / Lift 지표 계산. Lift ≥ 1.5 강한 연관성 강조, Top 10 바 차트 + 상세 테이블
+- ☀️ **계절성 지수 및 예측** (`components/strategy/seasonal-forecast.tsx`): 월별 계절성 지수(100 기준) + 지수 평활법(α=0.3) 기반 3개월 예측 + 95% 신뢰구간 차트. 계절 집중 질환 Top 8
+- 🚨 **시계열 이상 탐지** (`components/strategy/anomaly-detection.tsx`): Z-Score 기반 월별 방문 급증/급감 탐지(|Z| ≥ 2σ). 3개월 이동평균 + Z-Score 오버레이 차트. 질환별 이상 탐지 테이블
+- 🗺️ **환자 여정 분석** (`components/strategy/patient-journey.tsx`): 질환 → 수술 여부 → 보유 상태(충성/이탈위험/신규) 흐름도. 자동 인사이트(수술 후 충성 비율, 비수술 이탈 위험 비율) 제공
 
 ---
 
