@@ -1205,3 +1205,9 @@ fbad674 - feat: 차트 데이터 실제 반영 및 필터 시스템 통합
 - 프로젝트명: pdr-dashboard
 - 리전: icn1 (서울)
 - 프레임워크: Next.js 15
+
+---
+
+## Executor's Feedback (2026-04-12)
+
+- **v4.5.0**: 메인 타이틀을「병원 CRM」으로 변경. 통계 고도화(Wilson CI, FDR, Cohen h, STL, KM, PSI, 고급 통계 탭 등) 반영 후 `npm run verify:analysis`·`tsc` 통과. README 섹션 15 추가.

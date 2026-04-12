@@ -4,8 +4,8 @@ import { Toaster } from '@/components/ui/toaster'
 import { Footer } from '@/components/layout/footer'
 
 export const metadata: Metadata = {
-  title: '환자 데이터 분석툴 v4.1',
-  description: '환자 데이터 분석 대시보드 - Patient Data Review',
+  title: '병원 CRM v4.5',
+  description: '병원 CRM — 환자 방문 데이터 분석 및 전략 인사이트',
 }
 
 export default function RootLayout({

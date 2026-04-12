@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useFilterStore } from '@/stores/filter-store'
 import { PatientData, useDataStore } from '@/stores/data-store'
-import { TrendingUp, Users, MapPin, Calendar, Target, BarChart3, GitMerge, AlertTriangle, Sun, Link2, ShieldAlert } from 'lucide-react'
+import { TrendingUp, Users, MapPin, Calendar, Target, BarChart3, GitMerge, AlertTriangle, Sun, Link2, ShieldAlert, FlaskConical } from 'lucide-react'
 import { getAgeGroup, normalizeGender } from '@/lib/utils/patient-helpers'
 import { parseDate } from '@/lib/utils/date-helpers'
 import { filterPatients } from '@/lib/utils/patient-filters'
@@ -26,6 +26,7 @@ import { AssociationAnalysis } from '@/components/strategy/association-analysis'
 import { SeasonalForecast } from '@/components/strategy/seasonal-forecast'
 import { AnomalyDetection } from '@/components/strategy/anomaly-detection'
 import { PatientJourney } from '@/components/strategy/patient-journey'
+import { AdvancedStatisticsTab } from '@/components/strategy/advanced-statistics-tab'
 
 // 샘플 데이터 (실제 데이터가 없을 때 사용)
 const SAMPLE_PATIENT_DATA: PatientData[] = [
@@ -147,6 +148,9 @@ export default function StrategyPage() {
           <TabsTrigger value="journey" className="flex items-center gap-1 text-xs">
             <GitMerge className="h-3 w-3" />환자 여정
           </TabsTrigger>
+          <TabsTrigger value="advanced" className="flex items-center gap-1 text-xs">
+            <FlaskConical className="h-3 w-3" />고급 통계
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="executive" className="mt-6">
@@ -188,6 +192,9 @@ export default function StrategyPage() {
         </TabsContent>
         <TabsContent value="journey" className="mt-6">
           <PatientJourney data={filteredData} />
+        </TabsContent>
+        <TabsContent value="advanced" className="mt-6">
+          <AdvancedStatisticsTab data={filteredData} />
         </TabsContent>
       </Tabs>
     </div>

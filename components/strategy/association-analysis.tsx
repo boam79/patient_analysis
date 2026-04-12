@@ -8,7 +8,8 @@ import {
 } from 'recharts'
 import { Link2 } from 'lucide-react'
 import type { PatientData } from '@/stores/data-store'
-import { resolvePatientId, groupVisitsByPatient } from '@/lib/utils/patient-identity'
+import { groupVisitsByPatient } from '@/lib/utils/patient-identity'
+import { cohensH } from '@/lib/utils/advanced-analysis'
 
 interface AssociationAnalysisProps {
   data: PatientData[]
@@ -21,6 +22,8 @@ interface AssociationRule {
   confidence: number   // 해당 질병 환자 중 수술받은 비율
   lift: number         // confidence / P(surgery) — 1보다 크면 연관성 있음
   count: number        // 해당 조합 환자 수
+  /** 질병 내 수술 비율 vs 전체 수술 경험 환자 비율의 Cohen h */
+  cohensH: number
 }
 
 function liftBadge(lift: number) {
@@ -89,10 +92,11 @@ export function AssociationAnalysis({ data }: AssociationAnalysisProps) {
       const confidence = count / diseaseCount
       const pSurgery = surgeryCount / totalPatients
       const lift = pSurgery > 0 ? confidence / pSurgery : 0
+      const h = cohensH(confidence, pSurgery)
 
       // 최소 지지도 5% 이상, 최소 3명 이상
       if (support >= 0.01 && count >= 3) {
-        rules.push({ disease, surgery, support, confidence, lift, count })
+        rules.push({ disease, surgery, support, confidence, lift, count, cohensH: Math.round(h * 1000) / 1000 })
       }
     })
 
@@ -140,6 +144,7 @@ export function AssociationAnalysis({ data }: AssociationAnalysisProps) {
           <p className="text-sm text-muted-foreground">
             특정 질병을 가진 환자가 특정 수술을 받을 확률을 정량화합니다.
             <strong> Lift &gt; 1</strong>이면 우연보다 높은 연관성, <strong>Lift ≥ 1.5</strong>이면 임상적으로 유의미합니다.
+            <strong> Cohen h</strong>은 질병 내 수술 비율과 전체 수술 비율 간 효과 크기입니다.
           </p>
         </CardHeader>
         <CardContent>
@@ -216,6 +221,9 @@ export function AssociationAnalysis({ data }: AssociationAnalysisProps) {
                   <th className="text-center p-2">
                     <span className="cursor-help" title="우연보다 연관성이 높은 배수 (>1이면 연관)">Lift</span>
                   </th>
+                  <th className="text-center p-2">
+                    <span className="cursor-help" title="질병 내 수술 비율 vs 전체 수술 비율">Cohen h</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -231,6 +239,7 @@ export function AssociationAnalysis({ data }: AssociationAnalysisProps) {
                       </span>
                     </td>
                     <td className="p-2 text-center">{liftBadge(r.lift)}</td>
+                    <td className="p-2 text-center text-xs">{r.cohensH}</td>
                   </tr>
                 ))}
               </tbody>

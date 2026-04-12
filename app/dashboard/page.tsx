@@ -758,7 +758,7 @@ export default function DashboardPage() {
     <div className="container mx-auto px-4 py-6 space-y-4" id="dashboard-main">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-2xl font-bold">환자 데이터 분석툴</h1>
+          <h1 className="text-2xl font-bold">병원 CRM</h1>
           <p className="text-sm text-muted-foreground">
             통합 환자 데이터 분석 대시보드 v4.1
             {isDataLoaded ? ' (실제 데이터)' : ' (샘플 데이터)'}

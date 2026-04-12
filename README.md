@@ -1,6 +1,6 @@
-# PDR Dashboard v4.4.1
+# PDR Dashboard v4.5.0
 
-**Patient Data Review Dashboard** - 환자 데이터 분석 및 재방문 패턴 시각화 대시보드
+**Patient Data Review Dashboard** — 병원 CRM 브랜딩 및 통계 분석 고도화
 
 Next.js React TypeScript License
 
@@ -251,6 +251,24 @@ PDR Dashboard는 의료 데이터 분석을 위한 최신 웹 기반 대시보�
 - 통계청·고령화연구원: 근골격계 질환 유병률 추계 2023~2030
 - 공정거래위원회: HHI 시장집중도 기준
 - OECD Health Statistics 2023, BMC Health Services Research 2025 (비교 참고용)
+
+---
+
+### 15. 병원 CRM 브랜딩 및 통계 고도화 v4.5.0 (2026-04-12)
+
+#### 브랜딩·UI
+- **앱 표시명**: 헤더·메타데이터·메인 대시보드 타이틀을 **「병원 CRM」**으로 통일 (`components/layout/header.tsx`, `app/layout.tsx`, `app/dashboard/page.tsx`, `package.json`)
+
+#### 통계·분석 (전략 대시보드)
+- **코호트**: 셀별 **Wilson 95% 신뢰구간** (호버 툴팁), 범례 문구 보강 (`cohort-analysis.tsx`)
+- **이상 탐지(질환×월)**: **Benjamini–Hochberg FDR 15%** 다중검정 보정, **p-value·FDR·Cohen h** 컬럼 추가 (`anomaly-detection.tsx`, `lib/utils/advanced-analysis.ts`)
+- **연관 분석**: 질병 내 수술 비율 vs 전체 수술 비율 **Cohen h** 컬럼 (`association-analysis.tsx`)
+- **RFM**: 세그먼트 비율에 **Wilson CI** 문구 표시 (`rfm-analysis.tsx`)
+- **계절성·예측**: **가법 STL 근사** 분해 차트(추세·계절·잔차) 추가 (`seasonal-forecast.tsx`)
+- **신규 탭「고급 통계」** (`components/strategy/advanced-statistics-tab.tsx`): Kaplan–Meier(첫 재방문), 변화점, STL, k-means 산점, 질병 순서 전이, **PSI**(전·후반기 질병 믹스), 결측 요약, **월 고정효과 잔차**, 계층 일관성 비율, 이산 위험표, 분석 파라미터 JSON 스냅샷 다운로드
+
+#### 검증
+- `npm run verify:analysis` — `scripts/verify-analysis-golden.ts`에서 Wilson/BH/STL/KM/PSI 등 스모크 검증
 
 ---
 

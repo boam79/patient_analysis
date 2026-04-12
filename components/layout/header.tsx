@@ -34,10 +34,10 @@ export function Header() {
               onClick={handleReset}
               className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer group"
             >
-              <h1 className="text-2xl font-bold">환자 데이터 분석툴</h1>
+              <h1 className="text-2xl font-bold">병원 CRM</h1>
               <RefreshCw className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
             </button>
-            <span className="text-sm text-muted-foreground">v4.1</span>
+            <span className="text-sm text-muted-foreground">v4.5</span>
             {isDataLoaded && (
               <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
                 {totalPatients.toLocaleString()}명 로드됨

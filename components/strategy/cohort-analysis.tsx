@@ -5,17 +5,25 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Users } from 'lucide-react'
 import type { PatientData } from '@/stores/data-store'
-import { resolvePatientId, groupVisitsByPatient } from '@/lib/utils/patient-identity'
+import { groupVisitsByPatient } from '@/lib/utils/patient-identity'
+import { wilsonScoreInterval } from '@/lib/utils/advanced-analysis'
 
 interface CohortAnalysisProps {
   data: PatientData[]
+}
+
+interface RetentionCell {
+  pct: number | null
+  /** Wilson 95% CI 하한 % (표본 작을 때 참고) */
+  ciLowPct: number | null
+  ciHighPct: number | null
 }
 
 interface CohortRow {
   cohortMonth: string   // "2024-01"
   label: string         // "2024년 1월"
   cohortSize: number
-  retention: (number | null)[]  // 인덱스 0 = 1개월차, 1 = 2개월차 ...
+  retention: RetentionCell[]
 }
 
 function retentionColor(rate: number | null): string {
@@ -72,7 +80,7 @@ export function CohortAnalysis({ data }: CohortAnalysisProps) {
       const cohortSize = patients.size
       const [cy, cm] = cohortMonth.split('-').map(Number)
 
-      const retention: (number | null)[] = []
+      const retention: RetentionCell[] = []
 
       for (let period = 1; period <= maxPeriods; period++) {
         // 코호트 월 + period 개월 후
@@ -84,7 +92,7 @@ export function CohortAnalysis({ data }: CohortAnalysisProps) {
         const allMonths = new Set<string>()
         patientVisitMonths.forEach((months) => months.forEach((m) => allMonths.add(m)))
         if (!allMonths.has(targetKey)) {
-          retention.push(null)
+          retention.push({ pct: null, ciLowPct: null, ciHighPct: null })
           continue
         }
 
@@ -93,7 +101,13 @@ export function CohortAnalysis({ data }: CohortAnalysisProps) {
         patients.forEach((pid) => {
           if (patientVisitMonths.get(pid)?.has(targetKey)) retained++
         })
-        retention.push(cohortSize > 0 ? Math.round((retained / cohortSize) * 100) : 0)
+        const pct = cohortSize > 0 ? Math.round((retained / cohortSize) * 100) : 0
+        const w = wilsonScoreInterval(retained, cohortSize, 0.95)
+        retention.push({
+          pct,
+          ciLowPct: Math.round(w.low * 1000) / 10,
+          ciHighPct: Math.round(w.high * 1000) / 10,
+        })
       }
 
       const [y, m] = cohortMonth.split('-')
@@ -142,7 +156,7 @@ export function CohortAnalysis({ data }: CohortAnalysisProps) {
         <CardContent>
           {/* 범례 */}
           <div className="flex items-center gap-3 mb-4 flex-wrap">
-            <span className="text-xs text-muted-foreground">보유율:</span>
+            <span className="text-xs text-muted-foreground">보유율 (Wilson 95% 신뢰구간, 셀 호버):</span>
             {[
               { label: '70%+', cls: 'bg-emerald-600 text-white' },
               { label: '50~70%', cls: 'bg-emerald-400 text-white' },
@@ -180,12 +194,17 @@ export function CohortAnalysis({ data }: CohortAnalysisProps) {
                     <td className="text-center p-2">
                       <Badge variant="outline">{row.cohortSize.toLocaleString()}명</Badge>
                     </td>
-                    {row.retention.map((rate, i) => (
+                    {row.retention.map((cell, i) => (
                       <td key={i} className="p-1 text-center">
                         <span
-                          className={`inline-block w-full rounded text-center py-1 px-1 font-semibold ${retentionColor(rate)}`}
+                          title={
+                            cell.pct === null
+                              ? ''
+                              : `Wilson 95% CI: ${cell.ciLowPct}% ~ ${cell.ciHighPct}% (n=${row.cohortSize})`
+                          }
+                          className={`inline-block w-full rounded text-center py-1 px-1 font-semibold ${retentionColor(cell.pct)}`}
                         >
-                          {rate === null ? '-' : `${rate}%`}
+                          {cell.pct === null ? '-' : `${cell.pct}%`}
                         </span>
                       </td>
                     ))}
@@ -201,7 +220,7 @@ export function CohortAnalysis({ data }: CohortAnalysisProps) {
       <div className="grid gap-4 md:grid-cols-3">
         {(() => {
           const firstMonthRates = cohortData
-            .map((r) => r.retention[0])
+            .map((r) => r.retention[0]?.pct)
             .filter((r): r is number => r !== null)
           const avg1m =
             firstMonthRates.length > 0
@@ -209,7 +228,7 @@ export function CohortAnalysis({ data }: CohortAnalysisProps) {
               : 0
 
           const thirdMonthRates = cohortData
-            .map((r) => r.retention[2])
+            .map((r) => r.retention[2]?.pct)
             .filter((r): r is number => r !== null)
           const avg3m =
             thirdMonthRates.length > 0
@@ -217,7 +236,7 @@ export function CohortAnalysis({ data }: CohortAnalysisProps) {
               : 0
 
           const sixthMonthRates = cohortData
-            .map((r) => r.retention[5])
+            .map((r) => r.retention[5]?.pct)
             .filter((r): r is number => r !== null)
           const avg6m =
             sixthMonthRates.length > 0

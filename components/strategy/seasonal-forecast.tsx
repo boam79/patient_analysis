@@ -9,7 +9,8 @@ import {
 } from 'recharts'
 import { TrendingUp, Sun } from 'lucide-react'
 import type { PatientData } from '@/stores/data-store'
-import { calculateMean, calculateStdDev, calculateMovingAverage } from '@/lib/utils/statistical-insights'
+import { calculateMean, calculateStdDev } from '@/lib/utils/statistical-insights'
+import { classicalSTL } from '@/lib/utils/advanced-analysis'
 
 interface SeasonalForecastProps {
   data: PatientData[]
@@ -41,9 +42,9 @@ function forecastNext(smoothed: number[], n = 3): number[] {
 }
 
 export function SeasonalForecast({ data }: SeasonalForecastProps) {
-  const { monthlyVisits, seasonalIndex, forecastData, topSeasonalDiseases } = useMemo(() => {
+  const { monthlyVisits, seasonalIndex, forecastData, topSeasonalDiseases, stlDecomp } = useMemo(() => {
     if (!data || data.length === 0) {
-      return { monthlyVisits: [], seasonalIndex: [], forecastData: [], topSeasonalDiseases: [] }
+      return { monthlyVisits: [], seasonalIndex: [], forecastData: [], topSeasonalDiseases: [], stlDecomp: [] }
     }
 
     // 월별 방문 수 집계 (YYYY-MM)
@@ -143,11 +144,35 @@ export function SeasonalForecast({ data }: SeasonalForecastProps) {
       .sort((a, b) => b.concentration - a.concentration)
       .slice(0, 8)
 
+    const calMonths = sortedMonths.map((m) => parseInt(m.split('-')[1], 10))
+    const tw =
+      sortedMonths.length >= 12
+        ? 11
+        : Math.max(
+            3,
+            sortedMonths.length % 2 === 0 ? sortedMonths.length - 1 : sortedMonths.length
+          )
+    const stl =
+      counts.length >= 6 ? classicalSTL(counts, calMonths, tw) : null
+    const stlDecomp =
+      stl && counts.length > 0
+        ? sortedMonths.map((m, i) => {
+            const [y, mo] = m.split('-')
+            return {
+              month: `${y}/${mo}`,
+              추세: Math.round(stl.trend[i] * 10) / 10,
+              계절: Math.round(stl.seasonal[i] * 10) / 10,
+              잔차: Math.round(stl.residual[i] * 10) / 10,
+            }
+          })
+        : []
+
     return {
       monthlyVisits: allMonthData,
       seasonalIndex,
       forecastData: allMonthData,
       topSeasonalDiseases,
+      stlDecomp,
     }
   }, [data])
 
@@ -192,6 +217,35 @@ export function SeasonalForecast({ data }: SeasonalForecastProps) {
           </ResponsiveContainer>
         </CardContent>
       </Card>
+
+      {/* STL 분해 */}
+      {stlDecomp.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Sun className="h-5 w-5" />
+              시계열 분해 (가법 STL 근사)
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              중심 이동평균 추세 + 달력 월 평균 계절 성분 + 잔차입니다. 예측 차트와 별도로 구조적 변동을 점검할 때 사용합니다.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={280}>
+              <ComposedChart data={stlDecomp}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" tick={{ fontSize: 10 }} angle={-30} textAnchor="end" height={55} />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="계절" fill="#86efac" name="계절" />
+                <Line type="monotone" dataKey="추세" stroke="#1d4ed8" strokeWidth={2} dot={false} name="추세" />
+                <Line type="monotone" dataKey="잔차" stroke="#ea580c" strokeWidth={1} dot={false} name="잔차" />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
 
       {/* 계절성 지수 */}
       <Card>

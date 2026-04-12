@@ -10,6 +10,7 @@ import {
 import { AlertTriangle, TrendingDown, TrendingUp } from 'lucide-react'
 import type { PatientData } from '@/stores/data-store'
 import { calculateMean, calculateStdDev, calculateZScore } from '@/lib/utils/statistical-insights'
+import { benjaminiHochbergReject, twoSidedNormalP, cohensH } from '@/lib/utils/advanced-analysis'
 
 interface AnomalyDetectionProps {
   data: PatientData[]
@@ -87,29 +88,55 @@ export function AnomalyDetection({ data }: AnomalyDetectionProps) {
       dm.set(key, (dm.get(key) ?? 0) + 1)
     })
 
-    const diseaseSurges: { disease: string; month: string; visits: number; zScore: number }[] = []
+    type SurgeRow = {
+      disease: string
+      month: string
+      monthKey: string
+      visits: number
+      zScore: number
+      pValue: number
+      cohenH: number
+    }
+    const rawTests: SurgeRow[] = []
     diseaseDM.forEach((dm, disease) => {
       const ms = Array.from(dm.keys()).sort()
+      if (ms.length < 3) return
       const vs = ms.map((m) => dm.get(m)!)
       const dm_mean = calculateMean(vs)
       const dm_std = calculateStdDev(vs)
+      const totalV = vs.reduce((s, v) => s + v, 0)
       ms.forEach((m, i) => {
+        if (vs[i] < 3) return
         const z = calculateZScore(vs[i], dm_mean, dm_std)
-        if (Math.abs(z) >= 2 && vs[i] >= 5) {
-          const [y, mo] = m.split('-')
-          diseaseSurges.push({
-            disease,
-            month: `${y}년 ${parseInt(mo)}월`,
-            visits: vs[i],
-            zScore: Math.round(z * 100) / 100,
-          })
-        }
+        const pValue = twoSidedNormalP(z)
+        const pThisMonth = vs[i] / Math.max(1, totalV)
+        const uniformShare = 1 / ms.length
+        const h = cohensH(pThisMonth, uniformShare)
+        const [y, mo] = m.split('-')
+        rawTests.push({
+          disease,
+          monthKey: m,
+          month: `${y}년 ${parseInt(mo)}월`,
+          visits: vs[i],
+          zScore: Math.round(z * 100) / 100,
+          pValue,
+          cohenH: Math.round(h * 1000) / 1000,
+        })
       })
     })
 
-    diseaseSurges.sort((a, b) => Math.abs(b.zScore) - Math.abs(a.zScore))
+    const fdrFlags = benjaminiHochbergReject(
+      rawTests.map((t) => t.pValue),
+      0.15
+    )
 
-    return { chartData, anomalies, diseaseSurges: diseaseSurges.slice(0, 15) }
+    const diseaseSurges = rawTests
+      .map((t, i) => ({ ...t, fdrSignificant: fdrFlags[i] }))
+      .filter((t) => Math.abs(t.zScore) >= 2 && t.visits >= 5)
+      .sort((a, b) => Math.abs(b.zScore) - Math.abs(a.zScore))
+      .slice(0, 20)
+
+    return { chartData, anomalies, diseaseSurges }
   }, [data])
 
   if (!chartData || chartData.length === 0) {
@@ -253,8 +280,10 @@ export function AnomalyDetection({ data }: AnomalyDetectionProps) {
       {diseaseSurges.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">질환별 이상 탐지 (|Z| ≥ 2σ)</CardTitle>
-            <p className="text-sm text-muted-foreground">특정 질환의 방문이 평소보다 통계적으로 크게 증가하거나 감소한 월입니다.</p>
+            <CardTitle className="text-base">질환별 이상 탐지 (|Z| ≥ 2σ, 다중검정 FDR 15%)</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              질환×월 전수 검정 후 Benjamini–Hochberg 보정. Cohen h는 해당 질환 월별 방문 비중 vs 나머지 달 비중의 차이에 대한 효과 크기 근사입니다.
+            </p>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
@@ -264,13 +293,16 @@ export function AnomalyDetection({ data }: AnomalyDetectionProps) {
                     <th className="text-left p-2">질환</th>
                     <th className="text-center p-2">월</th>
                     <th className="text-center p-2">방문 수</th>
-                    <th className="text-center p-2">Z-Score</th>
+                    <th className="text-center p-2">Z</th>
+                    <th className="text-center p-2">p</th>
+                    <th className="text-center p-2">FDR</th>
+                    <th className="text-center p-2">Cohen h</th>
                     <th className="text-center p-2">유형</th>
                   </tr>
                 </thead>
                 <tbody>
                   {diseaseSurges.map((s, i) => (
-                    <tr key={i} className="border-b hover:bg-muted/20">
+                    <tr key={`${s.disease}-${s.monthKey}-${i}`} className="border-b hover:bg-muted/20">
                       <td className="p-2">{s.disease}</td>
                       <td className="p-2 text-center">{s.month}</td>
                       <td className="p-2 text-center">{s.visits.toLocaleString()}명</td>
@@ -279,6 +311,15 @@ export function AnomalyDetection({ data }: AnomalyDetectionProps) {
                           {s.zScore > 0 ? '+' : ''}{s.zScore}σ
                         </span>
                       </td>
+                      <td className="p-2 text-center text-xs">{s.pValue < 0.0001 ? '<0.0001' : s.pValue.toFixed(4)}</td>
+                      <td className="p-2 text-center">
+                        {s.fdrSignificant ? (
+                          <Badge className="bg-violet-600 text-white text-xs">유의</Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">—</span>
+                        )}
+                      </td>
+                      <td className="p-2 text-center text-xs">{s.cohenH}</td>
                       <td className="p-2 text-center">
                         <Badge className={s.zScore >= 2 ? 'bg-red-500 text-white' : 'bg-blue-500 text-white'}>
                           {s.zScore >= 2 ? '급증' : '급감'}

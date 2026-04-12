@@ -8,6 +8,7 @@ import { AlertTriangle, ShieldCheck, AlertCircle } from 'lucide-react'
 import type { PatientData } from '@/stores/data-store'
 import { groupVisitsByPatient, calcVisitIntervals } from '@/lib/utils/patient-identity'
 import { calculatePercentile } from '@/lib/utils/statistical-insights'
+import { wilsonScoreInterval } from '@/lib/utils/advanced-analysis'
 
 interface RfmAnalysisProps {
   data: PatientData[]
@@ -146,6 +147,13 @@ export function RfmAnalysis({ data }: RfmAnalysisProps) {
     )
   }
 
+  const pctFmt = (k: number, n: number) => {
+    if (n <= 0) return '—'
+    const w = wilsonScoreInterval(k, n, 0.95)
+    const p = Math.round((k / n) * 1000) / 10
+    return `${p}% (Wilson 95%: ${(w.low * 100).toFixed(1)}~${(w.high * 100).toFixed(1)}%)`
+  }
+
   return (
     <div className="space-y-4">
       {/* 요약 카드 */}
@@ -155,7 +163,7 @@ export function RfmAnalysis({ data }: RfmAnalysisProps) {
             <div className="text-2xl font-bold text-red-600">{summary.highRisk.toLocaleString()}</div>
             <div className="text-sm text-muted-foreground">이탈 위험 환자</div>
             <div className="text-xs text-muted-foreground mt-1">
-              전체의 {summary.total > 0 ? Math.round((summary.highRisk / summary.total) * 100) : 0}%
+              {pctFmt(summary.highRisk, summary.total)}
             </div>
           </CardContent>
         </Card>
@@ -164,7 +172,7 @@ export function RfmAnalysis({ data }: RfmAnalysisProps) {
             <div className="text-2xl font-bold text-orange-500">{summary.medium.toLocaleString()}</div>
             <div className="text-sm text-muted-foreground">관심 필요 환자</div>
             <div className="text-xs text-muted-foreground mt-1">
-              전체의 {summary.total > 0 ? Math.round((summary.medium / summary.total) * 100) : 0}%
+              {pctFmt(summary.medium, summary.total)}
             </div>
           </CardContent>
         </Card>
@@ -173,7 +181,7 @@ export function RfmAnalysis({ data }: RfmAnalysisProps) {
             <div className="text-2xl font-bold text-emerald-600">{summary.low.toLocaleString()}</div>
             <div className="text-sm text-muted-foreground">충성 환자</div>
             <div className="text-xs text-muted-foreground mt-1">
-              전체의 {summary.total > 0 ? Math.round((summary.low / summary.total) * 100) : 0}%
+              {pctFmt(summary.low, summary.total)}
             </div>
           </CardContent>
         </Card>
@@ -182,7 +190,7 @@ export function RfmAnalysis({ data }: RfmAnalysisProps) {
             <div className="text-2xl font-bold text-gray-500">{summary.newP.toLocaleString()}</div>
             <div className="text-sm text-muted-foreground">신규 환자 (1회)</div>
             <div className="text-xs text-muted-foreground mt-1">
-              전체의 {summary.total > 0 ? Math.round((summary.newP / summary.total) * 100) : 0}%
+              {pctFmt(summary.newP, summary.total)}
             </div>
           </CardContent>
         </Card>

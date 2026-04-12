@@ -1,8 +1,8 @@
 {
   "name": "pdr-dashboard",
-  "version": "4.2.1",
+  "version": "4.5.0",
   "private": true,
-  "description": "환자 데이터 분석 대시보드 - PDR Dashboard v4.1",
+  "description": "병원 CRM — 환자 방문 데이터 분석 대시보드 (PDR v4.1)",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -18,7 +18,8 @@
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "verify:analysis": "tsx scripts/verify-analysis-golden.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
