@@ -40,10 +40,10 @@ vercel
 ```bash
 # 1. GitHub에서 새 repository 생성
 # https://github.com/new 접속
-# Repository 이름: pdr-dashboard
+# Repository 이름: hospital-crm
 
 # 2. Git remote 추가
-git remote add origin https://github.com/YOUR_USERNAME/pdr-dashboard.git
+git remote add origin https://github.com/YOUR_USERNAME/hospital-crm.git
 
 # 3. 푸시
 git push -u origin main
@@ -55,7 +55,7 @@ git push -u origin main
 2. **로그인/회원가입**: GitHub 계정으로 로그인
 3. **New Project** 클릭
 4. **Import Git Repository** 선택
-5. **pdr-dashboard** repository 선택
+5. **hospital-crm** repository 선택
 6. **Deploy** 클릭!
 
 #### Step 3: 환경 변수 설정 (선택사항)
@@ -64,7 +64,7 @@ Vercel Dashboard → Settings → Environment Variables:
 
 ```
 NOMINATIM_API_URL=https://nominatim.openstreetmap.org/search
-NOMINATIM_USER_AGENT=PDR-Dashboard/4.1
+NOMINATIM_USER_AGENT=Hospital-CRM/4.1
 NEXT_TELEMETRY_DISABLED=1
 ```
 
@@ -72,7 +72,7 @@ NEXT_TELEMETRY_DISABLED=1
 
 배포가 완료되면 Vercel이 다음을 제공합니다:
 
-- 🌐 **프로덕션 URL**: `https://pdr-dashboard.vercel.app`
+- 🌐 **프로덕션 URL**: `https://hospital-crm.vercel.app`
 - 🔍 **프리뷰 URL**: 각 커밋마다 별도 URL
 - 📈 **Analytics**: 방문자 통계
 - 📝 **Logs**: 실시간 로그
@@ -93,7 +93,7 @@ NEXT_TELEMETRY_DISABLED=1
 
 ## 📝 프로젝트 정보
 
-- **프로젝트명**: PDR Dashboard v4.1
+- **프로젝트명**: 병원 CRM v4.5
 - **프레임워크**: Next.js 15 + React 19
 - **언어**: TypeScript
 - **스타일**: Tailwind CSS + shadcn/ui
@@ -128,7 +128,7 @@ npm run build
 
 ## 🎊 축하합니다!
 
-PDR Dashboard v4.1이 배포 준비 완료되었습니다!
+병원 CRM v4.5이 배포 준비 완료되었습니다!
 
 배포 후 URL을 공유해주시면 추가 지원이 가능합니다.
 

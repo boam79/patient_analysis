@@ -50,7 +50,7 @@ jobs:
           prerelease: false
           body: |
             ## 변경 사항
-            - PDR Dashboard v4.1 릴리스
+            - 병원 CRM v4.5 릴리스
             
             ## 주요 기능
             - Next.js 15 + React 19

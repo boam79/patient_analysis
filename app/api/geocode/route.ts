@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
 
     const response = await fetch(nominatimUrl.toString(), {
       headers: {
-        'User-Agent': process.env.NOMINATIM_USER_AGENT || 'PDR-Dashboard/1.0',
+        'User-Agent': process.env.NOMINATIM_USER_AGENT || 'Hospital-CRM/1.0',
       },
     })
 

@@ -14,7 +14,7 @@
 
 - **`docker-compose.yml` 생성**
   - PostgreSQL 16 Alpine 이미지
-  - PDR Dashboard 앱 컨테이너
+  - 병원 CRM 앱 컨테이너
   - Nginx 리버스 프록시 (선택)
   - 네트워크 및 볼륨 설정
   - Health check 의존성
@@ -144,14 +144,14 @@ vercel --prod
 #### 3️⃣ 수동 Docker 빌드
 ```bash
 # 이미지 빌드
-docker build -t pdr-dashboard:latest .
+docker build -t hospital-crm:latest .
 
 # 컨테이너 실행
 docker run -p 3000:3000 \
   -e DATABASE_URL="..." \
   -e NEXTAUTH_URL="..." \
   -e NEXTAUTH_SECRET="..." \
-  pdr-dashboard:latest
+  hospital-crm:latest
 ```
 
 ### 📊 CI/CD 파이프라인
@@ -271,7 +271,7 @@ docker-compose logs app
 docker-compose ps postgres
 
 # 연결 테스트
-docker-compose exec postgres psql -U pdr_user -d pdr_dashboard
+docker-compose exec postgres psql -U hospital_user -d hospital_crm
 ```
 
 #### 문제: Prisma 마이그레이션
@@ -327,6 +327,6 @@ docker-compose exec app npx prisma generate
 ---
 
 **작성일**: 2025-11-16
-**작성자**: PDR Dashboard Development Team
+**작성자**: 병원 CRM Development Team
 **프로젝트 상태**: ✅ **배포 준비 완료**
 

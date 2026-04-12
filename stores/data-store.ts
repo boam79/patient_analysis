@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { devtools, persist, createJSONStorage } from 'zustand/middleware'
 
-// 환자 데이터 타입
+// 병원 CRM 방문 레코드 타입
 export interface PatientData {
   patient_id: string
   name: string  // 환자 이름 추가

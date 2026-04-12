@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "name": "pdr-dashboard",
+  "name": "hospital-crm",
   "framework": "nextjs",
   "regions": ["icn1"],
   "env": {

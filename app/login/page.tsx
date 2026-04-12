@@ -90,7 +90,7 @@ export default function LoginPage() {
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">로그인</CardTitle>
           <CardDescription className="text-center">
-            환자 데이터 분석 대시보드에 로그인하세요
+            병원 CRM에 로그인하세요
           </CardDescription>
         </CardHeader>
         <CardContent>

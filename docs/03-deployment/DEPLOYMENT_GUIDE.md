@@ -1,4 +1,4 @@
-# PDR Dashboard v4.1 배포 가이드
+# 병원 CRM v4.5 배포 가이드
 
 ## 🚀 배포 옵션
 
@@ -27,7 +27,7 @@ vercel --prod
 1. **GitHub에 푸시**:
    ```bash
    # GitHub repository 생성 후
-   git remote add origin https://github.com/YOUR_USERNAME/pdr-dashboard.git
+   git remote add origin https://github.com/YOUR_USERNAME/hospital-crm.git
    git push -u origin main
    ```
 
@@ -43,7 +43,7 @@ vercel --prod
    - `.env.example` 참고하여 설정:
      ```
      NOMINATIM_API_URL=https://nominatim.openstreetmap.org/search
-     NOMINATIM_USER_AGENT=PDR-Dashboard/4.1
+     NOMINATIM_USER_AGENT=Hospital-CRM/4.1
      NEXT_TELEMETRY_DISABLED=1
      ```
 
@@ -63,13 +63,13 @@ vercel --prod
 
 ```bash
 # 1. Docker 이미지 빌드
-docker build -t pdr-dashboard:latest .
+docker build -t hospital-crm:latest .
 
 # 2. 컨테이너 실행
 docker run -p 3000:3000 \
   -e NOMINATIM_API_URL=https://nominatim.openstreetmap.org/search \
-  -e NOMINATIM_USER_AGENT=PDR-Dashboard/4.1 \
-  pdr-dashboard:latest
+  -e NOMINATIM_USER_AGENT=Hospital-CRM/4.1 \
+  hospital-crm:latest
 
 # 3. 브라우저에서 확인
 # http://localhost:3000
@@ -110,7 +110,7 @@ npm run build
 
 # 4. 배포
 ncloud functions deploy \
-  --name pdr-dashboard \
+  --name hospital-crm \
   --runtime nodejs18 \
   --entry-point .next/standalone
 ```
@@ -119,16 +119,16 @@ ncloud functions deploy \
 
 ```bash
 # 1. Docker 이미지를 NCP Container Registry에 푸시
-docker tag pdr-dashboard:latest \
-  kr.ncr.ntruss.com/YOUR_REGISTRY/pdr-dashboard:latest
+docker tag hospital-crm:latest \
+  kr.ncr.ntruss.com/YOUR_REGISTRY/hospital-crm:latest
 
-docker push kr.ncr.ntruss.com/YOUR_REGISTRY/pdr-dashboard:latest
+docker push kr.ncr.ntruss.com/YOUR_REGISTRY/hospital-crm:latest
 
 # 2. NCP Cloud Server에서 실행
 # NCP 콘솔에서 Cloud Server 생성 후:
 ssh your-server
-docker pull kr.ncr.ntruss.com/YOUR_REGISTRY/pdr-dashboard:latest
-docker run -d -p 80:3000 kr.ncr.ntruss.com/YOUR_REGISTRY/pdr-dashboard:latest
+docker pull kr.ncr.ntruss.com/YOUR_REGISTRY/hospital-crm:latest
+docker run -d -p 80:3000 kr.ncr.ntruss.com/YOUR_REGISTRY/hospital-crm:latest
 ```
 
 ---
@@ -139,8 +139,8 @@ docker run -d -p 80:3000 kr.ncr.ntruss.com/YOUR_REGISTRY/pdr-dashboard:latest
 
 ```bash
 # 1. 서버에 코드 배포
-git clone https://github.com/YOUR_USERNAME/pdr-dashboard.git
-cd pdr-dashboard
+git clone https://github.com/YOUR_USERNAME/hospital-crm.git
+cd hospital-crm
 
 # 2. 의존성 설치 및 빌드
 npm install
@@ -150,14 +150,14 @@ npm run build
 npm install -g pm2
 
 # 4. PM2로 실행
-pm2 start npm --name "pdr-dashboard" -- start
+pm2 start npm --name "hospital-crm" -- start
 
 # 5. 시스템 부팅시 자동 시작
 pm2 startup
 pm2 save
 
 # 6. 로그 확인
-pm2 logs pdr-dashboard
+pm2 logs hospital-crm
 ```
 
 #### 4-2. Nginx 리버스 프록시 설정
@@ -168,7 +168,7 @@ sudo apt update
 sudo apt install nginx
 
 # 2. Nginx 설정
-sudo nano /etc/nginx/sites-available/pdr-dashboard
+sudo nano /etc/nginx/sites-available/hospital-crm
 
 # 아래 내용 입력:
 server {
@@ -186,7 +186,7 @@ server {
 }
 
 # 3. 설정 활성화
-sudo ln -s /etc/nginx/sites-available/pdr-dashboard /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/hospital-crm /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
 
@@ -205,7 +205,7 @@ sudo certbot --nginx -d your-domain.com
 ```bash
 # OpenStreetMap Nominatim API
 NOMINATIM_API_URL=https://nominatim.openstreetmap.org/search
-NOMINATIM_USER_AGENT=PDR-Dashboard/4.1
+NOMINATIM_USER_AGENT=Hospital-CRM/4.1
 
 # Next.js
 NEXT_TELEMETRY_DISABLED=1
@@ -312,6 +312,6 @@ PORT=3001 npm start
 ---
 
 **작성일**: 2024-11-16  
-**버전**: PDR Dashboard v4.1  
+**버전**: 병원 CRM v4.5  
 **배포 상태**: 준비 완료 ✅
 

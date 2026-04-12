@@ -25,7 +25,7 @@ export function AdminHeader({ user }: AdminHeaderProps) {
   return (
     <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-6">
       <div className="flex items-center gap-4">
-        <h1 className="text-lg font-semibold">PDR Dashboard 관리</h1>
+        <h1 className="text-lg font-semibold">병원 CRM 관리</h1>
       </div>
       
       <div className="flex items-center gap-4">

@@ -1,6 +1,6 @@
 /**
  * 더미 데이터 생성 스크립트
- * 10,000개의 환자 데이터 생성
+ * 병원 CRM용 더미 방문 레코드 10,000건 생성
  */
 
 import * as fs from 'fs'
@@ -471,7 +471,7 @@ const saveToCsv = (records: any[]) => {
 
 // 메인 실행
 const main = () => {
-  console.log('🚀 PDR Dashboard 더미 데이터 생성기\n')
+  console.log('🚀 병원 CRM 더미 데이터 생성기\n')
   console.log('📋 생성 옵션:')
   console.log('  - 환자ID, 방문ID, 진료비 제외')
   console.log('  - 전국 17개 시도 분포')

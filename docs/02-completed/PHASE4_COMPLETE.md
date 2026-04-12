@@ -126,4 +126,4 @@
 ---
 
 **작성일**: 2025-11-15
-**작성자**: PDR Dashboard Development Team
+**작성자**: 병원 CRM Development Team

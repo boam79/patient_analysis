@@ -96,7 +96,7 @@ export default function StrategyPage() {
         <div>
           <h1 className="text-3xl font-bold">경영·마케팅 전략 분석</h1>
           <p className="text-sm text-muted-foreground mt-2">
-            환자 데이터 기반 경영전략 및 마케팅 전략 수립을 위한 심화 분석
+            병원 CRM 데이터 기반 경영·마케팅 전략 수립을 위한 심화 분석
             {isDataLoaded ? ' (실제 데이터)' : ' (샘플 데이터)'}
           </p>
         </div>

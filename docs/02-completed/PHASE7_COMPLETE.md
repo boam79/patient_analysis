@@ -105,7 +105,7 @@
 
 #### 1. CSV 내보내기
 ```typescript
-exportToCSV(data, 'pdr_data_1234567890.csv')
+exportToCSV(data, 'crm_data_1234567890.csv')
 ```
 - JSON 데이터 → CSV 변환
 - 자동 다운로드
@@ -127,8 +127,8 @@ captureElementToPNG('dashboard-main', 'dashboard.png', {
 #### 3. PDF 보고서
 ```typescript
 generatePDFReport({
-  title: 'PDR Dashboard 분석 보고서',
-  subtitle: '환자 데이터 재방문 분석',
+  title: '병원 CRM 분석 보고서',
+  subtitle: '병원 CRM 재방문 분석',
   sections: [
     { title: '요약 통계', text: '...' },
     { title: '질병 분포', elementId: 'disease-chart' },
@@ -259,6 +259,6 @@ if (selectedDiseases.length > 0) {
 ---
 
 **작성일**: 2025-11-16
-**작성자**: PDR Dashboard Development Team
+**작성자**: 병원 CRM Development Team
 **MCP 활용**: Context7 (html2canvas, jsPDF 문서)
 

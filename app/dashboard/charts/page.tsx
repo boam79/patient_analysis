@@ -238,7 +238,7 @@ export default function ChartsPage() {
         <div>
           <h1 className="text-3xl font-bold mb-2">데이터 분석 차트</h1>
           <p className="text-muted-foreground">
-            환자 데이터를 다양한 차트로 시각화합니다
+            병원 CRM에서 방문 데이터를 다양한 차트로 시각화합니다
             {isDataLoaded ? ` (실제 데이터 ${totalPatients.toLocaleString()}명)` : ' (샘플 데이터)'}
           </p>
         </div>

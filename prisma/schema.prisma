@@ -1,4 +1,4 @@
-// Prisma schema for PDR Dashboard v4.1
+// Prisma schema for 병원 CRM (Hospital CRM)
 // NCP Cloud DB for PostgreSQL
 
 generator client {

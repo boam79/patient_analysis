@@ -1,4 +1,4 @@
-# PDR Dashboard v4.1 - Production Dockerfile
+# 병원 CRM v4.5 - Production Dockerfile
 
 # Stage 1: Dependencies
 FROM node:20-alpine AS deps

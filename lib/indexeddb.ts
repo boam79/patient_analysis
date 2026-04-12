@@ -1,4 +1,4 @@
-const DB_NAME = 'PDR_Dashboard'
+const DB_NAME = 'Hospital_CRM'
 const DB_VERSION = 1
 const STORES = {
   ICD_MAPPING: 'icd_mapping',

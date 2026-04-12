@@ -35,7 +35,7 @@ export function ExportMenu({ data, chartIds }: ExportMenuProps) {
       return
     }
 
-    const result = exportToCSV(data, `pdr_data_${Date.now()}.csv`)
+    const result = exportToCSV(data, `crm_data_${Date.now()}.csv`)
     
     if (result.success) {
       toast({
@@ -89,9 +89,9 @@ export function ExportMenu({ data, chartIds }: ExportMenuProps) {
     }
 
     const result = await generatePDFReport({
-      title: 'PDR Dashboard 분석 보고서',
-      subtitle: '환자 데이터 재방문 분석',
-      filename: `pdr_report_${Date.now()}.pdf`,
+      title: '병원 CRM 분석 보고서',
+      subtitle: '병원 CRM 재방문 분석',
+      filename: `crm_report_${Date.now()}.pdf`,
       includeMetadata: {
         dateRange: `${dateRange.start} ~ ${dateRange.end}`,
         filters: activeFilters.length > 0 ? activeFilters : ['필터 없음'],

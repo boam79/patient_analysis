@@ -1,4 +1,4 @@
-# 🎉 PDR Dashboard v4.1 - 최종 배포 준비 완료
+# 🎉 병원 CRM v4.5 - 최종 배포 준비 완료
 
 ## ✅ 완료된 모든 작업
 
@@ -74,8 +74,8 @@ vercel --prod
 
 ### Option 3: Docker
 ```bash
-docker build -t pdr-dashboard .
-docker run -p 3000:3000 pdr-dashboard
+docker build -t hospital-crm .
+docker run -p 3000:3000 hospital-crm
 ```
 
 ## 📝 배포 후 체크리스트
@@ -116,7 +116,7 @@ docker run -p 3000:3000 pdr-dashboard
 
 ## 🎊 프로젝트 완료!
 
-**PDR Dashboard v4.1**이 성공적으로 완성되었습니다!
+**병원 CRM v4.5**이 성공적으로 완성되었습니다!
 
 ### 주요 성과
 ✅ 10개 Phase 완료  

@@ -622,7 +622,7 @@ export default function DashboardPage() {
       return { diseases: [], surgeries: [], patientCount: 0 }
     }
 
-    // 선택된 지역의 환자 데이터 필터링 (다른 필터 조건을 모두 반영한 filteredRawData 사용)
+    // 선택된 지역의 방문 레코드 필터링 (다른 필터 조건을 모두 반영한 filteredRawData 사용)
     const regionPatients = filteredRawData.filter((p) =>
       selectedRegions.includes(p.region)
     )
@@ -760,7 +760,7 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-2xl font-bold">병원 CRM</h1>
           <p className="text-sm text-muted-foreground">
-            통합 환자 데이터 분석 대시보드 v4.1
+            병원 CRM 통합 대시보드 v4.5
             {isDataLoaded ? ' (실제 데이터)' : ' (샘플 데이터)'}
             {(selectedDiseases.length > 0 || selectedRegions.length > 0) && 
               ` | 필터 ${selectedDiseases.length + selectedRegions.length}개 적용`}

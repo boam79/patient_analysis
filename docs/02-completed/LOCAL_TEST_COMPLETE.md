@@ -141,7 +141,7 @@
    
 3. ⏳ 실제 데이터 연동
    - 공공데이터 API 연동
-   - 실제 환자 데이터 전처리
+   - 실제 업로드 데이터 전처리
    - 지오코딩 배치 처리
 
 ## 📝 사용 가능한 명령어
@@ -192,10 +192,10 @@ vercel --prod
 ### Option 2: Docker
 ```bash
 # Docker 이미지 빌드
-docker build -t pdr-dashboard .
+docker build -t hospital-crm .
 
 # 컨테이너 실행
-docker run -p 3000:3000 pdr-dashboard
+docker run -p 3000:3000 hospital-crm
 
 # Docker Compose 사용
 docker-compose up -d
@@ -208,7 +208,7 @@ docker-compose up -d
 
 ## 🎉 결론
 
-PDR Dashboard v4.1의 로컬 테스트 및 프로덕션 빌드가 **모두 성공적으로 완료**되었습니다!
+병원 CRM v4.5의 로컬 테스트 및 프로덕션 빌드가 **모두 성공적으로 완료**되었습니다!
 
 ### 주요 성과
 - ✅ 10,000개 더미 데이터 생성
@@ -226,6 +226,6 @@ PDR Dashboard v4.1의 로컬 테스트 및 프로덕션 빌드가 **모두 성�
 ---
 
 **작성일**: 2024-11-16  
-**프로젝트**: PDR Dashboard v4.1  
+**프로젝트**: 병원 CRM v4.5  
 **상태**: ✅ 테스트 완료, 배포 준비 완료
 

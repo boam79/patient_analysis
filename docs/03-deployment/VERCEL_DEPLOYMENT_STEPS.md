@@ -40,7 +40,7 @@ Vercel이 자동으로 다음을 감지합니다:
 
 ```
 NOMINATIM_API_URL=https://nominatim.openstreetmap.org/search
-NOMINATIM_USER_AGENT=PDR-Dashboard/4.1
+NOMINATIM_USER_AGENT=Hospital-CRM/4.1
 NEXT_TELEMETRY_DISABLED=1
 ```
 

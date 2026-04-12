@@ -9,36 +9,36 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-pdr_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pdr_password}
-      POSTGRES_DB: ${POSTGRES_DB:-pdr_dashboard}
+      POSTGRES_USER: ${POSTGRES_USER:-hospital_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-hospital_password}
+      POSTGRES_DB: ${POSTGRES_DB:-hospital_crm}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./prisma/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pdr_user}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hospital_user}"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
       - pdr-network
 
-  # PDR Dashboard Application
+  # 병원 CRM Application
   app:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: pdr-dashboard
+    container_name: hospital-crm
     restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-pdr_user}:${POSTGRES_PASSWORD:-pdr_password}@postgres:5432/${POSTGRES_DB:-pdr_dashboard}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-hospital_user}:${POSTGRES_PASSWORD:-hospital_password}@postgres:5432/${POSTGRES_DB:-hospital_crm}
       - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
       - NOMINATIM_API_URL=${NOMINATIM_API_URL:-https://nominatim.openstreetmap.org/search}
-      - NOMINATIM_USER_AGENT=${NOMINATIM_USER_AGENT:-PDR-Dashboard/1.0}
+      - NOMINATIM_USER_AGENT=${NOMINATIM_USER_AGENT:-Hospital-CRM/1.0}
     depends_on:
       postgres:
         condition: service_healthy

@@ -1,7 +1,7 @@
 # Phase 4: 배포 완료 및 테스트 준비
 
 **날짜**: 2024-11-17  
-**프로젝트**: PDR Dashboard v4.1  
+**프로젝트**: 병원 CRM v4.5  
 **작업**: 차트 데이터 검증 및 필터 시스템 통합
 
 ---
@@ -52,7 +52,7 @@ feat: 차트 데이터 실제 반영 및 필터 시스템 통합
 ### 배포 설정
 ```json
 {
-  "name": "pdr-dashboard",
+  "name": "hospital-crm",
   "framework": "nextjs",
   "regions": ["icn1"]  // 서울 리전
 }
@@ -69,7 +69,7 @@ feat: 차트 데이터 실제 반영 및 필터 시스템 통합
 - **총 예상 시간**: 2-3분
 
 ### 배포 URL
-- **프로덕션**: https://pdr-dashboard.vercel.app (예상)
+- **프로덕션**: https://hospital-crm.vercel.app (예상)
 - **프리뷰**: 커밋별로 자동 생성
 
 ---
@@ -79,10 +79,10 @@ feat: 차트 데이터 실제 반영 및 필터 시스템 통합
 ### 1단계: 배포 확인 (5분)
 ```bash
 # 헬스 체크
-curl https://pdr-dashboard.vercel.app/api/health
+curl https://hospital-crm.vercel.app/api/health
 
 # 메인 페이지 접속
-https://pdr-dashboard.vercel.app
+https://hospital-crm.vercel.app
 ```
 
 **확인 사항**:
@@ -91,7 +91,7 @@ https://pdr-dashboard.vercel.app
 - [ ] 콘솔 에러 없음
 
 ### 2단계: 데이터 업로드 (10분)
-**URL**: https://pdr-dashboard.vercel.app/dashboard/upload
+**URL**: https://hospital-crm.vercel.app/dashboard/upload
 
 **작업**:
 1. 더미 데이터 업로드 (dummy-data.csv)

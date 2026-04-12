@@ -57,7 +57,7 @@ jobs:
           NEXTAUTH_URL: http://localhost:3000
           NEXTAUTH_SECRET: test-secret-key
           NOMINATIM_API_URL: https://nominatim.openstreetmap.org/search
-          NOMINATIM_USER_AGENT: PDR-Dashboard-CI/1.0
+          NOMINATIM_USER_AGENT: Hospital-CRM-CI/1.0
       
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -92,10 +92,10 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ secrets.DOCKER_USERNAME }}/pdr-dashboard:latest
-            ${{ secrets.DOCKER_USERNAME }}/pdr-dashboard:${{ github.sha }}
-          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/pdr-dashboard:buildcache
-          cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/pdr-dashboard:buildcache,mode=max
+            ${{ secrets.DOCKER_USERNAME }}/hospital-crm:latest
+            ${{ secrets.DOCKER_USERNAME }}/hospital-crm:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/hospital-crm:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/hospital-crm:buildcache,mode=max
   
   # Job 4: 보안 스캔
   security-scan:

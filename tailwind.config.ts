@@ -50,7 +50,7 @@ const config: Config = {
           '4': 'hsl(var(--chart-4))',
           '5': 'hsl(var(--chart-5))',
         },
-        // PDR Dashboard 커스텀 색상
+        // 병원 CRM 커스텀 색상
         positive: '#10B981',    // Green 500 - 재방문율 상승
         negative: '#EF4444',    // Red 500 - 재방문율 하락
         warning: '#F59E0B',    // Amber 500 - 주의 (n<5)

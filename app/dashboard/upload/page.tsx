@@ -185,7 +185,7 @@ export default function UploadPage() {
         <div>
           <h1 className="text-3xl font-bold mb-2">데이터 업로드</h1>
           <p className="text-muted-foreground">
-            환자 데이터 파일을 업로드하고 자동 전처리를 수행합니다
+            병원 CRM용 데이터 파일을 업로드하고 자동 전처리를 수행합니다
           </p>
         </div>
         {isDataLoaded && (

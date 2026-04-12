@@ -16,7 +16,7 @@ NOMINATIM_GEOCODING_URL=https://nominatim.openstreetmap.org/search
 ```
 GET https://nominatim.openstreetmap.org/search?q=경기도 양주시 은현면 용암로 123&format=json&limit=5&countrycodes=kr&accept-language=ko
 Headers:
-  User-Agent: PDR-Dashboard/1.0
+  User-Agent: Hospital-CRM/1.0
 ```
 
 ## Leaflet.js 지도 라이브러리

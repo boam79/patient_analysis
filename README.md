@@ -1,6 +1,6 @@
-# PDR Dashboard v4.5.0
+# 병원 CRM v4.5.0
 
-**Patient Data Review Dashboard** — 병원 CRM 브랜딩 및 통계 분석 고도화
+**병원 CRM** — 방문·질병·수술 데이터 분석 및 경영·마케팅 인사이트
 
 Next.js React TypeScript License
 
@@ -22,7 +22,7 @@ Next.js React TypeScript License
 
 ## 🎯 프로젝트 개요
 
-PDR Dashboard는 의료 데이터 분석을 위한 최신 웹 기반 대시보드입니다. 환자의 재방문 패턴을 분석하고, 질병 및 수술 데이터를 시각화하여 의료 의사결정을 지원합니다.
+병원 CRM은 의료 기관의 방문·질병·수술 데이터를 분석하는 웹 기반 도구입니다. 재방문 패턴과 지역·시기별 트렌드를 시각화하여 운영 및 진료 품질 개선에 활용할 수 있습니다.
 
 ### 핵심 가치
 
@@ -213,9 +213,11 @@ PDR Dashboard는 의료 데이터 분석을 위한 최신 웹 기반 대시보�
 ### 14. 경영 인사이트 v3.0 — 척추관절 전문병원 특화 벤치마크 v4.4.1 (2026-04-04)
 
 #### 배경
+
 기존 경영 인사이트가 피부과/성형외과, 의원급, 단일 지역 파일럿 등 **진료과·기관 유형이 다른 출처**를 혼용하는 문제가 발견되어, **보건복지부 인증 척추·관절 전문병원** 기준으로 전면 재작성했습니다.
 
 #### 제거된 부적절한 출처
+
 - ❌ 피부과/성형외과 재진율 66.1% (메디게이트 설문) — 전혀 다른 진료과, 척추관절 기준으로 사용 시 오인 발생
 - ❌ 중랑구 파일럿 연구 재진율 81% — 단일 자치구 소규모 연구, 전국 대표성 없음
 - ❌ 도시-농촌 -15.2% vs -10.8% — 출처 불명 하드코딩 수치
@@ -225,25 +227,29 @@ PDR Dashboard는 의료 데이터 분석을 위한 최신 웹 기반 대시보�
 
 #### 새로 적용된 척추관절 전문병원 전용 벤치마크
 
-| 지표 | 기존 | 신규 | 출처 |
-|------|------|------|------|
-| 재방문율 (전체) | 의원급 66% | **전문병원 78%** | HIRA 척추질환 외래 적정성 평가 2023 |
-| 재방문율 (수술 환자) | — | **91%** (1·3·6·12개월 추적 기준) | 보건복지부 전문병원 현황 통계 2023 |
-| 재방문율 (보존치료) | — | **65%** (6개월 내) | HIRA 2023 |
-| 성장률 정상 범위 | 0.5~3% | **3~8%** (65세+ 고령화 수요 반영) | 통계청·고령화연구원 추계 2023 |
-| 성장률 경고 기준 | -5% | **-3%** (전문병원 엄격 기준) | 국민건강보험공단 통계연보 2023 |
-| 수술 적정 비중 | — | **15~35%** (보존치료 우선 원칙) | HIRA 척추수술 적정성 평가 2023 |
-| 30일 재수술률 | — | **3% 이하 우수 / 5% 이상 심각** | HIRA 척추수술 적정성 평가 2023 |
-| 합병증 발생률 | — | **5% 이하 우수** | 대한척추외과학회 통계 2023 |
-| COC (진료지속성) | 고혈압 0.81 | **척추관절 0.82** | 국민건강보험공단 COC 분석 2022 |
-| HHI 고집중 기준 | 2,500 | **3,000** (광역 진료권 완화) | 공정거래위원회 + 보건복지부 2023 |
+
+| 지표           | 기존       | 신규                         | 출처                       |
+| ------------ | -------- | -------------------------- | ------------------------ |
+| 재방문율 (전체)    | 의원급 66%  | **전문병원 78%**               | HIRA 척추질환 외래 적정성 평가 2023 |
+| 재방문율 (수술 환자) | —        | **91%** (1·3·6·12개월 추적 기준) | 보건복지부 전문병원 현황 통계 2023    |
+| 재방문율 (보존치료)  | —        | **65%** (6개월 내)            | HIRA 2023                |
+| 성장률 정상 범위    | 0.5~3%   | **3~8%** (65세+ 고령화 수요 반영)  | 통계청·고령화연구원 추계 2023       |
+| 성장률 경고 기준    | -5%      | **-3%** (전문병원 엄격 기준)       | 국민건강보험공단 통계연보 2023       |
+| 수술 적정 비중     | —        | **15~35%** (보존치료 우선 원칙)    | HIRA 척추수술 적정성 평가 2023    |
+| 30일 재수술률     | —        | **3% 이하 우수 / 5% 이상 심각**    | HIRA 척추수술 적정성 평가 2023    |
+| 합병증 발생률      | —        | **5% 이하 우수**               | 대한척추외과학회 통계 2023         |
+| COC (진료지속성)  | 고혈압 0.81 | **척추관절 0.82**              | 국민건강보험공단 COC 분석 2022     |
+| HHI 고집중 기준   | 2,500    | **3,000** (광역 진료권 완화)      | 공정거래위원회 + 보건복지부 2023     |
+
 
 #### 수술 비중 3단계 인사이트 신규 추가
+
 - 🔴 **과다** (35% 초과): HIRA 보존적 치료 선행 프로토콜 점검 권고
 - ✅ **적정** (15~35%): 30일 재수술률·합병증률 분기 모니터링 권고
 - 🔵 **부족** (15% 미만): 보건복지부 전문병원 인증 연간 수술 건수 충족 여부 확인 권고
 
 #### 적용된 공식 출처
+
 - 건강보험심사평가원(HIRA): 척추질환 외래 적정성 평가 2022~2023, 척추수술 적정성 평가 2023
 - 보건복지부: 전문병원 지정·운영 기준 고시 제2023-179호, 전문병원 현황 통계 2023
 - 국민건강보험공단: 근골격계 질환(M코드) 진료비 통계 2023, 척추·관절 COC 분석 2022
@@ -257,9 +263,11 @@ PDR Dashboard는 의료 데이터 분석을 위한 최신 웹 기반 대시보�
 ### 15. 병원 CRM 브랜딩 및 통계 고도화 v4.5.0 (2026-04-12)
 
 #### 브랜딩·UI
+
 - **앱 표시명**: 헤더·메타데이터·메인 대시보드 타이틀을 **「병원 CRM」**으로 통일 (`components/layout/header.tsx`, `app/layout.tsx`, `app/dashboard/page.tsx`, `package.json`)
 
 #### 통계·분석 (전략 대시보드)
+
 - **코호트**: 셀별 **Wilson 95% 신뢰구간** (호버 툴팁), 범례 문구 보강 (`cohort-analysis.tsx`)
 - **이상 탐지(질환×월)**: **Benjamini–Hochberg FDR 15%** 다중검정 보정, **p-value·FDR·Cohen h** 컬럼 추가 (`anomaly-detection.tsx`, `lib/utils/advanced-analysis.ts`)
 - **연관 분석**: 질병 내 수술 비율 vs 전체 수술 비율 **Cohen h** 컬럼 (`association-analysis.tsx`)
@@ -268,7 +276,14 @@ PDR Dashboard는 의료 데이터 분석을 위한 최신 웹 기반 대시보�
 - **신규 탭「고급 통계」** (`components/strategy/advanced-statistics-tab.tsx`): Kaplan–Meier(첫 재방문), 변화점, STL, k-means 산점, 질병 순서 전이, **PSI**(전·후반기 질병 믹스), 결측 요약, **월 고정효과 잔차**, 계층 일관성 비율, 이산 위험표, 분석 파라미터 JSON 스냅샷 다운로드
 
 #### 검증
+
 - `npm run verify:analysis` — `scripts/verify-analysis-golden.ts`에서 Wilson/BH/STL/KM/PSI 등 스모크 검증
+
+#### 전역 명칭 통일 (추가)
+
+- 저장소 전반의 제품 표기를 **「병원 CRM」**으로 정리(로그인·업로드·차트·전략·보내기·관리자 헤더·문서·CI/Docker 주석 등).
+- npm 패키지명 `hospital-crm`, Vercel 프로젝트 키 `hospital-crm`, IndexedDB `Hospital_CRM`, Nominatim UA `Hospital-CRM/*`.
+- 설계 문서: `docs/병원_CRM_설계문서_v4.1.md`(기존 `PDR_Dashboard_v4.1_Final.md`에서 변경).
 
 ---
 
@@ -333,8 +348,8 @@ PDR Dashboard는 의료 데이터 분석을 위한 최신 웹 기반 대시보�
 
 ```bash
 # 1. 저장소 클론
-git clone https://github.com/your-username/pdr-dashboard.git
-cd pdr-dashboard
+git clone https://github.com/your-username/hospital-crm.git
+cd hospital-crm
 
 # 2. 의존성 설치
 npm install
@@ -389,14 +404,14 @@ vercel --prod
 
 ```bash
 # 이미지 빌드
-docker build -t pdr-dashboard:latest .
+docker build -t hospital-crm:latest .
 
 # 컨테이너 실행
 docker run -p 3000:3000 \
   -e DATABASE_URL="postgresql://..." \
   -e NEXTAUTH_URL="http://localhost:3000" \
   -e NEXTAUTH_SECRET="your-secret" \
-  pdr-dashboard:latest
+  hospital-crm:latest
 ```
 
 ---
@@ -717,7 +732,7 @@ npm run generate-data
 
 핵심 문서만 빠르게 보고 싶다면 다음 3가지만 참고하면 됩니다:
 
-- [제품 설계 문서 (PDR v4.1)](docs/PDR_Dashboard_v4.1_Final.md) — 전체 시스템·기능 설계
+- [제품 설계 문서 (병원 CRM)](docs/병원_CRM_설계문서_v4.1.md) — 전체 시스템·기능 설계
 - [Phase 8 완료 보고서](docs/PHASE8_COMPLETE.md) — 성능 최적화 & 테스트 정리
 - [최종 배포 요약](docs/FINAL_DEPLOYMENT_SUMMARY.md) — 실제 배포 결과 요약
 
@@ -726,11 +741,8 @@ npm run generate-data
 
 ---
 
-
-
 **Made with ❤️ by Boam79**
 
 ⭐ Star us on GitHub — it helps!
 
 [Report Bug](https://github.com/boam79/patient_analysis/issues) · [Request Feature](https://github.com/boam79/patient_analysis/issues) · [View Demo](https://patient-analysis-phi.vercel.app)
-
