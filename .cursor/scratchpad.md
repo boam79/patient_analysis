@@ -1211,3 +1211,49 @@ fbad674 - feat: 차트 데이터 실제 반영 및 필터 시스템 통합
 ## Executor's Feedback (2026-04-12)
 
 - **v4.5.0**: 메인 타이틀을「병원 CRM」으로 변경. 통계 고도화(Wilson CI, FDR, Cohen h, STL, KM, PSI, 고급 통계 탭 등) 반영 후 `npm run verify:analysis`·`tsc` 통과. README 섹션 15 추가.
+
+---
+
+## 🧭 v4.6 고도화 제안 (Planner Mode, 2026-07-02)
+
+### 배경 및 동기
+
+사용자 요청: "고도화 제안을 해봐" — 기존 제안서(`ANALYSIS_ENHANCEMENT_PROPOSAL.md`, `COMPREHENSIVE_ENHANCEMENT_PROPOSAL.md`)는 이미 대부분 구현 완료(코호트/RFM/연관분석/계절성/이상탐지 등, v4.4~v4.5). 중복을 피하기 위해 코드베이스를 직접 재검증하여 **아직 다뤄지지 않은 기술 부채·기능 공백**을 식별.
+
+### 검증 방법 및 핵심 발견
+
+`rg`/`grep`으로 실측 검증한 결과:
+1. **테스트 파일 0개** — `*.test.ts` 전무. `verify:analysis`는 golden-value 스모크 스크립트일 뿐 CI 필수 체크 아님
+2. **NextAuth+Prisma 스택 죽은 코드화** — `grep -rl "next-auth" app/ components/ lib/` 결과 없음. `auth.config.ts`는 이미 무력화(v4.3.0), `auth.ts.bak`/`middleware.ts.bak` 방치
+3. **DuckDB WASM 정의만 있고 호출부 없음** — `lib/duckdb.ts`, `hooks/use-duckdb-worker.ts` 존재하나 어디서도 import 안 됨. README는 핵심 기능으로 소개 중 (불일치)
+4. **에러 바운더리 전무** — `app/error.tsx`, `global-error.tsx`, `not-found.tsx` 없음
+5. **README vs 실제 구현 불일치** — Rate Limiting 미구현, CSP 헤더 없음(HSTS/X-Frame-Options는 있음)
+
+전체 상세 내용 및 근거: `docs/01-proposals/TECH_DEBT_AND_ENHANCEMENT_PROPOSAL_v4.6.md`
+
+### 제안 요약 (우선순위순)
+
+**1단계 (즉시, 낮은 리스크)**
+- [ ] `.bak` 파일 삭제 (`auth.ts.bak`, `middleware.ts.bak`)
+- [ ] `app/error.tsx`, `global-error.tsx`, `not-found.tsx` 추가
+- [ ] README 정합성 정정 (Rate Limiting/CSP/NextAuth 문구)
+- [ ] Vitest 도입 + `patient-identity.ts`/`patient-filters.ts` 단위 테스트 (파급력 최대 로직 우선)
+
+**2단계 (설계 결정 필요)**
+- [ ] DuckDB WASM 존치(대용량 데이터에 실연결)/제거 결정
+- [ ] NextAuth+Prisma 스택 제거 여부 결정
+- [ ] CI에 테스트 잡 통합
+- [ ] CSP 헤더 Report-Only 도입
+
+**3단계 (신규 기능)**
+- [ ] API rate limiting
+- [ ] 실배치 지오코딩 파이프라인 연결 (Nominatim)
+- [ ] 시스템 이상탐지 알림 채널 (Slack/Email)
+- [ ] 에러 트래킹/로깅 강화
+
+### 프로젝트 현황판 추가
+- [x] Task P1: 코드베이스 재검증 및 고도화 제안서 작성 ✅ (`docs/01-proposals/TECH_DEBT_AND_ENHANCEMENT_PROPOSAL_v4.6.md`)
+- [ ] Task P2: 사용자 승인 대기 — 우선순위/승인 범위 확정 후 Executor 모드 전환
+
+### Executor's Feedback or Assistance Requests
+- 제안서만 작성한 단계로, 코드 변경 없음. 어떤 항목부터 착수할지(1단계 전체 / 특정 항목만) 확인 후 Executor 모드로 진행 예정.
