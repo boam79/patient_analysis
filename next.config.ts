@@ -20,7 +20,7 @@ const nextConfig: NextConfig = {
   
   // 실험적 기능
   experimental: {
-    optimizePackageImports: ['recharts', 'leaflet', '@duckdb/duckdb-wasm'],
+    optimizePackageImports: ['recharts', 'leaflet'],
   },
   
   // 프로덕션 빌드 최적화
@@ -28,6 +28,22 @@ const nextConfig: NextConfig = {
   
   // 보안 헤더
   async headers() {
+    // CSP는 Report-Only로 우선 도입 (v4.6). 실제 위반 여부를 브라우저 콘솔에서
+    // 관찰한 뒤 문제가 없으면 Content-Security-Policy(강제 모드)로 전환 예정.
+    // Leaflet CSS는 unpkg.com CDN에서, 지도 타일은 tile.openstreetmap.org에서 로드되고,
+    // 인증/로그 관련 API는 *.supabase.co로 호출되므로 이를 허용리스트에 포함.
+    const cspReportOnly = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "style-src 'self' 'unsafe-inline' https://unpkg.com",
+      "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://unpkg.com",
+      "font-src 'self' data:",
+      "connect-src 'self' https://*.supabase.co https://nominatim.openstreetmap.org",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join('; ')
+
     return [
       {
         source: '/:path*',
@@ -60,6 +76,10 @@ const nextConfig: NextConfig = {
             key: 'Permissions-Policy',
             value: 'camera=(), microphone=(), geolocation=()',
           },
+          {
+            key: 'Content-Security-Policy-Report-Only',
+            value: cspReportOnly,
+          },
         ],
       },
     ]
@@ -67,12 +87,6 @@ const nextConfig: NextConfig = {
   
   // Webpack 설정
   webpack: (config, { isServer }) => {
-    // DuckDB WASM 파일 처리
-    config.module.rules.push({
-      test: /\.wasm$/,
-      type: 'asset/resource',
-    })
-    
     // 클라이언트 사이드에서만 필요한 모듈 제외
     if (!isServer) {
       config.resolve.fallback = {

@@ -1,4 +1,4 @@
-# 병원 CRM v4.5.0
+# 병원 CRM v4.6.0
 
 **병원 CRM** — 방문·질병·수술 데이터 분석 및 경영·마케팅 인사이트
 
@@ -38,7 +38,7 @@ Next.js React TypeScript License
 ### 1. 데이터 관리
 
 - 📁 **CSV/Excel 파일 업로드** - 드래그 앤 드롭 지원
-- 🔄 **PapaParse + 클라이언트 집계** - 브라우저 내 데이터 처리 (DuckDB WASM은 의존성만 설치, 파이프라인 미연결 상태)
+- 🔄 **PapaParse + 클라이언트 집계** - 브라우저 내 데이터 처리
 - 💾 **IndexedDB** - 로컬 캐싱 및 매핑 테이블
 
 ### 2. 데이터 시각화
@@ -76,11 +76,10 @@ Next.js React TypeScript License
 ### 6. 보안
 
 - 🔐 **Supabase Auth** - 사용자 인증 (제작자 페이지, RLS 기반)
-- 🛡️ **RBAC** - 역할 기반 권한 관리
-- 🔒 **보안 헤더** - HSTS, X-Frame-Options, X-Content-Type-Options 등 (`next.config.ts`). CSP는 미도입 (계획 중, `docs/01-proposals/TECH_DEBT_AND_ENHANCEMENT_PROPOSAL_v4.6.md` 참고)
-- 🚦 **Rate Limiting** - 미구현 (계획 중)
-
-> ℹ️ **참고**: Next-Auth v5 + Prisma 기반 인증 스택은 `auth.config.ts`/`prisma/schema.prisma`에 코드가 남아있으나 실제로는 사용되지 않으며(Supabase Auth로 완전 대체), 제거가 검토 중입니다.
+- 🛡️ **RBAC** - 역할 기반 권한 관리 (`user_profiles.role`, Supabase RLS 정책)
+- 🔒 **보안 헤더** - HSTS, X-Frame-Options, X-Content-Type-Options 등 (`next.config.ts`)
+- 🧪 **CSP (Report-Only)** - Content-Security-Policy-Report-Only 헤더 도입 (v4.6). 브라우저 콘솔에서 위반 여부 관찰 후 강제 모드 전환 예정
+- 🚦 **Rate Limiting** - 미구현 (계획 중, `docs/01-proposals/TECH_DEBT_AND_ENHANCEMENT_PROPOSAL_v4.6.md` 참고)
 
 ### 7. 통계 기반 경영 인사이트 고도화 v2.1 (2025-01-21)
 
@@ -289,6 +288,33 @@ Next.js React TypeScript License
 
 ---
 
+### 16. 기술 부채 정리 v4.6.0 (2026-07-03)
+
+실측 코드 분석(`docs/01-proposals/TECH_DEBT_AND_ENHANCEMENT_PROPOSAL_v4.6.md`) 기반으로 실사용처가 없는 죽은 코드를 제거하고 테스트/에러 처리/CI를 보강했습니다.
+
+#### 죽은 코드 제거
+
+- **Next-Auth v5 + Prisma + PostgreSQL(자체 호스팅) 인증 스택 완전 제거**: 인증은 이미 Supabase Auth로 전환되어 있었고, `next-auth`/`@auth/prisma-adapter`/`@prisma/client`/`prisma`/`bcryptjs` 패키지와 `auth.config.ts`, `prisma/schema.prisma`, `lib/prisma.ts`, `lib/rbac.ts`(Prisma 의존)가 코드베이스 어디에서도 참조되지 않는 것을 확인 후 삭제
+- **DuckDB WASM 파이프라인 제거**: `lib/duckdb.ts`, `lib/duckdb-worker.ts`, `hooks/use-duckdb-worker.ts`가 정의만 되어 있고 실제 호출부가 전혀 없어 제거. 데이터 처리는 이미 PapaParse + 클라이언트 사이드 집계(`stores/data-store.ts`)로 일원화되어 있었음
+- `auth.ts.bak`, `middleware.ts.bak` 등 백업 파일 삭제 (v4.6.0 1단계에서 선행 처리)
+- Docker/CI 설정에서 위 스택에 종속된 항목 정리: `Dockerfile`(prisma generate 스텝), `docker-compose.yml`(PostgreSQL 컨테이너 및 관련 환경변수), `.env.example`, `.github/workflows/ci.yml`
+
+#### 안정성 강화
+
+- **Next.js 에러 바운더리 신규 도입**: `app/error.tsx`, `app/global-error.tsx`, `app/not-found.tsx`, `app/dashboard/error.tsx`, `app/admin/error.tsx` — 기존에는 런타임 에러 시 백지 화면이 노출될 수 있었음
+- **CSP(Content-Security-Policy-Report-Only) 헤더 도입**: `next.config.ts`에 Report-Only 모드로 우선 적용, 브라우저 콘솔에서 위반 여부 관찰 후 강제 모드 전환 예정
+- **CI 파이프라인 복구**: ESLint 설정 파일(`.eslintrc.json`)이 저장소에 없어 `next lint`가 대화형 프롬프트로 멈추며 최근 다수의 CI 실행이 실패해온 것을 확인 후 수정. `Build Application` 잡에 누락되어 있던 Supabase 환경변수도 추가
+
+#### 테스트 자동화 도입
+
+- **Vitest 도입**: 저장소에 자동화 테스트가 전무했던 문제 해결. `lib/utils/patient-identity.ts`(환자 식별자 정책, 재방문 간격 계산), `lib/utils/patient-filters.ts`(다중 필터 조합) 대상 단위 테스트 28건 작성, CI에 통합
+
+#### 참고
+
+- 상세 검증 근거 및 로드맵: `docs/01-proposals/TECH_DEBT_AND_ENHANCEMENT_PROPOSAL_v4.6.md`
+
+---
+
 ## 🛠️ 기술 스택
 
 ### Frontend
@@ -305,10 +331,15 @@ Next.js React TypeScript License
 
 ### Backend
 
-- **Database**: Supabase (PostgreSQL) — 제작자 페이지/인증/로그용. Prisma + PostgreSQL 16은 정의만 되어 있고 현재 미사용
-- **Authentication**: Supabase Auth (Next-Auth v5는 레거시 코드로 남아있으며 미사용)
-- **Data Processing**: PapaParse + 클라이언트 사이드 집계 (`stores/data-store.ts`). DuckDB WASM은 의존성만 설치되어 있고 실제 데이터 파이프라인에는 아직 연결되지 않음
+- **Database**: Supabase (PostgreSQL) — 제작자 페이지/인증/로그용
+- **Authentication**: Supabase Auth
+- **Data Processing**: PapaParse + 클라이언트 사이드 집계 (`stores/data-store.ts`)
 - **File Parsing**: PapaParse, XLSX
+
+> ℹ️ **v4.6 변경**: Next-Auth v5 + Prisma + PostgreSQL(자체 호스팅) 인증 스택과 DuckDB WASM 파이프라인은
+> 실사용처가 전혀 없는 죽은 코드로 확인되어 완전히 제거되었습니다. 인증/데이터베이스는 Supabase로,
+> 데이터 처리는 PapaParse + 클라이언트 사이드 집계로 일원화되었습니다.
+> 상세 근거는 `docs/01-proposals/TECH_DEBT_AND_ENHANCEMENT_PROPOSAL_v4.6.md` 참고.
 
 ### DevOps
 
@@ -342,7 +373,7 @@ Next.js React TypeScript License
 ### 필수 조건
 
 - Node.js 20+
-- PostgreSQL 16+ (또는 Docker)
+- Supabase 프로젝트 (인증/제작자 페이지/로그용)
 - npm 또는 yarn
 
 ### 설치
@@ -357,12 +388,9 @@ npm install
 
 # 3. 환경 변수 설정
 cp .env.example .env.local
-# .env.local 파일을 편집하여 필요한 값 설정
+# .env.local 파일을 편집하여 Supabase URL/키 등 필요한 값 설정
 
-# 4. 데이터베이스 마이그레이션
-npx prisma migrate dev
-
-# 5. 개발 서버 실행
+# 4. 개발 서버 실행
 npm run dev
 ```
 
@@ -409,9 +437,9 @@ docker build -t hospital-crm:latest .
 
 # 컨테이너 실행
 docker run -p 3000:3000 \
-  -e DATABASE_URL="postgresql://..." \
-  -e NEXTAUTH_URL="http://localhost:3000" \
-  -e NEXTAUTH_SECRET="your-secret" \
+  -e NEXT_PUBLIC_SUPABASE_URL="https://your-project.supabase.co" \
+  -e NEXT_PUBLIC_SUPABASE_ANON_KEY="your-anon-key" \
+  -e SUPABASE_SERVICE_ROLE_KEY="your-service-role-key" \
   hospital-crm:latest
 ```
 
@@ -439,23 +467,21 @@ Patient_Analysis/
 │   ├── ui/                  # UI 기본 컴포넌트 (shadcn/ui)
 │   └── upload/              # 파일 업로드 컴포넌트
 ├── lib/                     # 유틸리티 함수
-│   ├── auth.ts              # NextAuth 설정
-│   ├── duckdb.ts            # DuckDB 초기화
-│   ├── duckdb-worker.ts     # DuckDB Web Worker
+│   ├── supabase/            # Supabase 클라이언트 (인증/서버/미들웨어)
+│   ├── admin-auth.ts        # 관리자 인증 공통 헬퍼
 │   ├── export-utils.ts      # 내보내기 유틸
 │   ├── geocoding-batch.ts   # 지오코딩 배치
 │   ├── indexeddb.ts         # IndexedDB 관리
 │   ├── performance-utils.ts # 성능 유틸
 │   ├── preprocessor.ts      # 데이터 전처리
-│   ├── rbac.ts              # RBAC 유틸
 │   ├── utils.ts             # 공통 유틸
 │   └── utils/               # 유틸리티 서브모듈
-│       ├── date-helpers.ts      # 날짜 유틸
-│       ├── patient-filters.ts   # 환자 필터 유틸
+│       ├── date-helpers.ts        # 날짜 유틸
+│       ├── patient-identity.ts    # 환자 식별자 정책 (단위 테스트 포함)
+│       ├── patient-filters.ts     # 환자 필터 유틸 (단위 테스트 포함)
 │       └── statistical-insights.ts # 통계 분석 (v4.2.1 신규)
 ├── hooks/                   # 커스텀 훅
 │   ├── use-debounce.ts
-│   ├── use-duckdb-worker.ts
 │   ├── use-intersection-observer.ts
 │   └── use-toast.ts
 ├── stores/                  # Zustand 스토어
@@ -463,8 +489,6 @@ Patient_Analysis/
 │   └── filter-store.ts      # 필터 상태 관리 (with persist)
 ├── types/                   # TypeScript 타입
 │   └── react-window.d.ts
-├── prisma/                  # Prisma 스키마
-│   └── schema.prisma
 ├── .github/                 # GitHub Actions
 │   └── workflows/
 │       ├── ci.yml
@@ -722,7 +746,7 @@ npm run generate-data
 - [React](https://react.dev/)
 - [Tailwind CSS](https://tailwindcss.com/)
 - [shadcn/ui](https://ui.shadcn.com/)
-- [DuckDB WASM](https://duckdb.org/docs/api/wasm)
+- [Supabase](https://supabase.com/)
 - [OpenStreetMap](https://www.openstreetmap.org/)
 - [Leaflet.js](https://leafletjs.com/)
 - [Recharts](https://recharts.org/)

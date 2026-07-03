@@ -149,41 +149,6 @@ async function geocodeAddressWithRetry(
 }
 
 /**
- * 지오코딩 결과를 DuckDB에 적용
- */
-export async function applyGeocodingResults(
-  tableName: string,
-  results: GeocodingResult[]
-) {
-  const { queryDuckDB } = await import('./duckdb')
-  
-  // 성공한 결과만 필터링
-  const successResults = results.filter((r) => r.latitude !== null && r.h3Index !== null)
-  
-  if (successResults.length === 0) {
-    throw new Error('No successful geocoding results to apply')
-  }
-  
-  // DuckDB UPDATE 쿼리 생성
-  for (const result of successResults) {
-    await queryDuckDB(`
-      UPDATE ${tableName}
-      SET 
-        latitude = ${result.latitude},
-        longitude = ${result.longitude},
-        h3_index = '${result.h3Index}'
-      WHERE row_number = ${result.index}
-    `)
-  }
-  
-  return {
-    total: results.length,
-    success: successResults.length,
-    failed: results.length - successResults.length,
-  }
-}
-
-/**
  * 유틸리티: sleep 함수
  */
 function sleep(ms: number): Promise<void> {
