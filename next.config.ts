@@ -20,7 +20,7 @@ const nextConfig: NextConfig = {
   
   // 실험적 기능
   experimental: {
-    optimizePackageImports: ['recharts', 'leaflet', '@duckdb/duckdb-wasm'],
+    optimizePackageImports: ['recharts', 'leaflet'],
   },
   
   // 프로덕션 빌드 최적화
@@ -67,12 +67,6 @@ const nextConfig: NextConfig = {
   
   // Webpack 설정
   webpack: (config, { isServer }) => {
-    // DuckDB WASM 파일 처리
-    config.module.rules.push({
-      test: /\.wasm$/,
-      type: 'asset/resource',
-    })
-    
     // 클라이언트 사이드에서만 필요한 모듈 제외
     if (!isServer) {
       config.resolve.fallback = {
