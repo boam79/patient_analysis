@@ -341,7 +341,7 @@ Next.js React TypeScript License
 #### 시스템 이상탐지 Slack 알림 (선택)
 
 - `app/admin/logs/actions.ts`의 이상탐지 로직을 `lib/anomaly-detection.ts`로 추출해 관리자 대시보드와 신규 크론이 공유
-- `app/api/cron/anomaly-check`가 Vercel Cron(15분 주기)으로 실행되어 high severity 이상 접근 탐지 시 Slack Incoming Webhook으로 알림 발송
+- `app/api/cron/anomaly-check`가 Vercel Cron으로 실행되어 high severity 이상 접근 탐지 시 Slack Incoming Webhook으로 알림 발송. Vercel Hobby 플랜은 크론이 하루 1회로 제한되어 기본값은 매일 03:00 UTC 실행이며(`vercel.json`), Pro 플랜에서는 분 단위 스케줄로 조정해 근실시간 알림 가능
 - `SLACK_WEBHOOK_URL` 미설정 시 감지는 수행하되 알림 발송만 스킵(선택 기능), `system_alerts` 테이블로 동일 IP 중복 알림 방지(30분 윈도우)
 
 #### 참고

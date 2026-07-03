@@ -1324,10 +1324,11 @@ fbad674 - feat: 차트 데이터 실제 반영 및 필터 시스템 통합
 
 **작업 4 — 시스템 이상탐지 Slack 알림 (선택 기능)**
 - 기존 `app/admin/logs/actions.ts`의 `detectAnomalies()`는 관리자가 로그 페이지를 열람할 때만 실행되는 on-demand 서버 액션이라 실시간성이 없었음. 이상탐지 로직을 `lib/anomaly-detection.ts`(순수 함수, 인증 무관)로 추출해 관리자 대시보드와 신규 크론이 공유하도록 리팩터링
-- `app/api/cron/anomaly-check`: Vercel Cron(`vercel.json`에 `*/15 * * * *` 등록)으로 주기 실행. `CRON_SECRET` 설정 시 Authorization 헤더 검증(Vercel Cron 표준 방식)
+- `app/api/cron/anomaly-check`: Vercel Cron(`vercel.json`에 등록)으로 주기 실행. `CRON_SECRET` 설정 시 Authorization 헤더 검증(Vercel Cron 표준 방식)
 - `lib/alerts.ts`: `SLACK_WEBHOOK_URL` 미설정 시 감지는 수행하되 알림 발송만 조용히 스킵(선택 기능으로 설계, 시크릿 없이도 빌드/배포에 지장 없음)
 - `system_alerts` 테이블로 동일 IP에 대해 30분 이내 중복 Slack 알림 방지
-- **참고**: Vercel Hobby 플랜은 크론 주기가 1일 1회로 제한됨(Pro 플랜부터 분 단위 지원). 배포 플랜에 따라 `vercel.json`의 `schedule` 값 조정 필요할 수 있음을 인지하고 있으나, 코드 구현은 플랜 무관하게 동일하게 동작하므로 이번 범위에서는 표준 15분 주기로 커밋
+- **버그 발견 및 수정 (PR #4 최초 푸시 후 Vercel 배포 실패로 확인)**: 처음에 `vercel.json`에 `*/15 * * * *`(15분 주기)로 등록했으나, Vercel Hobby 플랜은 크론이 하루 1회로 제한되어 이보다 빈번한 표현식은 **배포 자체가 실패**함(Vercel 공식 문서: "Hobby accounts are limited to daily cron jobs"). PR #4 오픈 후 Vercel 체크가 실패한 것을 발견하고 `0 3 * * *`(매일 03:00 UTC)로 수정. Pro 플랜 사용 시 더 빈번한 주기로 조정 가능하도록 코드 주석에 안내 추가
+  - **교훈**: Vercel Cron을 vercel.json에 추가할 때는 배포 대상 플랜(Hobby/Pro)의 실행 주기 제한을 먼저 확인해야 한다. Hobby 플랜은 일 1회로 제한됨
 
 **의도적으로 보류한 항목**:
 - CSP Report-Only → 강제 모드 전환: 운영 환경에서 실제 위반 로그를 관찰할 방법이 없는 이번 세션 범위에서는 성급한 전환으로 실제 서비스 기능이 차단될 위험이 있어 보류 (제안서에도 "Report-Only 운영 데이터 축적 후"로 명시됨)

@@ -9,6 +9,11 @@ const DEDUP_WINDOW_MINUTES = 30
  * 시스템 이상탐지(IP 접근 급증 등) 주기 점검 및 Slack 알림.
  * Vercel Cron(vercel.json의 crons 설정)에 의해 주기 호출됨.
  *
+ * 참고: Vercel Hobby 플랜은 크론 주기가 하루 1회로 제한되어 vercel.json에는
+ * 일 1회(매일 03:00 UTC) 스케줄로 등록되어 있다. 분 단위 등 더 빈번한
+ * 근실시간 알림이 필요하면 Vercel Pro 플랜으로 업그레이드 후 schedule 값을
+ * 조정한다(예: '*\/15 * * * *').
+ *
  * 필요 환경변수:
  * - SLACK_WEBHOOK_URL: 미설정 시 감지는 수행하되 알림은 스킵(선택 기능)
  * - CRON_SECRET: 설정 시 Vercel Cron 표준 인증 헤더 검증(Authorization: Bearer <secret>)
