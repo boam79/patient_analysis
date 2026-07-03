@@ -61,6 +61,12 @@
       "source": "/health",
       "destination": "/api/health"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/anomaly-check",
+      "schedule": "*/15 * * * *"
+    }
   ]
 }
 
