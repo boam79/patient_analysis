@@ -1292,8 +1292,68 @@ fbad674 - feat: 차트 데이터 실제 반영 및 필터 시스템 통합
 5. `docs: README v4.6.0 갱신 — NextAuth/Prisma/DuckDB 제거 반영`
 
 **3단계 (신규 기능, 의존성 많음 — 향후 별도 착수)**:
-- [ ] API rate limiting (Upstash Redis 또는 자체 구현)
-- [ ] 실배치 지오코딩 파이프라인 연결
-- [ ] 시스템 이상탐지 알림 채널(Slack/Email)
-- [ ] 에러 트래킹 서비스 연동 또는 자체 `error_logs` 테이블
-- [ ] CSP를 Report-Only에서 강제 모드로 전환 (Report-Only 운영 데이터 축적 후)
+- [x] API rate limiting (Upstash Redis 또는 자체 구현)
+- [x] 실배치 지오코딩 파이프라인 연결
+- [x] 시스템 이상탐지 알림 채널(Slack/Email)
+- [x] 에러 트래킹 서비스 연동 또는 자체 `error_logs` 테이블
+- [ ] CSP를 Report-Only에서 강제 모드로 전환 (Report-Only 운영 데이터 축적 후 진행 예정, 이번 범위 제외)
+
+### Executor: 3단계 구현 (2026-07-03, PR #4, 브랜치 `cursor/stage3-new-features-b0da`, base: `cursor/stage2-tech-debt-b0da`)
+
+사용자 지시 "계속 진행해"에 따라 3단계(신규 기능) 착수. 시작 전 `docs/01-proposals/TECH_DEBT_AND_ENHANCEMENT_PROPOSAL_v4.6.md`가 1단계/2단계 브랜치에는 존재하지 않음을 발견(제안서 작성 브랜치 `cursor/enhancement-proposal-v4-6-b0da`가 아직 병합되지 않은 상태에서 이후 브랜치들이 `main`에서 분기했기 때문). README/scratchpad가 이 문서를 계속 참조하므로 정합성을 위해 해당 커밋을 이번 브랜치에 복원 후 작업 시작.
+
+**작업 1 — API Rate Limiting (Upstash Redis 대신 Supabase 자체 구현 선택)**
+- Upstash Redis는 신규 외부 서비스 계약이 필요하나, 이미 사용 중인 Supabase Postgres로도 서버리스 다중 인스턴스 환경에서 정확한 슬라이딩 윈도우 카운팅이 가능하다고 판단해 자체 구현 선택 (인메모리 방식은 인스턴스별로 카운트가 분리되어 신뢰할 수 없어 배제)
+- `supabase/migrations/20260703_rate_limit.sql`: `rate_limit_events` 테이블 + `check_rate_limit` RPC (조회+삽입 원자적 처리, `20260404_ip_stats_rpc.sql`과 동일한 RPC 패턴)
+- `lib/rate-limit.ts`: RPC 미배포·호출 실패 시 fail-open(허용) 처리하여 rate limiter 장애가 서비스 가용성에 영향 주지 않도록 설계
+- 적용 대상: `/api/log-ip`(IP당 60회/60초), `/api/geocode`(IP당 30회/60초, Nominatim 자체 정책 남용 방지 목적 겸함)
+- 단위 테스트 2건 추가(fail-open 동작 검증, 실제 Supabase 연결 없이도 테스트 가능)
+
+**작업 2 — 실배치 지오코딩 파이프라인 연결**
+- 재확인 결과 `lib/preprocessor.ts`의 `geocodeAddress()`(IndexedDB 캐시 포함)와 `lib/geocoding-batch.ts`의 `geocodeBatch()`(중복 제거+재시도) 모두 정의되어 있었으나 업로드 플로우(`app/dashboard/upload/page.tsx`) 어디서도 호출되지 않아 죽은 코드 상태였음. 대신 `stores/data-store.ts`에 하드코딩된 시/군/구 대표 좌표 테이블이 지도 렌더링에 사용되고 있었음(제안서에서 지적한 문제와 일치)
+- `lib/geocoding-batch.ts`를 재작성: 캐시 우선 조회(IndexedDB) 추가, 기존의 "10개씩 병렬 처리 후 배치당 대기" 방식은 Nominatim의 1req/sec 정책을 순간적으로 위반할 소지가 있어 순차 처리(캐시 히트는 대기 없음, 네트워크 호출 시에만 1.1초 대기)로 변경
+- 업로드 페이지에 "실주소 기반 정밀 지오코딩 사용(선택)" 체크박스와 진행률 바 추가. 기본값은 비활성화(기존 동작 유지, 대용량 업로드 시 지오코딩이 수 분 이상 소요될 수 있어 opt-in으로 설계). 좌표가 없는 레코드의 고유 주소만 대상으로 하여 중복 API 호출 방지
+
+**작업 3 — 자체 error_logs 테이블 + 클라이언트 에러 리포팅**
+- 외부 에러 트래킹 서비스(Sentry 등) 연동은 신규 계정/SDK 의존성이 필요해 배제하고, 이미 확립된 패턴(Supabase 테이블 + RLS + 관리자 뷰어, `audit_logs`/`ip_access_logs`와 동일)을 따라 자체 `error_logs` 테이블로 구현
+- `supabase/migrations/20260703_error_logs.sql`: ADMIN 전용 SELECT RLS 정책, 90일 TTL 정리 함수
+- `lib/error-logging.ts`: `sendBeacon` 우선 전송(페이지 이탈 중에도 전송 보장), 실패 시 `fetch(keepalive:true)`로 폴백, 리포팅 자체 실패는 항상 무시(에러 화면 렌더링에 영향 없음)
+- 1단계에서 만든 4개 에러 바운더리(`app/error.tsx`, `app/global-error.tsx`, `app/dashboard/error.tsx`, `app/admin/error.tsx`)에 리포팅 연동
+- `/api/log-error`에도 rate limiting 적용(IP당 20회/60초) — 렌더링 루프 버그 등으로 인한 로그 폭증 방지
+- 관리자 사이드바에 "에러 로그" 메뉴 및 `/admin/errors` 뷰어 페이지 신규 추가 (검색/필터/스택트레이스 확인, `audit-log-viewer.tsx` 패턴 재사용)
+
+**작업 4 — 시스템 이상탐지 Slack 알림 (선택 기능)**
+- 기존 `app/admin/logs/actions.ts`의 `detectAnomalies()`는 관리자가 로그 페이지를 열람할 때만 실행되는 on-demand 서버 액션이라 실시간성이 없었음. 이상탐지 로직을 `lib/anomaly-detection.ts`(순수 함수, 인증 무관)로 추출해 관리자 대시보드와 신규 크론이 공유하도록 리팩터링
+- `app/api/cron/anomaly-check`: Vercel Cron(`vercel.json`에 `*/15 * * * *` 등록)으로 주기 실행. `CRON_SECRET` 설정 시 Authorization 헤더 검증(Vercel Cron 표준 방식)
+- `lib/alerts.ts`: `SLACK_WEBHOOK_URL` 미설정 시 감지는 수행하되 알림 발송만 조용히 스킵(선택 기능으로 설계, 시크릿 없이도 빌드/배포에 지장 없음)
+- `system_alerts` 테이블로 동일 IP에 대해 30분 이내 중복 Slack 알림 방지
+- **참고**: Vercel Hobby 플랜은 크론 주기가 1일 1회로 제한됨(Pro 플랜부터 분 단위 지원). 배포 플랜에 따라 `vercel.json`의 `schedule` 값 조정 필요할 수 있음을 인지하고 있으나, 코드 구현은 플랜 무관하게 동일하게 동작하므로 이번 범위에서는 표준 15분 주기로 커밋
+
+**의도적으로 보류한 항목**:
+- CSP Report-Only → 강제 모드 전환: 운영 환경에서 실제 위반 로그를 관찰할 방법이 없는 이번 세션 범위에서는 성급한 전환으로 실제 서비스 기능이 차단될 위험이 있어 보류 (제안서에도 "Report-Only 운영 데이터 축적 후"로 명시됨)
+
+**검증 결과**:
+- `npx tsc --noEmit` ✅ (에러 0)
+- `npm run lint` ✅ (에러 0, 기존 경고 7건은 이번 작업 범위 밖)
+- `npx vitest run` ✅ 30/30 통과 (신규 rate-limit 테스트 2건 포함)
+- `npm run build` ✅ (Supabase placeholder 환경변수로 로컬 재현, `/admin/errors`·`/api/log-error`·`/api/cron/anomaly-check` 라우트 정상 생성 확인)
+
+**README 갱신**: v4.6.0 → v4.7.0. "17. 신규 기능 v4.7.0" 섹션 추가, 보안 기능 목록에 Rate Limiting/에러 트래킹/이상탐지 알림 반영, 프로젝트 구조에 신규 `lib/*.ts` 파일 추가, `.env.example`에 `SLACK_WEBHOOK_URL`/`CRON_SECRET`(둘 다 선택 사항) 문서화.
+
+**커밋 구성** (5개, 논리 단위별 분리):
+1. `docs: v4.6 고도화 제안서 브랜치에 복원`
+2. `feat: Supabase 기반 API rate limiting 도입 (log-ip, geocode)`
+3. `feat: 실배치 지오코딩 파이프라인을 업로드 플로우에 연결`
+4. `feat: 자체 error_logs 테이블 도입 및 클라이언트 에러 리포팅 연동`
+5. `feat: 시스템 이상탐지 Slack 알림 채널 연동 (선택적)`
+6. (예정) `docs: README v4.7.0 갱신 + 버전 업데이트`
+
+**신규 마이그레이션 (Supabase SQL Editor에서 순서 무관하게 실행 가능)**:
+- `supabase/migrations/20260703_rate_limit.sql`
+- `supabase/migrations/20260703_error_logs.sql`
+- `supabase/migrations/20260703_system_alerts.sql`
+
+**필요 시 사용자 조치 사항 (선택 기능이므로 미설정 시에도 서비스는 정상 동작)**:
+- Slack 알림을 받으려면 Cursor Dashboard(Cloud Agents > Secrets) 또는 Vercel 환경변수에 `SLACK_WEBHOOK_URL` 추가
+- 크론 엔드포인트 보호를 원하면 `CRON_SECRET` 추가 후 Vercel Cron 설정에서 동일 값 사용
+- 위 3개 마이그레이션 SQL을 Supabase 대시보드 SQL Editor에서 실행해야 rate limiting/에러 로그/이상탐지 알림 기능이 완전히 동작함 (미실행 시에도 fail-open으로 서비스 자체는 정상 동작, 신규 기능만 비활성 상태로 남음)
