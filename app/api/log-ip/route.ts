@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getClientIp, isValidIp } from '@/lib/ip-utils'
+import { checkRateLimit } from '@/lib/rate-limit'
 import { createClient } from '@supabase/supabase-js'
 
 // Service Role Key를 사용하여 RLS를 우회하고 직접 삽입
@@ -20,6 +21,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Invalid IP address' },
         { status: 400 }
+      )
+    }
+
+    // Rate limiting: 인증 없이 호출 가능한 엔드포인트이므로 IP당 요청량 제한
+    const rateLimit = await checkRateLimit(ipAddress, 'log-ip', {
+      maxRequests: 60,
+      windowSeconds: 60,
+    })
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSeconds) } }
       )
     }
 

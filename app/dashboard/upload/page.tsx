@@ -8,7 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { useDataStore, PatientData } from '@/stores/data-store'
 import { useFilterStore } from '@/stores/filter-store'
-import { CheckCircle2, Database, TrendingUp } from 'lucide-react'
+import { CheckCircle2, Database, TrendingUp, MapPin } from 'lucide-react'
+import { geocodeBatch } from '@/lib/geocoding-batch'
 
 export default function UploadPage() {
   const router = useRouter()
@@ -19,6 +20,8 @@ export default function UploadPage() {
   const [fileName, setFileName] = useState<string>('')
   const [processing, setProcessing] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [useGeocoding, setUseGeocoding] = useState(false)
+  const [geocodingProgress, setGeocodingProgress] = useState<{ completed: number; total: number } | null>(null)
 
   const handleClearData = () => {
     if (confirm('저장된 데이터를 삭제하시겠습니까?')) {
@@ -154,6 +157,44 @@ export default function UploadPage() {
         setDateRange(minDate, maxDate)
       }
 
+      // 실주소 정밀 지오코딩 (선택 사항)
+      // CSV에 좌표가 없고 주소만 있는 레코드를 대상으로 Nominatim API를 통해
+      // 위도/경도/H3 인덱스를 조회. 결과는 IndexedDB에 캐싱되어 재업로드 시 재사용됨.
+      if (useGeocoding) {
+        const addressesToGeocode = Array.from(
+          new Set(
+            patientData
+              .filter((p) => !p.latitude && !p.longitude && p.address)
+              .map((p) => p.address)
+          )
+        )
+
+        if (addressesToGeocode.length > 0) {
+          setGeocodingProgress({ completed: 0, total: addressesToGeocode.length })
+
+          const geocodeResults = await geocodeBatch(addressesToGeocode, {
+            onProgress: (completed, total) => setGeocodingProgress({ completed, total }),
+          })
+
+          const geocodeMap = new Map(
+            geocodeResults
+              .filter((r) => r.latitude !== null && r.longitude !== null && r.h3Index !== null)
+              .map((r) => [r.address, r])
+          )
+
+          patientData.forEach((p) => {
+            const geocoded = geocodeMap.get(p.address)
+            if (geocoded) {
+              p.latitude = geocoded.latitude!
+              p.longitude = geocoded.longitude!
+              p.h3_index = geocoded.h3Index!
+            }
+          })
+
+          setGeocodingProgress(null)
+        }
+      }
+
       // Store에 데이터 저장
       setRawData(patientData)
       
@@ -248,6 +289,56 @@ export default function UploadPage() {
       )}
 
       {uploadedData && !success && (
+        <Card>
+          <CardContent className="pt-6">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={useGeocoding}
+                onChange={(e) => setUseGeocoding(e.target.checked)}
+                disabled={processing}
+                className="mt-1 h-4 w-4 rounded border-muted-foreground/50 accent-primary"
+              />
+              <span className="flex items-start gap-2">
+                <MapPin className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                <span>
+                  <span className="text-sm font-medium block">
+                    실주소 기반 정밀 지오코딩 사용 (선택)
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    좌표가 없는 레코드의 주소를 OpenStreetMap Nominatim으로 조회해 정확한 위치를 계산합니다.
+                    Nominatim 사용 정책상 고유 주소당 약 1초가 소요되며, 결과는 브라우저에 캐싱되어 다음 업로드부터는 즉시 재사용됩니다.
+                    선택하지 않으면 시/군/구 대표 좌표를 사용합니다.
+                  </span>
+                </span>
+              </span>
+            </label>
+          </CardContent>
+        </Card>
+      )}
+
+      {geocodingProgress && (
+        <Card className="border-primary/50 bg-primary/5">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 text-primary mb-2">
+              <MapPin className="h-4 w-4" />
+              <p className="text-sm font-medium">
+                지오코딩 진행 중... ({geocodingProgress.completed.toLocaleString()} / {geocodingProgress.total.toLocaleString()})
+              </p>
+            </div>
+            <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full bg-primary transition-all duration-300"
+                style={{
+                  width: `${geocodingProgress.total > 0 ? (geocodingProgress.completed / geocodingProgress.total) * 100 : 0}%`,
+                }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {uploadedData && !success && (
         <div className="flex justify-end gap-2">
           <Button
             onClick={handleProcess}
@@ -257,7 +348,7 @@ export default function UploadPage() {
             {processing ? (
               <>
                 <div className="animate-spin h-4 w-4 border-2 border-primary-foreground border-t-transparent rounded-full mr-2" />
-                처리 중...
+                {geocodingProgress ? '지오코딩 중...' : '처리 중...'}
               </>
             ) : (
               <>

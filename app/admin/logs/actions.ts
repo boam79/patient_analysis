@@ -2,6 +2,7 @@
 
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { requireAdminAuth } from '@/lib/admin-auth'
+import { detectAccessAnomalies } from '@/lib/anomaly-detection'
 
 function getSupabaseAdmin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -225,58 +226,7 @@ export async function detectAnomalies() {
   await requireAdminAuth()
   const supabaseAdmin = getSupabaseAdmin()
 
-  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
-  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
-
-  const { data, error } = await supabaseAdmin
-    .from('ip_access_logs')
-    .select('ip_address, created_at')
-    .gte('created_at', oneHourAgo)
-
-  if (error) {
-    throw new Error(`이상 패턴 감지 실패: ${error.message}`)
-  }
-
-  if (!data || data.length === 0) return []
-
-  // IP별 1시간 카운트 및 5분 카운트
-  const hourCounts = new Map<string, number>()
-  const fiveMinCounts = new Map<string, number>()
-
-  data.forEach((log) => {
-    if (!log.ip_address) return
-    hourCounts.set(log.ip_address, (hourCounts.get(log.ip_address) || 0) + 1)
-
-    if (log.created_at >= fiveMinutesAgo) {
-      fiveMinCounts.set(log.ip_address, (fiveMinCounts.get(log.ip_address) || 0) + 1)
-    }
-  })
-
-  const anomalies: Array<{
-    ip_address: string
-    access_count: number
-    rate_per_minute: number
-    burst_5min: number
-    severity: 'high' | 'medium'
-  }> = []
-
-  hourCounts.forEach((count, ip) => {
-    const ratePerMinute = count / 60
-    const burst = fiveMinCounts.get(ip) || 0
-
-    // 분당 1회 초과(1시간 60회 이상) 또는 5분 내 30회 이상(급증)
-    if (ratePerMinute >= 1 || burst >= 30) {
-      anomalies.push({
-        ip_address: ip,
-        access_count: count,
-        rate_per_minute: Math.round(ratePerMinute * 100) / 100,
-        burst_5min: burst,
-        severity: burst >= 30 ? 'high' : 'medium',
-      })
-    }
-  })
-
-  return anomalies.sort((a, b) => b.access_count - a.access_count)
+  return detectAccessAnomalies(supabaseAdmin)
 }
 
 /**

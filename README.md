@@ -1,4 +1,4 @@
-# 병원 CRM v4.6.0
+# 병원 CRM v4.7.0
 
 **병원 CRM** — 방문·질병·수술 데이터 분석 및 경영·마케팅 인사이트
 
@@ -79,7 +79,9 @@ Next.js React TypeScript License
 - 🛡️ **RBAC** - 역할 기반 권한 관리 (`user_profiles.role`, Supabase RLS 정책)
 - 🔒 **보안 헤더** - HSTS, X-Frame-Options, X-Content-Type-Options 등 (`next.config.ts`)
 - 🧪 **CSP (Report-Only)** - Content-Security-Policy-Report-Only 헤더 도입 (v4.6). 브라우저 콘솔에서 위반 여부 관찰 후 강제 모드 전환 예정
-- 🚦 **Rate Limiting** - 미구현 (계획 중, `docs/01-proposals/TECH_DEBT_AND_ENHANCEMENT_PROPOSAL_v4.6.md` 참고)
+- 🚦 **Rate Limiting (v4.7)** - Supabase 기반 슬라이딩 윈도우로 `/api/log-ip`, `/api/geocode` 등 비인증 API 남용 방지
+- 🩹 **에러 트래킹 (v4.7)** - 자체 `error_logs` 테이블로 클라이언트 런타임 에러 수집 (관리자 페이지에서 조회)
+- 🔔 **시스템 이상탐지 알림 (v4.7)** - IP 접근 급증 등 이상 패턴을 15분 주기로 점검, Slack 알림 발송 (선택 사항)
 
 ### 7. 통계 기반 경영 인사이트 고도화 v2.1 (2025-01-21)
 
@@ -315,6 +317,39 @@ Next.js React TypeScript License
 
 ---
 
+### 17. 신규 기능 v4.7.0 (2026-07-03)
+
+`TECH_DEBT_AND_ENHANCEMENT_PROPOSAL_v4.6.md`의 3단계(신규 기능) 항목을 구현했습니다. 외부 서비스(Upstash, Sentry 등) 신규 계약 없이 이미 사용 중인 Supabase/Vercel/Slack만으로 구성했습니다.
+
+#### API Rate Limiting
+
+- Supabase 기반 슬라이딩 윈도우 rate limiter 도입(`lib/rate-limit.ts`, `supabase/migrations/20260703_rate_limit.sql`)
+- 인증 없이 호출 가능한 `/api/log-ip`(IP당 60회/분), `/api/geocode`(IP당 30회/분, Nominatim 정책 보호 목적 포함)에 적용
+- 서버리스 다중 인스턴스 환경에서도 정확히 동작하도록 상태를 Postgres에 저장(인메모리 방식의 한계 회피). RPC 미배포/실패 시 fail-open으로 서비스 가용성 우선
+
+#### 실배치 지오코딩 파이프라인 연결
+
+- `lib/geocoding-batch.ts`를 IndexedDB 캐시 우선 조회 + Nominatim 1req/sec 정책을 준수하는 순차 처리로 재작성 (기존에는 정의만 있고 호출부가 없었음, 이전 병렬 배치 구조는 레이트리밋 정책 위반 소지)
+- 업로드 페이지(`app/dashboard/upload/page.tsx`)에 실주소 기반 정밀 지오코딩 선택 옵션 및 진행률 UI 추가. 선택 시 시/군/구 대표 좌표 대신 실좌표 사용
+
+#### 자체 에러 트래킹
+
+- `error_logs` 테이블 신설(ADMIN 전용 RLS)과 `/api/log-error` 수집 엔드포인트 추가
+- 기존 4개 에러 바운더리(`app/error.tsx`, `app/global-error.tsx`, `app/dashboard/error.tsx`, `app/admin/error.tsx`)에서 발생 시 `sendBeacon` 우선으로 자동 리포팅 (best-effort, 실패해도 에러 화면에 영향 없음)
+- 관리자 페이지에 `/admin/errors` 뷰어 신규 추가
+
+#### 시스템 이상탐지 Slack 알림 (선택)
+
+- `app/admin/logs/actions.ts`의 이상탐지 로직을 `lib/anomaly-detection.ts`로 추출해 관리자 대시보드와 신규 크론이 공유
+- `app/api/cron/anomaly-check`가 Vercel Cron으로 실행되어 high severity 이상 접근 탐지 시 Slack Incoming Webhook으로 알림 발송. Vercel Hobby 플랜은 크론이 하루 1회로 제한되어 기본값은 매일 03:00 UTC 실행이며(`vercel.json`), Pro 플랜에서는 분 단위 스케줄로 조정해 근실시간 알림 가능
+- `SLACK_WEBHOOK_URL` 미설정 시 감지는 수행하되 알림 발송만 스킵(선택 기능), `system_alerts` 테이블로 동일 IP 중복 알림 방지(30분 윈도우)
+
+#### 참고
+
+- CSP를 Report-Only에서 강제 모드로 전환하는 작업은 운영 데이터 축적 후 진행 예정 (제안서 3단계 마지막 항목)
+
+---
+
 ## 🛠️ 기술 스택
 
 ### Frontend
@@ -373,8 +408,9 @@ Next.js React TypeScript License
 ### 필수 조건
 
 - Node.js 20+
-- Supabase 프로젝트 (인증/제작자 페이지/로그용)
+- Supabase 프로젝트 (인증/제작자 페이지/로그/rate limiting/에러 로그용)
 - npm 또는 yarn
+- (선택) Slack Incoming Webhook — 시스템 이상탐지 알림을 받으려면 설정
 
 ### 설치
 
@@ -469,11 +505,15 @@ Patient_Analysis/
 ├── lib/                     # 유틸리티 함수
 │   ├── supabase/            # Supabase 클라이언트 (인증/서버/미들웨어)
 │   ├── admin-auth.ts        # 관리자 인증 공통 헬퍼
+│   ├── alerts.ts            # Slack 알림 헬퍼 (v4.7, 선택 사항)
+│   ├── anomaly-detection.ts # IP 접근 이상탐지 공용 로직 (v4.7)
+│   ├── error-logging.ts     # 클라이언트 에러 리포팅 헬퍼 (v4.7)
 │   ├── export-utils.ts      # 내보내기 유틸
-│   ├── geocoding-batch.ts   # 지오코딩 배치
+│   ├── geocoding-batch.ts   # 지오코딩 배치 (IndexedDB 캐시 + Nominatim 순차 처리, v4.7)
 │   ├── indexeddb.ts         # IndexedDB 관리
 │   ├── performance-utils.ts # 성능 유틸
 │   ├── preprocessor.ts      # 데이터 전처리
+│   ├── rate-limit.ts        # Supabase 기반 API rate limiting (v4.7)
 │   ├── utils.ts             # 공통 유틸
 │   └── utils/               # 유틸리티 서브모듈
 │       ├── date-helpers.ts        # 날짜 유틸
