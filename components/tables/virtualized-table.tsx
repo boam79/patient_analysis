@@ -44,7 +44,7 @@ export function VirtualizedTable({
 
   // 행 렌더링 함수
   const Row = useMemo(() => {
-    return ({ index, style }: { index: number; style: React.CSSProperties }) => {
+    return function TableRow({ index, style }: { index: number; style: React.CSSProperties }) {
       const row = data[index]
       
       return (

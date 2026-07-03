@@ -30,6 +30,9 @@ jobs:
       
       - name: Run TypeScript type check
         run: npm run type-check
+
+      - name: Run unit tests
+        run: npm run test
   
   # Job 2: 빌드 테스트
   build:
@@ -58,6 +61,9 @@ jobs:
           NEXTAUTH_SECRET: test-secret-key
           NOMINATIM_API_URL: https://nominatim.openstreetmap.org/search
           NOMINATIM_USER_AGENT: Hospital-CRM-CI/1.0
+          NEXT_PUBLIC_SUPABASE_URL: https://ci-placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
       
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
