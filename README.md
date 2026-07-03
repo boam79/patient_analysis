@@ -38,7 +38,7 @@ Next.js React TypeScript License
 ### 1. 데이터 관리
 
 - 📁 **CSV/Excel 파일 업로드** - 드래그 앤 드롭 지원
-- 🔄 **DuckDB WASM** - 브라우저 내 SQL 처리
+- 🔄 **PapaParse + 클라이언트 집계** - 브라우저 내 데이터 처리 (DuckDB WASM은 의존성만 설치, 파이프라인 미연결 상태)
 - 💾 **IndexedDB** - 로컬 캐싱 및 매핑 테이블
 
 ### 2. 데이터 시각화
@@ -75,10 +75,12 @@ Next.js React TypeScript License
 
 ### 6. 보안
 
-- 🔐 **Next-Auth v5** - 사용자 인증
+- 🔐 **Supabase Auth** - 사용자 인증 (제작자 페이지, RLS 기반)
 - 🛡️ **RBAC** - 역할 기반 권한 관리
-- 🔒 **보안 헤더** - HSTS, CSP, XSS Protection
-- 🚦 **Rate Limiting** - API 요청 제한
+- 🔒 **보안 헤더** - HSTS, X-Frame-Options, X-Content-Type-Options 등 (`next.config.ts`). CSP는 미도입 (계획 중, `docs/01-proposals/TECH_DEBT_AND_ENHANCEMENT_PROPOSAL_v4.6.md` 참고)
+- 🚦 **Rate Limiting** - 미구현 (계획 중)
+
+> ℹ️ **참고**: Next-Auth v5 + Prisma 기반 인증 스택은 `auth.config.ts`/`prisma/schema.prisma`에 코드가 남아있으나 실제로는 사용되지 않으며(Supabase Auth로 완전 대체), 제거가 검토 중입니다.
 
 ### 7. 통계 기반 경영 인사이트 고도화 v2.1 (2025-01-21)
 
@@ -303,10 +305,9 @@ Next.js React TypeScript License
 
 ### Backend
 
-- **Database**: PostgreSQL 16
-- **ORM**: Prisma
-- **Authentication**: Next-Auth v5
-- **Data Processing**: DuckDB WASM
+- **Database**: Supabase (PostgreSQL) — 제작자 페이지/인증/로그용. Prisma + PostgreSQL 16은 정의만 되어 있고 현재 미사용
+- **Authentication**: Supabase Auth (Next-Auth v5는 레거시 코드로 남아있으며 미사용)
+- **Data Processing**: PapaParse + 클라이언트 사이드 집계 (`stores/data-store.ts`). DuckDB WASM은 의존성만 설치되어 있고 실제 데이터 파이프라인에는 아직 연결되지 않음
 - **File Parsing**: PapaParse, XLSX
 
 ### DevOps
