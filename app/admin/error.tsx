@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { AlertTriangle, RotateCcw, LayoutDashboard } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { reportClientError } from '@/lib/error-logging'
 
 export default function AdminError({
   error,
@@ -15,6 +16,7 @@ export default function AdminError({
 }) {
   useEffect(() => {
     console.error('[Admin Error Boundary]', error)
+    reportClientError(error, 'admin')
   }, [error])
 
   return (

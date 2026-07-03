@@ -9,7 +9,8 @@ import {
   Search, 
   Activity, 
   Settings, 
-  FileText 
+  FileText,
+  AlertTriangle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -18,6 +19,7 @@ const menuItems = [
   { href: '/admin/users', label: '사용자 관리', icon: Users },
   { href: '/admin/statistics', label: '통계', icon: BarChart3 },
   { href: '/admin/logs', label: '로그 분석', icon: Search },
+  { href: '/admin/errors', label: '에러 로그', icon: AlertTriangle },
   { href: '/admin/monitoring', label: '모니터링', icon: Activity },
   { href: '/admin/maintenance', label: '유지보수', icon: Settings },
   { href: '/admin/audit', label: '감사 로그', icon: FileText },
