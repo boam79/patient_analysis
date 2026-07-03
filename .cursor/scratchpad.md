@@ -1211,3 +1211,41 @@ fbad674 - feat: 차트 데이터 실제 반영 및 필터 시스템 통합
 ## Executor's Feedback (2026-04-12)
 
 - **v4.5.0**: 메인 타이틀을「병원 CRM」으로 변경. 통계 고도화(Wilson CI, FDR, Cohen h, STL, KM, PSI, 고급 통계 탭 등) 반영 후 `npm run verify:analysis`·`tsc` 통과. README 섹션 15 추가.
+
+---
+
+## 🧭 v4.6 고도화 제안 및 1단계 구현 (2026-07-02 ~ 2026-07-03)
+
+### 배경
+사용자 요청 "고도화 제안을 해봐" → "진행해"에 따라 Planner/Executor 사이클 수행.
+
+### Planner: 제안서 작성 (2026-07-02, PR #1, 브랜치 `cursor/enhancement-proposal-v4-6-b0da`)
+기존 v4.5.0 코드베이스를 `rg`/`grep`으로 실측 검증하여 기존 제안서(코호트/RFM/연관분석 등, 이미 구현 완료)와 중복되지 않는 새로운 기술 부채·기능 공백을 식별. 상세 내용은 `docs/01-proposals/TECH_DEBT_AND_ENHANCEMENT_PROPOSAL_v4.6.md` 참고.
+
+핵심 발견: 테스트 파일 0개, NextAuth+Prisma 죽은 코드, DuckDB WASM 미연결, 에러 바운더리 전무, README-실제구현 불일치(Rate Limiting/CSP).
+
+### Executor: 1단계 구현 (2026-07-03, PR #2, 브랜치 `cursor/stage1-tech-debt-cleanup-b0da`)
+
+**완료된 작업**:
+1. ✅ `auth.ts.bak`, `middleware.ts.bak` 삭제
+2. ✅ 에러 바운더리 추가: `app/error.tsx`, `app/global-error.tsx`, `app/not-found.tsx`, `app/dashboard/error.tsx`, `app/admin/error.tsx`
+3. ✅ README/`.env.example` 정합성 정정 (Rate Limiting/CSP/NextAuth/DuckDB 문구, Supabase 환경변수 3종 추가)
+4. ✅ Vitest 도입 (`vitest.config.ts`, `npm run test`/`test:watch`) + 단위 테스트 28개
+   - `lib/utils/patient-identity.test.ts`, `lib/utils/patient-filters.test.ts`
+5. ✅ CI에 `npm run test` 스텝 통합
+
+**예상치 못한 추가 발견 및 조치** (저위험 CI 안정화 목적으로 승인 없이 진행):
+`gh run list`로 확인한 결과 최근 여러 CI 실행이 이미 실패 중이었음.
+- 원인 1: `.eslintrc.json` 부재로 `next lint`가 대화형 프롬프트로 멈춤 → 설정 파일(`next/core-web-vitals`) 추가
+- 원인 2: ESLint 활성화로 드러난 기존 에러 `react/display-name`(`components/tables/virtualized-table.tsx`) → named function으로 수정
+- 원인 3: CI `Build Application` 잡에 Supabase 환경변수 누락으로 로컬 재현 시 빌드 실패 확인 → CI에 placeholder 값 추가
+
+**검증 결과**:
+- `npx tsc --noEmit` ✅ / `npm run lint` ✅ (에러 0, 경고 7건은 기존 코드베이스 이슈로 범위 밖) / `npx vitest run` ✅ 28/28 / `npm run build` ✅
+- **실 GitHub Actions 확인**: PR #2에서 Lint & Type Check, Build Application 잡 모두 ✓ (이전에는 lint 단계에서 항상 실패)
+
+**다음 단계 (2단계 — 설계 결정 필요, 사용자 승인 대기)**:
+- [ ] DuckDB WASM 존치(실연결)/제거 결정
+- [ ] NextAuth+Prisma 스택 제거 여부 결정
+- [ ] CSP 헤더 Report-Only 모드 도입
+- [ ] `lib/rbac.ts`도 미사용으로 추가 확인됨 (제안서에 없던 항목, 정리 후보 검토)
