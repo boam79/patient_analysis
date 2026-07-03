@@ -1,29 +1,9 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database
-  postgres:
-    image: postgres:16-alpine
-    container_name: pdr-postgres
-    restart: unless-stopped
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-hospital_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-hospital_password}
-      POSTGRES_DB: ${POSTGRES_DB:-hospital_crm}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./prisma/init.sql:/docker-entrypoint-initdb.d/init.sql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hospital_user}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - pdr-network
-
   # 병원 CRM Application
+  # 참고: 인증/제작자 페이지/로그는 Supabase(PostgreSQL)를 사용합니다.
+  # 로컬 PostgreSQL 컨테이너는 더 이상 필요하지 않습니다 (NextAuth+Prisma 스택 제거, v4.6).
   app:
     build:
       context: .
@@ -34,14 +14,11 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-hospital_user}:${POSTGRES_PASSWORD:-hospital_password}@postgres:5432/${POSTGRES_DB:-hospital_crm}
-      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
-      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
       - NOMINATIM_API_URL=${NOMINATIM_API_URL:-https://nominatim.openstreetmap.org/search}
       - NOMINATIM_USER_AGENT=${NOMINATIM_USER_AGENT:-Hospital-CRM/1.0}
-    depends_on:
-      postgres:
-        condition: service_healthy
     volumes:
       - ./uploads:/app/uploads
       - ./logs:/app/logs
@@ -63,10 +40,6 @@ services:
       - app
     networks:
       - pdr-network
-
-volumes:
-  postgres_data:
-    driver: local
 
 networks:
   pdr-network:

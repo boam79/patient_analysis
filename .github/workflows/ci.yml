@@ -56,9 +56,6 @@ jobs:
       - name: Build application
         run: npm run build
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/test
-          NEXTAUTH_URL: http://localhost:3000
-          NEXTAUTH_SECRET: test-secret-key
           NOMINATIM_API_URL: https://nominatim.openstreetmap.org/search
           NOMINATIM_USER_AGENT: Hospital-CRM-CI/1.0
           NEXT_PUBLIC_SUPABASE_URL: https://ci-placeholder.supabase.co
