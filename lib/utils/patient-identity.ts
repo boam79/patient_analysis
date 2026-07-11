@@ -5,8 +5,7 @@ import type { PatientData } from '@/stores/data-store'
  *
  * 우선순위:
  *   1. patient_id 필드 (비어있지 않은 경우)
- *   2. 이름 + 생년월일 (주소보다 안정적)
- *   3. 이름 + 주소 (최후 폴백)
+ *   2. 이름 + 주소 (폴백)
  *
  * 이 함수를 통해 data-store, 전략 컴포넌트, 대시보드 모두 동일한 기준으로 환자를 식별합니다.
  */

@@ -14,12 +14,16 @@ export interface MonthlyTrendPoint {
 const MS_PER_DAY = 1000 * 60 * 60 * 24
 
 /**
- * 필터된 방문 데이터로부터 월별 신규/재방문·재방문율 집계.
- * 대시보드·차트·전략이 동일 규칙을 쓰도록 공용화.
+ * 월별 신규/재방문 집계.
+ * - 환자 생애 첫 방문 월 → 신규
+ * - 이후 방문 월 → 재방문
+ * - 라벨: `YYYY년 M월` (연도 충돌 방지)
+ * windowSize는 호환용으로 받지만, 신규/재방문 분류에는 사용하지 않음
+ * (재방문율 KPI의 윈도우 로직과 분리).
  */
 export function computeMonthlyTrend(
   data: PatientData[],
-  windowSize = 90
+  _windowSize = 90
 ): MonthlyTrendPoint[] {
   if (!data.length) return []
 
@@ -41,14 +45,7 @@ export function computeMonthlyTrend(
       if (index === 0) {
         bucket.newIds.add(patientId)
       } else {
-        const prev = new Date(visits[index - 1].visit_date).getTime()
-        const cur = d.getTime()
-        const interval = (cur - prev) / MS_PER_DAY
-        if (interval <= windowSize) {
-          bucket.returningIds.add(patientId)
-        } else {
-          bucket.newIds.add(patientId)
-        }
+        bucket.returningIds.add(patientId)
       }
       monthMap.set(key, bucket)
     })
@@ -57,12 +54,12 @@ export function computeMonthlyTrend(
   return Array.from(monthMap.entries())
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([ym, bucket]) => {
-      const [, m] = ym.split('-')
+      const [y, m] = ym.split('-')
       const newPatients = bucket.newIds.size
       const returningPatients = bucket.returningIds.size
       const total = newPatients + returningPatients
       return {
-        month: `${Number(m)}월`,
+        month: `${y}년 ${Number(m)}월`,
         newPatients,
         returningPatients,
         recurrenceRate:

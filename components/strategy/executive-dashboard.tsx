@@ -3,6 +3,7 @@
 import { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PatientData } from '@/stores/data-store'
+import { resolvePatientId } from '@/lib/utils/patient-identity'
 import { Users, TrendingUp, MapPin, Calendar, AlertCircle } from 'lucide-react'
 import { extractMonth, parseDate } from '@/lib/utils/date-helpers'
 
@@ -28,7 +29,7 @@ export function ExecutiveDashboard({ data }: ExecutiveDashboardProps) {
     }
 
     // 고유 환자 식별 (이름+주소 기준) - 메인 대시보드 KPI 로직과 동일하게 맞춤
-    const patientKey = (p: PatientData) => `${p.name}|${p.address}`
+    const patientKey = (p: PatientData) => resolvePatientId(p)
 
     const uniquePatientKeys = new Set(data.map(patientKey))
     const uniquePatients = uniquePatientKeys.size

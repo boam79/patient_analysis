@@ -3,6 +3,7 @@
 import { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PatientData } from '@/stores/data-store'
+import { resolvePatientId } from '@/lib/utils/patient-identity'
 import { AlertCircle, CheckCircle2, TrendingUp, Users, MapPin, Target, Lightbulb, BarChart3, Activity } from 'lucide-react'
 import { extractMonth } from '@/lib/utils/date-helpers'
 import {
@@ -157,7 +158,7 @@ export function ManagementInsights({ data }: ManagementInsightsProps) {
     // ========== 기본 데이터 계산 ==========
     
     // 고유 환자 식별
-    const patientKey = (p: PatientData) => `${p.name}|${p.address}`
+    const patientKey = (p: PatientData) => resolvePatientId(p)
     const uniquePatientKeys = new Set(data.map(patientKey))
     const uniquePatients = uniquePatientKeys.size
 

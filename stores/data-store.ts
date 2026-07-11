@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 import { devtools, persist, createJSONStorage } from 'zustand/middleware'
+import { resolvePatientId, groupVisitsByPatient } from '@/lib/utils/patient-identity'
+import { computeMonthlyTrend } from '@/lib/utils/monthly-trend'
 
 // 병원 CRM 방문 레코드 타입
 export interface PatientData {
@@ -400,7 +402,7 @@ export const useDataStore = create<DataState & DataActions>()(
           const surgeryCount = rawData.filter((p) => p.surgery_code).length
           
           // 재방문율 계산: 이름+주소 조합으로 동일 환자 판별
-          const patientKey = (p: PatientData) => `${p.name}|${p.address}`
+          const patientKey = (p: PatientData) => resolvePatientId(p)
           const patientVisitCounts: Record<string, number> = {}
           
           rawData.forEach((patient) => {
@@ -553,54 +555,8 @@ export const useDataStore = create<DataState & DataActions>()(
             .sort((a, b) => b.median - a.median)
             .slice(0, 10) // Top 10 지역
 
-          // 월별 트렌드 계산 — YYYY-MM 형식으로 연도 분리
-          // 1단계: 전체 데이터를 날짜순으로 정렬하여 각 환자의 첫 방문을 정확히 파악
-          const sortedAll = [...rawData].sort(
-            (a, b) => new Date(a.visit_date).getTime() - new Date(b.visit_date).getTime()
-          )
-
-          const patientFirstVisitMonth = new Map<string, string>()
-          const monthlyData = sortedAll.reduce((acc, patient) => {
-            const date = new Date(patient.visit_date)
-            const year = date.getFullYear()
-            const month = date.getMonth() + 1
-            // YYYY-MM 형식으로 연도 구분
-            const monthKey = `${year}-${String(month).padStart(2, '0')}`
-
-            if (!acc[monthKey]) {
-              acc[monthKey] = { newPatients: new Set<string>(), returningPatients: new Set<string>() }
-            }
-
-            const key = patientKey(patient)
-
-            if (!patientFirstVisitMonth.has(key)) {
-              patientFirstVisitMonth.set(key, monthKey)
-              acc[monthKey].newPatients.add(key)
-            } else {
-              acc[monthKey].returningPatients.add(key)
-            }
-
-            return acc
-          }, {} as Record<string, { newPatients: Set<string>; returningPatients: Set<string> }>)
-
-          // 월 키를 날짜순으로 정렬
-          const monthlyTrend: MonthlyTrendData[] = Object.keys(monthlyData)
-            .sort()
-            .map((monthKey) => {
-              const data = monthlyData[monthKey]
-              const newCount = data.newPatients.size
-              const returningCount = data.returningPatients.size
-              const total = newCount + returningCount
-              // 표시용 레이블: "2024-01" → "2024년 1월"
-              const [y, m] = monthKey.split('-')
-              const label = `${y}년 ${parseInt(m)}월`
-              return {
-                month: label,
-                newPatients: newCount,
-                returningPatients: returningCount,
-                recurrenceRate: total > 0 ? (returningCount / total) * 100 : 0,
-              }
-            })
+          // 월별 트렌드 (공용 집계 — 연도 포함 라벨)
+          const monthlyTrend = computeMonthlyTrend(rawData)
 
           set({
             diseases,

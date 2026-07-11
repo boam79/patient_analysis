@@ -107,10 +107,11 @@ export function InteractiveMap({
         import('leaflet.heat').then(() => {
           if (!mapRef.current) return
 
+          const maxValue = Math.max(...data.map((point) => point.value), 1)
           const heatData = data.map((point) => [
             point.latitude,
             point.longitude,
-            point.value,
+            Math.min(1, point.value / maxValue),
           ])
 
           // @ts-ignore
@@ -120,9 +121,9 @@ export function InteractiveMap({
             maxZoom: 17,
             max: 1.0,
             gradient: {
-              0.0: '#3b82f6',
-              0.5: '#f59e0b',
-              1.0: '#ef4444',
+              0.0: '#0B6E6E',
+              0.5: '#C47A12',
+              1.0: '#C23B3B',
             },
           })
 

@@ -175,6 +175,7 @@ export default function DashboardPage() {
   // 업로드된 데이터가 있으면 사용, 없으면 샘플 데이터 사용
   const diseases = isDataLoaded && storeDiseases.length > 0 ? storeDiseases : SAMPLE_DISEASES
   const mapData = isDataLoaded && storeMapData.length > 0 ? storeMapData : SAMPLE_MAP_DATA
+
   const boundaryData = isDataLoaded && storeBoundaryData.length > 0 ? storeBoundaryData : SAMPLE_BOUNDARY_DATA
   const boxplotData = isDataLoaded && storeBoxplotData.length > 0 ? storeBoxplotData : SAMPLE_BOXPLOT_DATA
   const monthlyTrend = isDataLoaded && storeMonthlyTrend.length > 0 ? storeMonthlyTrend : SAMPLE_MONTHLY_TREND
@@ -191,6 +192,67 @@ export default function DashboardPage() {
       dateRange,
     })
   }, [isDataLoaded, rawData, selectedDiseases, selectedRegions, selectedSurgeries, ageGroups, genders, dateRange])
+
+  const filteredMapData = useMemo(() => {
+    const hasActiveFilter =
+      selectedDiseases.length > 0 ||
+      selectedSurgeries.length > 0 ||
+      selectedRegions.length > 0 ||
+      ageGroups.length > 0 ||
+      (genders.length > 0 && genders.length < 2) ||
+      (dateRange.start !== '2024-01-01' || dateRange.end !== '2024-12-31')
+
+    if (!isDataLoaded) return mapData
+    if (hasActiveFilter && filteredRawData.length === 0) return []
+    if (!hasActiveFilter) return mapData
+
+    const regionCounts = new Map<string, { count: number; lat: number; lng: number; h3?: string }>()
+    filteredRawData.forEach((p) => {
+      if (!p.region || p.region === '미분류') return
+      const existing = regionCounts.get(p.region)
+      const lat = p.latitude
+      const lng = p.longitude
+      if (existing) {
+        existing.count++
+      } else if (lat != null && lng != null && !Number.isNaN(lat) && !Number.isNaN(lng)) {
+        regionCounts.set(p.region, {
+          count: 1,
+          lat,
+          lng,
+          h3: p.h3_index,
+        })
+      } else {
+        // fall back to store map coords for region
+        const base = mapData.find((m) => m.region === p.region)
+        if (base) {
+          regionCounts.set(p.region, {
+            count: 1,
+            lat: base.latitude,
+            lng: base.longitude,
+            h3: base.h3Index,
+          })
+        }
+      }
+    })
+
+    return Array.from(regionCounts.entries()).map(([region, v]) => ({
+      latitude: v.lat,
+      longitude: v.lng,
+      value: v.count,
+      h3Index: v.h3 || `region-${region}`,
+      region,
+    }))
+  }, [
+    isDataLoaded,
+    mapData,
+    filteredRawData,
+    selectedDiseases,
+    selectedSurgeries,
+    selectedRegions,
+    ageGroups,
+    genders,
+    dateRange,
+  ])
 
   const patientVisitsByKey = useMemo(() => {
     if (!isDataLoaded || filteredRawData.length === 0) {
@@ -386,9 +448,16 @@ export default function DashboardPage() {
     windowSize,
   ])
 
-  // 수술 데이터 계산 (useMemo로 최적화)
+  // 수술 데이터 계산 (필터 반영)
   const surgeryData = useMemo(() => {
-    if (!isDataLoaded || rawData.length === 0) {
+    const source =
+      isDataLoaded && filteredRawData.length > 0
+        ? filteredRawData
+        : isDataLoaded
+          ? []
+          : null
+
+    if (source === null) {
       return {
         scatter: SAMPLE_SURGERY_SCATTER,
         matrix: SAMPLE_SURGERY_MATRIX,
@@ -396,10 +465,16 @@ export default function DashboardPage() {
       }
     }
 
-    // 수술별 통계 계산 (이름+주소 기준)
-    const surgeryStats: Record<string, { ages: number[]; patientKeys: Set<string>; diseases: Record<string, number> }> = {}
-    
-    rawData.forEach(patient => {
+    if (source.length === 0) {
+      return { scatter: [], matrix: [], diseases: [] as string[] }
+    }
+
+    const surgeryStats: Record<
+      string,
+      { ages: number[]; patientKeys: Set<string>; diseases: Record<string, number> }
+    > = {}
+
+    source.forEach((patient) => {
       if (patient.surgery_name) {
         if (!surgeryStats[patient.surgery_name]) {
           surgeryStats[patient.surgery_name] = {
@@ -410,21 +485,17 @@ export default function DashboardPage() {
         }
         surgeryStats[patient.surgery_name].ages.push(patient.age)
         surgeryStats[patient.surgery_name].patientKeys.add(resolvePatientId(patient))
-        
-        // 수술-질병 연관 집계
-        surgeryStats[patient.surgery_name].diseases[patient.disease_name] = 
+        surgeryStats[patient.surgery_name].diseases[patient.disease_name] =
           (surgeryStats[patient.surgery_name].diseases[patient.disease_name] || 0) + 1
       }
     })
 
-    // 수술별 실제 재방문율 계산: 해당 수술을 받은 환자 중 2회 이상 방문한 비율
     const patientVisitCountMap: Record<string, number> = {}
-    rawData.forEach((p) => {
+    source.forEach((p) => {
       const key = resolvePatientId(p)
       patientVisitCountMap[key] = (patientVisitCountMap[key] || 0) + 1
     })
 
-    // 산점도 데이터 (Top 10 수술)
     const scatter = Object.entries(surgeryStats)
       .map(([surgeryName, stats]) => {
         const totalSurgeryPatients = stats.patientKeys.size
@@ -435,33 +506,48 @@ export default function DashboardPage() {
         return {
           surgeryName,
           avgAge: stats.ages.reduce((sum, age) => sum + age, 0) / stats.ages.length,
-          recurrenceRate: totalSurgeryPatients > 0 ? (returningCount / totalSurgeryPatients) * 100 : 0,
+          recurrenceRate:
+            totalSurgeryPatients > 0
+              ? (returningCount / totalSurgeryPatients) * 100
+              : 0,
           patientCount: totalSurgeryPatients,
         }
       })
       .sort((a, b) => b.patientCount - a.patientCount)
       .slice(0, 10)
 
-    // 매트릭스 데이터 (Top 5 수술 x Top 5 질병)
-    const topSurgeries = scatter.slice(0, 5).map(s => s.surgeryName)
-    const topDiseases = diseases.slice(0, 5).map(d => d.name)
+    const topSurgeries = scatter.slice(0, 5).map((s) => s.surgeryName)
+    const topDiseases = (
+      diseases.length > 0 ? diseases : SAMPLE_DISEASES
+    )
+      .slice(0, 5)
+      .map((d) => d.name)
 
-    const matrix = topSurgeries.map(surgery => {
+    const matrix = topSurgeries.map((surgery) => {
       const row: any = { surgery }
-      topDiseases.forEach(disease => {
+      topDiseases.forEach((disease) => {
         row[disease] = surgeryStats[surgery]?.diseases[disease] || 0
       })
       return row
     }) as any[]
 
     return { scatter, matrix, diseases: topDiseases }
-  }, [isDataLoaded, rawData, diseases])
+  }, [isDataLoaded, filteredRawData, diseases])
 
   // 필터링된 Boundary 데이터 계산
   const filteredBoundaryData = useMemo(() => {
-    if (!isDataLoaded || filteredRawData.length === 0) {
-      return boundaryData // 필터 없으면 원본 사용
-    }
+    const hasActiveFilter =
+      selectedDiseases.length > 0 ||
+      selectedSurgeries.length > 0 ||
+      selectedRegions.length > 0 ||
+      ageGroups.length > 0 ||
+      (genders.length > 0 && genders.length < 2) ||
+      (dateRange.start !== '2024-01-01' || dateRange.end !== '2024-12-31') ||
+      windowSize !== DEFAULT_WINDOW_SIZE
+
+    if (!isDataLoaded) return boundaryData
+    if (hasActiveFilter && filteredRawData.length === 0) return []
+    if (!hasActiveFilter) return boundaryData
 
     const regionStatsMap = new Map<
       string,
@@ -527,15 +613,35 @@ export default function DashboardPage() {
       })
       .sort((a, b) => b.patients - a.patients)
       .slice(0, 10)
-  }, [isDataLoaded, filteredRawData, boundaryData, windowSize])
+  }, [
+    isDataLoaded,
+    filteredRawData,
+    boundaryData,
+    windowSize,
+    selectedDiseases,
+    selectedSurgeries,
+    selectedRegions,
+    ageGroups,
+    genders,
+    dateRange,
+  ])
 
   // 필터링된 Boxplot 데이터 계산
   const filteredBoxplotData = useMemo(() => {
-    if (!isDataLoaded || filteredRawData.length === 0) {
-      return boxplotData // 필터 없으면 원본 사용
-    }
+    const hasActiveFilter =
+      selectedDiseases.length > 0 ||
+      selectedSurgeries.length > 0 ||
+      selectedRegions.length > 0 ||
+      ageGroups.length > 0 ||
+      (genders.length > 0 && genders.length < 2) ||
+      (dateRange.start !== '2024-01-01' || dateRange.end !== '2024-12-31') ||
+      windowSize !== DEFAULT_WINDOW_SIZE
 
-    const patientKey = (p: any) => `${p.name}|${p.address}`
+    if (!isDataLoaded) return boxplotData
+    if (hasActiveFilter && filteredRawData.length === 0) return []
+    if (!hasActiveFilter) return boxplotData
+
+    const patientKey = (p: PatientData) => resolvePatientId(p)
     
     // 사분위수 계산 함수
     const calculateQuartiles = (values: number[]) => {
@@ -612,12 +718,32 @@ export default function DashboardPage() {
 
   // 필터링된 월별 트렌드 (공용 집계)
   const filteredMonthlyTrend = useMemo(() => {
-    if (!isDataLoaded || filteredRawData.length === 0) {
-      return monthlyTrend
-    }
+    const hasActiveFilter =
+      selectedDiseases.length > 0 ||
+      selectedSurgeries.length > 0 ||
+      selectedRegions.length > 0 ||
+      ageGroups.length > 0 ||
+      (genders.length > 0 && genders.length < 2) ||
+      (dateRange.start !== '2024-01-01' || dateRange.end !== '2024-12-31') ||
+      windowSize !== DEFAULT_WINDOW_SIZE
+
+    if (!isDataLoaded) return monthlyTrend
+    if (hasActiveFilter && filteredRawData.length === 0) return []
+    if (!hasActiveFilter) return monthlyTrend
     const computed = computeMonthlyTrend(filteredRawData, windowSize)
-    return computed.length > 0 ? computed : monthlyTrend
-  }, [isDataLoaded, filteredRawData, monthlyTrend, windowSize])
+    return computed.length > 0 ? computed : []
+  }, [
+    isDataLoaded,
+    filteredRawData,
+    monthlyTrend,
+    windowSize,
+    selectedDiseases,
+    selectedSurgeries,
+    selectedRegions,
+    ageGroups,
+    genders,
+    dateRange,
+  ])
 
   // 선택된 지역의 Top 5 질병/수술 계산
   const selectedRegionStats = useMemo(() => {
@@ -660,7 +786,7 @@ export default function DashboardPage() {
 
     // 고유 환자 수 계산 (이름+주소 기준)
     const uniquePatientKeys = new Set(
-      regionPatients.map(p => `${p.name}|${p.address}`)
+      regionPatients.map(p => resolvePatientId(p))
     )
     
     return {
@@ -671,23 +797,9 @@ export default function DashboardPage() {
     }
   }, [isDataLoaded, selectedRegions, filteredRawData])
 
-  // KPI 계산 - 필터가 적용되면 filteredRawData 기반으로 재계산
+  // KPI 계산 — 데이터 로드 시 항상 동일 정의(윈도우 재방문 + resolvePatientId)
   const kpiData = useMemo(() => {
-    const hasActiveFilter =
-      selectedDiseases.length > 0 ||
-      selectedSurgeries.length > 0 ||
-      selectedRegions.length > 0 ||
-      ageGroups.length > 0 ||
-      (genders.length > 0 && genders.length < 2) ||
-      (dateRange.start !== '2024-01-01' || dateRange.end !== '2024-12-31') ||
-      windowSize !== DEFAULT_WINDOW_SIZE
-
-    if (
-      isDataLoaded &&
-      filteredRawData.length > 0 &&
-      patientVisitsByKey.size > 0 &&
-      hasActiveFilter
-    ) {
+    if (isDataLoaded && patientVisitsByKey.size > 0) {
       const uniquePatients = patientVisitsByKey.size
       let returningPatients = 0
       const intervalsWithinWindow: number[] = []
@@ -706,14 +818,14 @@ export default function DashboardPage() {
       const avgInterval =
         intervalsWithinWindow.length > 0
           ? Math.round(
-              intervalsWithinWindow.reduce(
-                (sum, interval) => sum + interval,
-                0
-              ) / intervalsWithinWindow.length
+              intervalsWithinWindow.reduce((sum, interval) => sum + interval, 0) /
+                intervalsWithinWindow.length
             )
           : 0
 
-      const surgeryCount = filteredRawData.filter((p) => p.surgery_code).length
+      const surgeryCount = filteredRawData.filter(
+        (p) => p.surgery_code || p.surgery_name
+      ).length
 
       return {
         totalPatients: uniquePatients,
@@ -723,7 +835,6 @@ export default function DashboardPage() {
       }
     }
 
-    // 필터가 없으면 전체 데이터의 KPI 사용
     if (isDataLoaded) {
       return {
         totalPatients: storeTotalPatients,
@@ -733,7 +844,6 @@ export default function DashboardPage() {
       }
     }
 
-    // 샘플 데이터
     return {
       totalPatients: 1234,
       recurrenceRate: '45.2',
@@ -744,18 +854,13 @@ export default function DashboardPage() {
     filteredRawData,
     isDataLoaded,
     patientVisitsByKey,
-    selectedDiseases,
-    selectedSurgeries,
-    selectedRegions,
-    ageGroups,
-    genders,
-    dateRange,
     windowSize,
     storeTotalPatients,
     storeRecurrenceRate,
     storeAvgInterval,
     storeTotalSurgery,
   ])
+
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-4" id="dashboard-main">
@@ -870,7 +975,7 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent className="pt-0">
-            <InteractiveMap data={mapData} mode={mapMode} />
+            <InteractiveMap data={filteredMapData} mode={mapMode} />
           </CardContent>
         </Card>
 

@@ -68,9 +68,9 @@ export function BoundaryComparisonChart({ data }: BoundaryChartProps) {
             name="환자수"
             radius={[4, 4, 0, 0]}
             cursor="pointer"
-            onClick={(_: unknown, index: number) => {
-              const entry = data[index]
-              if (entry) handleBarClick(entry)
+            onClick={(data: any) => {
+              const row = (data?.payload ?? data) as BoundaryData | undefined
+              if (row?.region) handleBarClick(row)
             }}
           />
           <Line

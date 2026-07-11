@@ -65,6 +65,9 @@ export default function UploadPage() {
             age = new Date().getFullYear() - birthYear
           }
         }
+        if (!Number.isFinite(age) || age < 0 || age > 120) {
+          age = 0
+        }
 
         // 성별 정규화 (data-store.ts와 동일한 로직 사용)
         const genderRaw = (row.gender || row['성별'] || '').toString().trim()

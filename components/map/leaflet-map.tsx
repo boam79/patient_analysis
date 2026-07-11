@@ -28,6 +28,7 @@ export function LeafletMap({
   const markerLayerRef = useRef<any>(null)
   const circleLayerRef = useRef<any>(null)
   const heatLayerRef = useRef<any>(null)
+  const heatGenerationRef = useRef(0)
   const [isLoading, setIsLoading] = useState(true)
   const [leafletLoaded, setLeafletLoaded] = useState(false)
 
@@ -192,12 +193,13 @@ export function LeafletMap({
   )
 
   const renderHeatmap = useCallback(
-    async (points: NonNullable<LeafletMapProps['data']>) => {
+    async (points: NonNullable<LeafletMapProps['data']>, generation: number) => {
       const L = (window as any).L
       if (!L || !mapRef.current) return
 
       await import('leaflet.heat')
       if (!mapRef.current) return
+      if (heatGenerationRef.current !== generation) return
 
       const maxValue = Math.max(...points.map((d) => d.value), 1)
       const heatData = points.map((point) => [
@@ -218,6 +220,7 @@ export function LeafletMap({
         },
       })
 
+      if (heatGenerationRef.current !== generation) return
       heatLayer.addTo(mapRef.current)
       heatLayerRef.current = heatLayer
     },
@@ -252,12 +255,14 @@ export function LeafletMap({
     if (mode === 'circle') {
       renderCircles(validData)
     } else if (mode === 'heatmap') {
-      void renderHeatmap(validData)
+      const generation = ++heatGenerationRef.current
+      void renderHeatmap(validData, generation)
     } else {
       renderMarkers(validData)
     }
 
     return () => {
+      heatGenerationRef.current++
       clearAllLayers()
     }
   }, [

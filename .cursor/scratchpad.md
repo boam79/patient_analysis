@@ -1498,3 +1498,17 @@ fbad674 - feat: 차트 데이터 실제 반영 및 필터 시스템 통합
 
 - 차트 고도화 전에 가짜 지표·중복 라우트를 먼저 줄이는 편이 ROI가 높다.
 - DiseaseSurgeryHeatmap props는 `{data}`가 아니라 `columns/rows/maxValue` 개별 props.
+
+---
+
+## 🐛 버그 수정 (2026-07-11) — Executor
+
+### 수정한 버그
+1. 환자키 불일치: data-store/executive/management/map → `resolvePatientId` 통일
+2. 월별 라벨 연도 누락 → `YYYY년 M월`, data-store가 `computeMonthlyTrend` 사용
+3. KPI 필터 on/off 시 재방문율 정의 불일치 → 항상 윈도우+resolvePatientId
+4. 지도 신환/재환 오분류, 클릭 시 상세 패널 소실, filterPatients 미사용
+5. 대시보드 지도/수술 필터 미반영, 빈 필터 시 원본 차트 잔존
+6. Boundary Bar onClick, 히트맵 정규화/레이스, 업로드 NaN 나이
+
+검증: tsc ✅ / vitest 32/32 ✅ / build ✅ → main 푸시
