@@ -1531,12 +1531,12 @@ fbad674 - feat: 차트 데이터 실제 반영 및 필터 시스템 통합
 ### Project Status Board
 - [x] Round 2 핵심 버그 수정
 - [x] tsc / vitest 40 / build 통과
-- [ ] 사용자 수동 확인 후 Planner 완료 선언
+- [x] main fast-forward 머지·푸시 완료 (`9dc091a`)
 
 ### Executor's Feedback or Assistance Requests
-#### 2026-07-11 — Executor: Bugfix Round 2
-브랜치 `cursor/bugfix-round2-6e51`에 커밋·푸시·PR 예정.
-수동 확인 요청: 업로드 후 KPI 재방문율·수술 건수, 기간 필터(빈 값=전체), 수술코드만 있는 행 필터/차트 반영.
+#### 2026-07-11 — Executor: Bugfix Round 2 → main
+`cursor/bugfix-round2-6e51`를 `main`에 fast-forward 머지 후 `origin/main` 푸시 완료.
+PR #7: https://github.com/boam79/patient_analysis/pull/7
 
 ### Lessons
 - `surgery_name`만 보면 `surgery_code`만 있는 행이 KPI·필터·전략에서 누락됨 → `hasSurgery` 공용화
