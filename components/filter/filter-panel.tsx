@@ -11,7 +11,10 @@ import { useMemo, useState } from 'react'
 import {
   SAMPLE_DISEASE_OPTIONS,
   SAMPLE_REGION_OPTIONS,
+  SAMPLE_SURGERY_OPTIONS,
 } from '@/lib/sample-data'
+import { hasSurgery } from '@/lib/utils/analysis-helpers'
+import { surgeryLabel } from '@/lib/utils/map-metrics'
 
 export function FilterPanel() {
   const {
@@ -36,6 +39,7 @@ export function FilterPanel() {
   } = useFilterStore()
 
   const [showDiseaseSelect, setShowDiseaseSelect] = useState(false)
+  const [showSurgerySelect, setShowSurgerySelect] = useState(false)
   const [showRegionSelect, setShowRegionSelect] = useState(false)
 
   // 데이터 스토어에서 실제 데이터 가져오기
@@ -118,6 +122,25 @@ export function FilterPanel() {
     return Object.entries(regionCounts)
       .sort(([, a], [, b]) => b - a)
       .slice(0, 30)
+      .map(([name]) => name)
+  }, [isDataLoaded, rawData])
+
+  // 수술 목록 — 샘플은 공용 옵션, 업로드 시 name||code Top 20
+  const surgeryOptions = useMemo(() => {
+    if (!isDataLoaded || rawData.length === 0) {
+      return SAMPLE_SURGERY_OPTIONS
+    }
+
+    const surgeryCounts = rawData.reduce((acc, patient) => {
+      if (!hasSurgery(patient)) return acc
+      const key = surgeryLabel(patient)
+      if (key) acc[key] = (acc[key] || 0) + 1
+      return acc
+    }, {} as Record<string, number>)
+
+    return Object.entries(surgeryCounts)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 20)
       .map(([name]) => name)
   }, [isDataLoaded, rawData])
 
@@ -262,6 +285,45 @@ export function FilterPanel() {
                     }}
                   >
                     {disease}
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 수술 선택 */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">수술 선택</label>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => setShowSurgerySelect(!showSurgerySelect)}
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              수술 추가
+              {selectedSurgeries.length > 0 && (
+                <span className="ml-auto text-xs bg-primary text-primary-foreground rounded-full px-2 py-0.5">
+                  {selectedSurgeries.length}
+                </span>
+              )}
+            </Button>
+            {showSurgerySelect && (
+              <div className="flex flex-wrap gap-2 p-2 border rounded-md max-h-40 overflow-y-auto">
+                {surgeryOptions.map((surgery) => (
+                  <Badge
+                    key={surgery}
+                    variant={selectedSurgeries.includes(surgery) ? 'default' : 'outline'}
+                    className="cursor-pointer hover:scale-105 transition-transform"
+                    onClick={() => {
+                      if (selectedSurgeries.includes(surgery)) {
+                        removeSurgery(surgery)
+                      } else {
+                        addSurgery(surgery)
+                      }
+                    }}
+                  >
+                    {surgery}
                   </Badge>
                 ))}
               </div>

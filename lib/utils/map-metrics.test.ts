@@ -72,6 +72,91 @@ describe('computeMapLayer', () => {
     })
     expect(layer[0].value).toBe(1)
   })
+
+  it('disease filter omits regions with zero matches', () => {
+    const multiMap = [
+      ...baseMap,
+      {
+        latitude: 37.48,
+        longitude: 127.03,
+        region: '서울 서초구',
+        h3Index: 'h3_b',
+      },
+    ]
+    const rows = [
+      makePatient({ disease_name: '무릎관절증', region: '서울 강남구' }),
+      makePatient({
+        patient_id: 'P2',
+        disease_name: '본태성 고혈압',
+        region: '서울 서초구',
+        latitude: 37.48,
+        longitude: 127.03,
+      }),
+    ]
+    const layer = computeMapLayer(rows, multiMap, {
+      metric: 'disease',
+      disease: '무릎관절증',
+    })
+    expect(layer).toHaveLength(1)
+    expect(layer[0].region).toBe('서울 강남구')
+    expect(layer[0].value).toBe(1)
+  })
+
+  it('surgery filter matches name or code list and drops empty regions', () => {
+    const multiMap = [
+      ...baseMap,
+      {
+        latitude: 37.48,
+        longitude: 127.03,
+        region: '서울 서초구',
+        h3Index: 'h3_b',
+      },
+    ]
+    const rows = [
+      makePatient({
+        surgery_name: '무릎관절경수술',
+        region: '서울 강남구',
+      }),
+      makePatient({
+        patient_id: 'P2',
+        surgery_code: 'S999',
+        surgery_name: undefined,
+        region: '서울 서초구',
+        latitude: 37.48,
+        longitude: 127.03,
+      }),
+    ]
+    const byName = computeMapLayer(rows, multiMap, {
+      metric: 'surgery',
+      surgery: ['무릎관절경수술'],
+    })
+    expect(byName).toHaveLength(1)
+    expect(byName[0].region).toBe('서울 강남구')
+
+    const byCode = computeMapLayer(rows, multiMap, {
+      metric: 'surgery',
+      surgery: 'S999',
+    })
+    expect(byCode).toHaveLength(1)
+    expect(byCode[0].region).toBe('서울 서초구')
+  })
+
+  it('visits after disease-prefilter only shows matching regions', () => {
+    const multiMap = [
+      ...baseMap,
+      {
+        latitude: 37.48,
+        longitude: 127.03,
+        region: '서울 서초구',
+        h3Index: 'h3_b',
+      },
+    ]
+    const rows = [
+      makePatient({ disease_name: '무릎관절증', region: '서울 강남구' }),
+    ]
+    const layer = computeMapLayer(rows, multiMap, { metric: 'visits' })
+    expect(layer.map((p) => p.region)).toEqual(['서울 강남구'])
+  })
 })
 
 describe('computeRegionPatientSplit', () => {

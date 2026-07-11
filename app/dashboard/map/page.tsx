@@ -66,6 +66,8 @@ export default function MapPage() {
     genders,
     dateRange,
     windowSize,
+    setDiseases,
+    setSurgeries,
   } = useFilterStore()
 
   const [selectedLocation, setSelectedLocation] = useState<{
@@ -106,39 +108,85 @@ export default function MapPage() {
     return getSampleMapPoints()
   }, [isDataLoaded, mapData])
 
-  const filteredRawData = useMemo(() => {
-    return filterPatients(baseData, {
-      selectedDiseases,
+  const sharedFilterBase = useMemo(
+    () => ({
       selectedRegions,
-      selectedSurgeries,
       ageGroups,
-      genders,
+      genders: genders as ('남성' | '여성')[],
       dateRange,
-    })
-  }, [
-    baseData,
-    selectedDiseases,
-    selectedSurgeries,
-    selectedRegions,
-    ageGroups,
-    genders,
-    dateRange,
-  ])
+    }),
+    [selectedRegions, ageGroups, genders, dateRange]
+  )
+
+  /** 지역·연령·성별·기간만 적용 (임상 셀렉트용 옵션 모수) */
+  const contextData = useMemo(
+    () =>
+      filterPatients(baseData, {
+        ...sharedFilterBase,
+        selectedDiseases: [],
+        selectedSurgeries: [],
+      }),
+    [baseData, sharedFilterBase]
+  )
+
+  /** 필터 패널 전체 적용 (분포/재방문/인구통계) */
+  const panelFilteredData = useMemo(
+    () =>
+      filterPatients(baseData, {
+        ...sharedFilterBase,
+        selectedDiseases,
+        selectedSurgeries,
+      }),
+    [baseData, sharedFilterBase, selectedDiseases, selectedSurgeries]
+  )
+
+  /**
+   * 임상 탭: 자기 차원 필터는 로컬 셀렉트가 담당.
+   * 패널의 같은 차원 필터는 무시해 이중 필터로 0건이 되는 것을 막는다.
+   */
+  const clinicalRows = useMemo(
+    () =>
+      filterPatients(baseData, {
+        ...sharedFilterBase,
+        selectedDiseases: clinicalDim === 'surgery' ? selectedDiseases : [],
+        selectedSurgeries: clinicalDim === 'disease' ? selectedSurgeries : [],
+      }),
+    [baseData, sharedFilterBase, clinicalDim, selectedDiseases, selectedSurgeries]
+  )
+
+  const analysisRows =
+    primaryTab === 'clinical' ? clinicalRows : panelFilteredData
 
   const diseaseOptions = useMemo(() => {
+    const source =
+      clinicalDim === 'disease'
+        ? filterPatients(baseData, {
+            ...sharedFilterBase,
+            selectedDiseases: [],
+            selectedSurgeries,
+          })
+        : contextData
     const counts: Record<string, number> = {}
-    filteredRawData.forEach((p) => {
+    source.forEach((p) => {
       if (p.disease_name) counts[p.disease_name] = (counts[p.disease_name] || 0) + 1
     })
     return Object.entries(counts)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 20)
       .map(([name]) => name)
-  }, [filteredRawData])
+  }, [baseData, sharedFilterBase, selectedSurgeries, clinicalDim, contextData])
 
   const surgeryOptions = useMemo(() => {
+    const source =
+      clinicalDim === 'surgery'
+        ? filterPatients(baseData, {
+            ...sharedFilterBase,
+            selectedDiseases,
+            selectedSurgeries: [],
+          })
+        : contextData
     const counts: Record<string, number> = {}
-    filteredRawData.forEach((p) => {
+    source.forEach((p) => {
       if (!hasSurgery(p)) return
       const key = surgeryLabel(p)
       if (key) counts[key] = (counts[key] || 0) + 1
@@ -147,31 +195,115 @@ export default function MapPage() {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 20)
       .map(([name]) => name)
-  }, [filteredRawData])
+  }, [baseData, sharedFilterBase, selectedDiseases, clinicalDim, contextData])
+
+  // 임상 셀렉트 ↔ 패널 필터 동기화 (한쪽만 남아 충돌하지 않게)
+  useEffect(() => {
+    if (primaryTab !== 'clinical') return
+    if (clinicalDim === 'disease') {
+      if (selectedDiseases.length === 1 && selectedDiseases[0] !== selectedDisease) {
+        setSelectedDisease(selectedDiseases[0])
+      }
+    } else if (
+      selectedSurgeries.length === 1 &&
+      selectedSurgeries[0] !== selectedSurgery
+    ) {
+      setSelectedSurgery(selectedSurgeries[0])
+    }
+  }, [
+    primaryTab,
+    clinicalDim,
+    selectedDiseases,
+    selectedSurgeries,
+    selectedDisease,
+    selectedSurgery,
+  ])
 
   useEffect(() => {
     if (!selectedDisease && diseaseOptions[0]) {
       setSelectedDisease(diseaseOptions[0])
+      if (primaryTab === 'clinical' && clinicalDim === 'disease') {
+        setDiseases([diseaseOptions[0]])
+        setSurgeries([])
+      }
     } else if (
       selectedDisease &&
       diseaseOptions.length > 0 &&
       !diseaseOptions.includes(selectedDisease)
     ) {
       setSelectedDisease(diseaseOptions[0])
+      if (primaryTab === 'clinical' && clinicalDim === 'disease') {
+        setDiseases([diseaseOptions[0]])
+        setSurgeries([])
+      }
     }
-  }, [diseaseOptions, selectedDisease])
+  }, [
+    diseaseOptions,
+    selectedDisease,
+    primaryTab,
+    clinicalDim,
+    setDiseases,
+    setSurgeries,
+  ])
 
   useEffect(() => {
     if (!selectedSurgery && surgeryOptions[0]) {
       setSelectedSurgery(surgeryOptions[0])
+      if (primaryTab === 'clinical' && clinicalDim === 'surgery') {
+        setSurgeries([surgeryOptions[0]])
+        setDiseases([])
+      }
     } else if (
       selectedSurgery &&
       surgeryOptions.length > 0 &&
       !surgeryOptions.includes(selectedSurgery)
     ) {
       setSelectedSurgery(surgeryOptions[0])
+      if (primaryTab === 'clinical' && clinicalDim === 'surgery') {
+        setSurgeries([surgeryOptions[0]])
+        setDiseases([])
+      }
     }
-  }, [surgeryOptions, selectedSurgery])
+  }, [
+    surgeryOptions,
+    selectedSurgery,
+    primaryTab,
+    clinicalDim,
+    setDiseases,
+    setSurgeries,
+  ])
+
+  const handleClinicalDiseaseChange = useCallback(
+    (disease: string) => {
+      setSelectedDisease(disease)
+      setDiseases([disease])
+      setSurgeries([])
+    },
+    [setDiseases, setSurgeries]
+  )
+
+  const handleClinicalSurgeryChange = useCallback(
+    (surgery: string) => {
+      setSelectedSurgery(surgery)
+      setSurgeries([surgery])
+      setDiseases([])
+    },
+    [setDiseases, setSurgeries]
+  )
+
+  const handleClinicalDimChange = useCallback(
+    (dim: ClinicalDim) => {
+      setClinicalDim(dim)
+      if (dim === 'disease') {
+        setSurgeries([])
+        if (selectedDisease) setDiseases([selectedDisease])
+      } else {
+        setDiseases([])
+        if (selectedSurgery) setSurgeries([selectedSurgery])
+      }
+    },
+    [selectedDisease, selectedSurgery, setDiseases, setSurgeries]
+  )
 
   const activeMetric: MapLayerMetric = useMemo(() => {
     if (primaryTab === 'distribution') return distMetric
@@ -181,23 +313,53 @@ export default function MapPage() {
   }, [primaryTab, distMetric, retentionMetric, clinicalDim, demoDim])
 
   const layerData = useMemo(() => {
-    if (filteredRawData.length === 0 || baseMap.length === 0) return []
+    if (analysisRows.length === 0 || baseMap.length === 0) return []
 
-    return computeMapLayer(filteredRawData, baseMap, {
+    if (primaryTab === 'clinical' && clinicalDim === 'disease') {
+      const diseaseFocus =
+        selectedDisease ||
+        (selectedDiseases.length > 0 ? selectedDiseases : undefined)
+      if (!diseaseFocus || (Array.isArray(diseaseFocus) && diseaseFocus.length === 0)) {
+        return []
+      }
+      return computeMapLayer(analysisRows, baseMap, {
+        metric: 'disease',
+        windowSize,
+        disease: diseaseFocus,
+      })
+    }
+
+    if (primaryTab === 'clinical' && clinicalDim === 'surgery') {
+      const surgeryFocus =
+        selectedSurgery ||
+        (selectedSurgeries.length > 0 ? selectedSurgeries : undefined)
+      if (!surgeryFocus || (Array.isArray(surgeryFocus) && surgeryFocus.length === 0)) {
+        return []
+      }
+      return computeMapLayer(analysisRows, baseMap, {
+        metric: 'surgery',
+        windowSize,
+        surgery: surgeryFocus,
+      })
+    }
+
+    return computeMapLayer(analysisRows, baseMap, {
       metric: activeMetric,
       windowSize,
-      disease: selectedDisease,
-      surgery: selectedSurgery,
       ageGroup: selectedAgeGroup || undefined,
     })
   }, [
-    filteredRawData,
+    analysisRows,
     baseMap,
     activeMetric,
     windowSize,
     selectedDisease,
     selectedSurgery,
+    selectedDiseases,
+    selectedSurgeries,
     selectedAgeGroup,
+    primaryTab,
+    clinicalDim,
   ])
 
   const stats = useMemo(() => {
@@ -220,11 +382,17 @@ export default function MapPage() {
   }, [layerData])
 
   const locationDetails = useMemo(() => {
-    if (!selectedLocation || filteredRawData.length === 0) {
+    if (!selectedLocation || analysisRows.length === 0) {
       return null
     }
     const region = selectedLocation.data?.region || '미분류'
-    const regionData = filteredRawData.filter((p) => p.region === region)
+    let regionData = analysisRows.filter((p) => p.region === region)
+    if (primaryTab === 'clinical' && clinicalDim === 'disease' && selectedDisease) {
+      regionData = regionData.filter((p) => p.disease_name === selectedDisease)
+    }
+    if (primaryTab === 'clinical' && clinicalDim === 'surgery' && selectedSurgery) {
+      regionData = regionData.filter((p) => surgeryLabel(p) === selectedSurgery)
+    }
     if (regionData.length === 0) return null
 
     const diseaseCounts: Record<string, number> = {}
@@ -267,7 +435,15 @@ export default function MapPage() {
         .map(([name, count]) => ({ name, count })),
       ageGroupCounts,
     }
-  }, [selectedLocation, filteredRawData, windowSize])
+  }, [
+    selectedLocation,
+    analysisRows,
+    windowSize,
+    primaryTab,
+    clinicalDim,
+    selectedDisease,
+    selectedSurgery,
+  ])
 
   const sampleUniquePatients = useMemo(() => {
     if (!usingSample) return totalPatients
@@ -502,7 +678,7 @@ export default function MapPage() {
           <>
             <Select
               value={clinicalDim}
-              onValueChange={(v) => setClinicalDim(v as ClinicalDim)}
+              onValueChange={(v) => handleClinicalDimChange(v as ClinicalDim)}
             >
               <SelectTrigger className="w-32">
                 <SelectValue />
@@ -515,7 +691,7 @@ export default function MapPage() {
             {clinicalDim === 'disease' ? (
               <Select
                 value={selectedDisease}
-                onValueChange={setSelectedDisease}
+                onValueChange={handleClinicalDiseaseChange}
                 disabled={diseaseOptions.length === 0}
               >
                 <SelectTrigger className="w-56">
@@ -532,7 +708,7 @@ export default function MapPage() {
             ) : (
               <Select
                 value={selectedSurgery}
-                onValueChange={setSelectedSurgery}
+                onValueChange={handleClinicalSurgeryChange}
                 disabled={surgeryOptions.length === 0}
               >
                 <SelectTrigger className="w-56">
@@ -594,7 +770,7 @@ export default function MapPage() {
             <CardDescription>{header.description}</CardDescription>
           </CardHeader>
           <CardContent className="p-6">
-            {filteredRawData.length === 0 && hasActiveFilters ? (
+            {analysisRows.length === 0 && hasActiveFilters ? (
               <div className="h-[500px] flex items-center justify-center text-muted-foreground">
                 필터 조건에 맞는 데이터가 없습니다
               </div>
@@ -608,7 +784,9 @@ export default function MapPage() {
               </div>
             ) : layerData.length === 0 ? (
               <div className="h-[500px] flex items-center justify-center text-muted-foreground">
-                표시할 좌표 데이터가 없습니다
+                {primaryTab === 'clinical'
+                  ? '선택한 질병/수술에 해당하는 지역이 없습니다'
+                  : '표시할 좌표 데이터가 없습니다'}
               </div>
             ) : (
               <LeafletMap

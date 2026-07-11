@@ -1626,3 +1626,28 @@ Round A 구현 완료. PredictionAnalysis 삭제, strategy-metrics 공용 모듈
 - 필터 옵션 질병명(`고혈압`)과 샘플 `disease_name`(`본태성 고혈압`)이 다르면 샘플 모드에서 필터 결과가 항상 0건이 됨
 - 지도 clinical/demographics를 `!isDataLoaded`일 때 빈 배열로 두면 샘플 UX가 깨짐 → `computeMapLayer(sample)`로 통일
 
+---
+
+## 🐛 지도 질병·수술 필터 버그픽스 v5.3.3 (2026-07-11) — Executor
+
+### Key Challenges and Analysis
+1. **P0** `withCoords`가 미매칭 지역을 value=0으로 전부 그림 → 질병/수술 필터 후에도 마커 수가 그대로
+2. **P0** 필터 패널에 수술 추가 UI 없음 (뱃지 제거만 가능)
+3. **P1** 임상 셀렉트 옵션이 `panelFiltered`에서 나와 패널 질병 필터와 이중 적용 → 빈 레이어
+4. **P1** 임상 질병/수술 전환 시 패널 양쪽 필터가 동시에 남아 교집합 0건
+
+### High-level Task Breakdown
+1. [x] `withCoords`: `regionValues.has`인 지역만 반환 + 복수 disease/surgery 매칭
+2. [x] FilterPanel 수술 선택 UI + SAMPLE_SURGERY_OPTIONS
+3. [x] map page: context/clinical/panel 행 분리, 임상↔패널 동기화(한 차원만)
+4. [x] map-metrics 테스트 보강 · tsc/vitest
+5. [ ] main 푸시
+
+### Project Status Board
+- [x] 원인 분석·수정
+- [x] 테스트 (59)
+- [ ] main 커밋·푸시
+
+### Lessons
+- 지도 필터는 “값 계산”과 “표시 포인트 집합”을 분리해야 함. baseMap 전체를 0으로 채우면 필터가 무력화됨
+

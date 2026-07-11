@@ -21,8 +21,10 @@ export type MapLayerMetric =
 export interface MapLayerOptions {
   metric: MapLayerMetric
   windowSize?: number
-  disease?: string
-  surgery?: string
+  /** 단일 또는 복수 질병명 */
+  disease?: string | string[]
+  /** 단일 또는 복수 수술명/코드 */
+  surgery?: string | string[]
   ageGroup?: string
 }
 
@@ -41,15 +43,40 @@ function surgeryKey(p: PatientData): string {
   )
 }
 
+function asList(value?: string | string[]): string[] {
+  if (!value) return []
+  return Array.isArray(value) ? value.filter(Boolean) : value ? [value] : []
+}
+
+function matchesDisease(p: PatientData, diseases: string[]): boolean {
+  if (diseases.length === 0) return false
+  return diseases.includes(p.disease_name)
+}
+
+function matchesSurgery(p: PatientData, surgeries: string[]): boolean {
+  if (surgeries.length === 0) return false
+  if (!hasSurgery(p)) return false
+  const key = surgeryKey(p)
+  const code = p.surgery_code?.toString().trim()
+  const name = p.surgery_name?.toString().trim()
+  return (
+    surgeries.includes(key) ||
+    (Boolean(name) && surgeries.includes(name!)) ||
+    (Boolean(code) && surgeries.includes(code!))
+  )
+}
+
 function withCoords(
   baseMap: MapBasePoint[],
   regionValues: Map<string, number>
 ): RegionMapPoint[] {
+  // 값이 계산된 지역만 반환 (0으로 채운 미매칭 지역을 그리면 필터가 안 먹는 것처럼 보임)
   return baseMap
     .filter(
       (m) =>
         m.region &&
         m.region !== '미분류' &&
+        regionValues.has(m.region) &&
         m.latitude != null &&
         m.longitude != null &&
         !Number.isNaN(m.latitude) &&
@@ -58,7 +85,7 @@ function withCoords(
     .map((m) => ({
       latitude: m.latitude,
       longitude: m.longitude,
-      value: regionValues.get(m.region!) || 0,
+      value: regionValues.get(m.region!) ?? 0,
       h3Index: m.h3Index || `region-${m.region}`,
       region: m.region!,
     }))
@@ -87,9 +114,10 @@ export function computeMapLayer(
   }
 
   if (options.metric === 'disease') {
-    if (!options.disease) return []
+    const diseases = asList(options.disease)
+    if (diseases.length === 0) return []
     rows.forEach((p) => {
-      if (p.disease_name !== options.disease) return
+      if (!matchesDisease(p, diseases)) return
       if (!p.region || p.region === '미분류') return
       regionValues.set(p.region, (regionValues.get(p.region) || 0) + 1)
     })
@@ -97,10 +125,10 @@ export function computeMapLayer(
   }
 
   if (options.metric === 'surgery') {
-    if (!options.surgery) return []
+    const surgeries = asList(options.surgery)
+    if (surgeries.length === 0) return []
     rows.forEach((p) => {
-      if (!hasSurgery(p)) return
-      if (surgeryKey(p) !== options.surgery) return
+      if (!matchesSurgery(p, surgeries)) return
       if (!p.region || p.region === '미분류') return
       regionValues.set(p.region, (regionValues.get(p.region) || 0) + 1)
     })
