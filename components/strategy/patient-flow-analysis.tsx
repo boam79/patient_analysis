@@ -6,6 +6,7 @@ import { PatientData } from '@/stores/data-store'
 import { Users, TrendingUp, TrendingDown, ArrowRight } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts'
 import { parseDate } from '@/lib/utils/date-helpers'
+import { resolvePatientId } from '@/lib/utils/patient-identity'
 
 interface PatientFlowAnalysisProps {
   data: PatientData[]
@@ -37,28 +38,29 @@ export function PatientFlowAnalysis({ data }: PatientFlowAnalysisProps) {
     const patientRegions = new Map<string, Set<string>>()
 
     data.forEach(p => {
-      const count = (patientVisitCounts.get(p.patient_id) || 0) + 1
-      patientVisitCounts.set(p.patient_id, count)
+      const id = resolvePatientId(p)
+      const count = (patientVisitCounts.get(id) || 0) + 1
+      patientVisitCounts.set(id, count)
       
-      if (!patientFirstVisit.has(p.patient_id)) {
-        patientFirstVisit.set(p.patient_id, p.visit_date)
+      if (!patientFirstVisit.has(id)) {
+        patientFirstVisit.set(id, p.visit_date)
       }
       // 마지막 방문일 업데이트 (날짜 비교)
-      const currentLastVisit = patientLastVisit.get(p.patient_id)
+      const currentLastVisit = patientLastVisit.get(id)
       if (!currentLastVisit || (parseDate(p.visit_date) && parseDate(currentLastVisit) && parseDate(p.visit_date)! > parseDate(currentLastVisit)!)) {
-        patientLastVisit.set(p.patient_id, p.visit_date)
+        patientLastVisit.set(id, p.visit_date)
       }
       
-      if (!patientDiseases.has(p.patient_id)) {
-        patientDiseases.set(p.patient_id, new Set())
+      if (!patientDiseases.has(id)) {
+        patientDiseases.set(id, new Set())
       }
-      patientDiseases.get(p.patient_id)!.add(p.disease_name)
+      patientDiseases.get(id)!.add(p.disease_name)
       
-      if (!patientRegions.has(p.patient_id)) {
-        patientRegions.set(p.patient_id, new Set())
+      if (!patientRegions.has(id)) {
+        patientRegions.set(id, new Set())
       }
       if (p.region) {
-        patientRegions.get(p.patient_id)!.add(p.region)
+        patientRegions.get(id)!.add(p.region)
       }
     })
 

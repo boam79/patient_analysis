@@ -6,6 +6,7 @@ import { PatientData } from '@/stores/data-store'
 import { Calendar, TrendingUp } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts'
 import { extractMonth, parseDate } from '@/lib/utils/date-helpers'
+import { resolvePatientId } from '@/lib/utils/patient-identity'
 
 interface TrendAnalysisProps {
   data: PatientData[]
@@ -32,7 +33,7 @@ export function TrendAnalysis({ data }: TrendAnalysisProps) {
         }
         const monthStat = monthlyData.get(month)!
         monthStat.visits++
-        monthStat.unique.add(p.patient_id)
+        monthStat.unique.add(resolvePatientId(p))
       }
     })
 
@@ -58,7 +59,7 @@ export function TrendAnalysis({ data }: TrendAnalysisProps) {
         }
         const quarterStat = quarterlyData.get(quarterKey)!
         quarterStat.visits++
-        quarterStat.unique.add(p.patient_id)
+        quarterStat.unique.add(resolvePatientId(p))
       }
     })
 
@@ -87,7 +88,7 @@ export function TrendAnalysis({ data }: TrendAnalysisProps) {
         }
         const seasonStat = seasonalData.get(season)!
         seasonStat.visits++
-        seasonStat.unique.add(p.patient_id)
+        seasonStat.unique.add(resolvePatientId(p))
       }
     })
 

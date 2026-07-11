@@ -6,6 +6,7 @@ import { PatientData } from '@/stores/data-store'
 import { MapPin, TrendingUp, Users } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { extractMonth } from '@/lib/utils/date-helpers'
+import { resolvePatientId } from '@/lib/utils/patient-identity'
 
 interface RegionalMarketAnalysisProps {
   data: PatientData[]
@@ -37,6 +38,8 @@ export function RegionalMarketAnalysis({ data }: RegionalMarketAnalysisProps) {
     data.forEach(p => {
       if (!p.region) return
 
+      const id = resolvePatientId(p)
+
       if (!regionStats.has(p.region)) {
         regionStats.set(p.region, {
           total: 0,
@@ -49,21 +52,21 @@ export function RegionalMarketAnalysis({ data }: RegionalMarketAnalysisProps) {
 
       const stats = regionStats.get(p.region)!
       stats.total++
-      stats.unique.add(p.patient_id)
+      stats.unique.add(id)
 
       // 해당 지역에서의 첫 방문인지 확인
       const regionFirstVisit = patientFirstVisitInRegion.get(p.region)!
-      if (!regionFirstVisit.has(p.patient_id)) {
-        regionFirstVisit.set(p.patient_id, p.visit_date)
-        stats.newPatients.add(p.patient_id)
+      if (!regionFirstVisit.has(id)) {
+        regionFirstVisit.set(id, p.visit_date)
+        stats.newPatients.add(id)
       } else {
-        stats.returningPatients.add(p.patient_id)
+        stats.returningPatients.add(id)
       }
 
-      if (!patientRegions.has(p.patient_id)) {
-        patientRegions.set(p.patient_id, new Set())
+      if (!patientRegions.has(id)) {
+        patientRegions.set(id, new Set())
       }
-      patientRegions.get(p.patient_id)!.add(p.region)
+      patientRegions.get(id)!.add(p.region)
     })
 
     // 지역별 통계 배열

@@ -6,6 +6,7 @@ import { PatientData } from '@/stores/data-store'
 import { Users, Target } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { getAgeGroup, normalizeGender } from '@/lib/utils/patient-helpers'
+import { resolvePatientId } from '@/lib/utils/patient-identity'
 
 interface CustomerSegmentAnalysisProps {
   data: PatientData[]
@@ -28,9 +29,10 @@ export function CustomerSegmentAnalysis({ data }: CustomerSegmentAnalysisProps) 
     const patientGender = new Map<string, string>()
 
     data.forEach(p => {
-      patientVisitCounts.set(p.patient_id, (patientVisitCounts.get(p.patient_id) || 0) + 1)
-      patientAge.set(p.patient_id, p.age)
-      patientGender.set(p.patient_id, p.gender)
+      const id = resolvePatientId(p)
+      patientVisitCounts.set(id, (patientVisitCounts.get(id) || 0) + 1)
+      patientAge.set(id, p.age)
+      patientGender.set(id, p.gender)
     })
 
     // 연령대별 세그먼트

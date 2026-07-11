@@ -4,7 +4,8 @@ import { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PatientData } from '@/stores/data-store'
 import { TrendingUp, Activity } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ScatterChart, Scatter, ZAxis } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { resolvePatientId } from '@/lib/utils/patient-identity'
 
 interface DiseaseSurgeryStrategyProps {
   data: PatientData[]
@@ -43,6 +44,8 @@ export function DiseaseSurgeryStrategy({ data }: DiseaseSurgeryStrategyProps) {
     const diseaseSurgeryMatrix = new Map<string, Map<string, number>>()
 
     data.forEach(p => {
+      const id = resolvePatientId(p)
+
       // 질병별 통계
       if (!diseaseStats.has(p.disease_name)) {
         diseaseStats.set(p.disease_name, {
@@ -56,7 +59,7 @@ export function DiseaseSurgeryStrategy({ data }: DiseaseSurgeryStrategyProps) {
       }
       const diseaseStat = diseaseStats.get(p.disease_name)!
       diseaseStat.count++
-      diseaseStat.uniquePatients.add(p.patient_id)
+      diseaseStat.uniquePatients.add(id)
       if (p.surgery_name) {
         diseaseStat.withSurgery++
       }
@@ -74,7 +77,7 @@ export function DiseaseSurgeryStrategy({ data }: DiseaseSurgeryStrategyProps) {
         }
         const surgeryStat = surgeryStats.get(p.surgery_name)!
         surgeryStat.count++
-        surgeryStat.uniquePatients.add(p.patient_id)
+        surgeryStat.uniquePatients.add(id)
         surgeryStat.diseases.add(p.disease_name)
 
         // 질병-수술 매트릭스
@@ -122,18 +125,19 @@ export function DiseaseSurgeryStrategy({ data }: DiseaseSurgeryStrategyProps) {
     const patientSurgeries = new Map<string, Set<string>>()
 
     data.forEach(p => {
-      patientVisitCounts.set(p.patient_id, (patientVisitCounts.get(p.patient_id) || 0) + 1)
+      const id = resolvePatientId(p)
+      patientVisitCounts.set(id, (patientVisitCounts.get(id) || 0) + 1)
       
-      if (!patientDiseases.has(p.patient_id)) {
-        patientDiseases.set(p.patient_id, new Set())
+      if (!patientDiseases.has(id)) {
+        patientDiseases.set(id, new Set())
       }
-      patientDiseases.get(p.patient_id)!.add(p.disease_name)
+      patientDiseases.get(id)!.add(p.disease_name)
       
       if (p.surgery_name) {
-        if (!patientSurgeries.has(p.patient_id)) {
-          patientSurgeries.set(p.patient_id, new Set())
+        if (!patientSurgeries.has(id)) {
+          patientSurgeries.set(id, new Set())
         }
-        patientSurgeries.get(p.patient_id)!.add(p.surgery_name)
+        patientSurgeries.get(id)!.add(p.surgery_name)
       }
     })
 

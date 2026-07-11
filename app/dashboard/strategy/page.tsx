@@ -1,13 +1,10 @@
 'use client'
 
 import { useMemo } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useFilterStore } from '@/stores/filter-store'
 import { PatientData, useDataStore } from '@/stores/data-store'
-import { TrendingUp, Users, MapPin, Calendar, Target, BarChart3, GitMerge, AlertTriangle, Sun, Link2, ShieldAlert, FlaskConical } from 'lucide-react'
-import { getAgeGroup, normalizeGender } from '@/lib/utils/patient-helpers'
-import { parseDate } from '@/lib/utils/date-helpers'
+import { Users, MapPin, Calendar, Target, BarChart3, AlertTriangle, Activity } from 'lucide-react'
 import { filterPatients } from '@/lib/utils/patient-filters'
 
 // 분석 컴포넌트들 (추가 예정)
@@ -109,91 +106,60 @@ export default function StrategyPage() {
       <Tabs defaultValue="executive" className="w-full">
         <TabsList className="flex flex-wrap gap-1 h-auto justify-start">
           <TabsTrigger value="executive" className="flex items-center gap-1 text-xs">
-            <BarChart3 className="h-3 w-3" />경영 대시보드
+            <BarChart3 className="h-3 w-3" />경영 요약
           </TabsTrigger>
-          <TabsTrigger value="flow" className="flex items-center gap-1 text-xs">
-            <Users className="h-3 w-3" />환자 유입/유지
+          <TabsTrigger value="retention" className="flex items-center gap-1 text-xs">
+            <Users className="h-3 w-3" />유입·유지
           </TabsTrigger>
           <TabsTrigger value="regional" className="flex items-center gap-1 text-xs">
-            <MapPin className="h-3 w-3" />지역별 시장
+            <MapPin className="h-3 w-3" />지역 시장
           </TabsTrigger>
-          <TabsTrigger value="disease" className="flex items-center gap-1 text-xs">
-            <TrendingUp className="h-3 w-3" />질병/수술 전략
+          <TabsTrigger value="clinical" className="flex items-center gap-1 text-xs">
+            <Activity className="h-3 w-3" />질병·수술·연관
           </TabsTrigger>
           <TabsTrigger value="segment" className="flex items-center gap-1 text-xs">
-            <Target className="h-3 w-3" />고객 세그먼트
+            <Target className="h-3 w-3" />세그먼트
           </TabsTrigger>
-          <TabsTrigger value="trend" className="flex items-center gap-1 text-xs">
-            <Calendar className="h-3 w-3" />시기별 트렌드
-          </TabsTrigger>
-          <TabsTrigger value="prediction" className="flex items-center gap-1 text-xs">
-            <TrendingUp className="h-3 w-3" />예측 분석
-          </TabsTrigger>
-          {/* 고도화 탭 */}
-          <TabsTrigger value="cohort" className="flex items-center gap-1 text-xs">
-            <Users className="h-3 w-3" />코호트 분석
-          </TabsTrigger>
-          <TabsTrigger value="rfm" className="flex items-center gap-1 text-xs">
-            <ShieldAlert className="h-3 w-3" />이탈 위험도
-          </TabsTrigger>
-          <TabsTrigger value="association" className="flex items-center gap-1 text-xs">
-            <Link2 className="h-3 w-3" />연관 분석
-          </TabsTrigger>
-          <TabsTrigger value="seasonal" className="flex items-center gap-1 text-xs">
-            <Sun className="h-3 w-3" />계절성·예측
-          </TabsTrigger>
-          <TabsTrigger value="anomaly" className="flex items-center gap-1 text-xs">
-            <AlertTriangle className="h-3 w-3" />이상 탐지
-          </TabsTrigger>
-          <TabsTrigger value="journey" className="flex items-center gap-1 text-xs">
-            <GitMerge className="h-3 w-3" />환자 여정
+          <TabsTrigger value="timeseries" className="flex items-center gap-1 text-xs">
+            <Calendar className="h-3 w-3" />시계열·예측
           </TabsTrigger>
           <TabsTrigger value="advanced" className="flex items-center gap-1 text-xs">
-            <FlaskConical className="h-3 w-3" />고급 통계
+            <AlertTriangle className="h-3 w-3" />이상·고급
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="executive" className="mt-6">
           <ExecutiveDashboard data={filteredData} />
         </TabsContent>
-        <TabsContent value="flow" className="mt-6">
+
+        <TabsContent value="retention" className="mt-6 space-y-8">
           <PatientFlowAnalysis data={filteredData} />
+          <RfmAnalysis data={filteredData} />
+          <CohortAnalysis data={filteredData} />
+          <PatientJourney data={filteredData} />
         </TabsContent>
+
         <TabsContent value="regional" className="mt-6">
           <RegionalMarketAnalysis data={filteredData} />
         </TabsContent>
-        <TabsContent value="disease" className="mt-6">
+
+        <TabsContent value="clinical" className="mt-6 space-y-8">
           <DiseaseSurgeryStrategy data={filteredData} />
+          <AssociationAnalysis data={filteredData} />
         </TabsContent>
+
         <TabsContent value="segment" className="mt-6">
           <CustomerSegmentAnalysis data={filteredData} />
         </TabsContent>
-        <TabsContent value="trend" className="mt-6">
+
+        <TabsContent value="timeseries" className="mt-6 space-y-8">
           <TrendAnalysis data={filteredData} />
-        </TabsContent>
-        <TabsContent value="prediction" className="mt-6">
+          <SeasonalForecast data={filteredData} />
           <PredictionAnalysis data={filteredData} />
         </TabsContent>
-        {/* 고도화 분석 탭 */}
-        <TabsContent value="cohort" className="mt-6">
-          <CohortAnalysis data={filteredData} />
-        </TabsContent>
-        <TabsContent value="rfm" className="mt-6">
-          <RfmAnalysis data={filteredData} />
-        </TabsContent>
-        <TabsContent value="association" className="mt-6">
-          <AssociationAnalysis data={filteredData} />
-        </TabsContent>
-        <TabsContent value="seasonal" className="mt-6">
-          <SeasonalForecast data={filteredData} />
-        </TabsContent>
-        <TabsContent value="anomaly" className="mt-6">
+
+        <TabsContent value="advanced" className="mt-6 space-y-8">
           <AnomalyDetection data={filteredData} />
-        </TabsContent>
-        <TabsContent value="journey" className="mt-6">
-          <PatientJourney data={filteredData} />
-        </TabsContent>
-        <TabsContent value="advanced" className="mt-6">
           <AdvancedStatisticsTab data={filteredData} />
         </TabsContent>
       </Tabs>
