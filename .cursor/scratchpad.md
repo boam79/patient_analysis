@@ -1561,3 +1561,20 @@ PR #7: https://github.com/boam79/patient_analysis/pull/7
 ### Executor's Feedback
 Round A 구현 완료. PredictionAnalysis 삭제, strategy-metrics 공용 모듈 도입.
 
+---
+
+## 🗺️ 지도 분석 탭 고도화·정리 v5.3 (2026-07-11)
+
+### Planner 제안
+`docs/01-proposals/MAP_TABS_CONSOLIDATION_v5.3.md`
+
+### Project Status Board
+- [x] 8탭 → 4탭 (분포·재방문·임상·인구통계)
+- [x] map-metrics 공용화 · windowSize · 샘플 폴백 제거 · 수술 코드 매칭
+- [x] 단일 LeafletMap · locationDetails 윈도우 정합
+- [x] tsc / vitest 51 / build
+- [ ] main 머지·푸시
+
+### Executor's Feedback
+지도 페이지 ~1332줄 → ~700줄대 재구성. 패키지 5.3.0.
+
