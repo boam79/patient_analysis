@@ -1641,12 +1641,17 @@ Round A 구현 완료. PredictionAnalysis 삭제, strategy-metrics 공용 모듈
 2. [x] FilterPanel 수술 선택 UI + SAMPLE_SURGERY_OPTIONS
 3. [x] map page: context/clinical/panel 행 분리, 임상↔패널 동기화(한 차원만)
 4. [x] map-metrics 테스트 보강 · tsc/vitest
-5. [ ] main 푸시
+5. [x] main 푸시 (`8a27291`)
 
 ### Project Status Board
 - [x] 원인 분석·수정
 - [x] 테스트 (59)
-- [ ] main 커밋·푸시
+- [x] main 커밋·푸시
+
+### Executor's Feedback
+#### 2026-07-11 — 지도 질병·수술 필터 v5.3.3 → main
+- PR: https://github.com/boam79/patient_analysis/pull/9
+- 수동 확인: 임상 탭 무릎관절증→강남만, 필터 패널 수술 추가, 분포 탭 질병 필터 시 0값 지역 소멸
 
 ### Lessons
 - 지도 필터는 “값 계산”과 “표시 포인트 집합”을 분리해야 함. baseMap 전체를 0으로 채우면 필터가 무력화됨
