@@ -1472,19 +1472,29 @@ fbad674 - feat: 차트 데이터 실제 반영 및 필터 시스템 통합
 
 ### Project Status Board
 
-- [ ] Phase R (0/4)
-- [ ] Phase C (0/4)
-- [ ] Phase E (0/4)
+- [x] Phase R (4/4) ✅
+- [x] Phase C (4/4) ✅
+- [x] Phase E (핵심 구현) ✅
 
-**현재**: Planner 제안 완료 — 사용자 선택( charts 폐지 여부 / 전략 재편 / 우선 Phase ) 대기
+**현재**: Executor 구현 완료 — 검증 통과, 커밋·푸시 진행
 
 ### Executor's Feedback or Assistance Requests
 
-(구현 전) 확인 필요:
-1. `/dashboard/charts` 폐지 vs 필터 연동 유지
-2. 전략 14→7 재편 동의 여부
-3. Phase R만 먼저 vs C까지
+#### 2026-07-11 — Executor: 차트 고도화·정리 v5.1 전부 구현
+- R1: 테이블 재방문율 `Math.random` → `computeDiseaseRecurrenceRates`
+- R2: `OptimizedDiseaseChart` 삭제, TopDiseases → Interactive re-export
+- R3: Boxplot → 「사분위 막대 근사」라벨
+- R4: 대시보드·전략 `resolvePatientId` / `groupVisitsByPatient` 통일
+- C1: `/dashboard/charts` → `/dashboard` 리다이렉트, 네비 제거, 재방문·히트맵 탭 흡수
+- C3/E3: 전략 14→7탭
+- C4: LeafletMap 히트맵 모드 + 지도/대시보드 모드 전환
+- E1: `lib/utils/monthly-trend.ts` 공용 집계 + 테스트
+- E2/E4: 연관 탭 통합, 지역 차트↔필터 brushing, 지도 클릭 지역 필터
+- 검증: tsc ✅ / vitest 32/32 ✅ / build ✅
+
+수동 확인: 대시보드 표 재방문율, 전략 7탭, 지도 히트맵, 지역 막대 클릭 필터
 
 ### Lessons
 
 - 차트 고도화 전에 가짜 지표·중복 라우트를 먼저 줄이는 편이 ROI가 높다.
+- DiseaseSurgeryHeatmap props는 `{data}`가 아니라 `columns/rows/maxValue` 개별 props.

@@ -13,7 +13,7 @@ import { useRouter } from 'next/navigation'
 import { FilterPanel } from '@/components/filter/filter-panel'
 import { useFilterStore } from '@/stores/filter-store'
 
-type VisualizationMode = 'markers' | 'circle'
+type VisualizationMode = 'markers' | 'circle' | 'heatmap'
 type AnalysisTab = 'new' | 'returning' | 'patients' | 'recurrence' | 'disease' | 'surgery' | 'age' | 'gender'
 
 export default function MapPage() {
@@ -30,6 +30,15 @@ export default function MapPage() {
 
   const handleLocationSelect = (h3Index: string, data: any) => {
     setSelectedLocation({ h3Index, data })
+    const region = data?.region as string | undefined
+    if (region) {
+      const { selectedRegions, addRegion, removeRegion } = useFilterStore.getState()
+      if (selectedRegions.includes(region)) {
+        removeRegion(region)
+      } else {
+        addRegion(region)
+      }
+    }
   }
 
   // 필터링된 rawData 계산 (먼저 선언)
@@ -635,6 +644,14 @@ export default function MapPage() {
             >
               <Circle className="h-4 w-4 mr-1" />
               원형
+            </Button>
+            <Button
+              variant={visualizationMode === 'heatmap' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setVisualizationMode('heatmap')}
+            >
+              <Layers className="h-4 w-4 mr-1" />
+              히트맵
             </Button>
           </div>
         </div>

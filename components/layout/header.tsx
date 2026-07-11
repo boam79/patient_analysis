@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Upload, RefreshCw, Menu, X, LayoutDashboard, Map, BarChart3, LineChart } from 'lucide-react'
+import { Upload, RefreshCw, Menu, X, LayoutDashboard, Map, LineChart } from 'lucide-react'
 import { useDataStore } from '@/stores/data-store'
 import { useFilterStore } from '@/stores/filter-store'
 import { cn } from '@/lib/utils'
@@ -12,7 +12,6 @@ import { cn } from '@/lib/utils'
 const navItems = [
   { href: '/dashboard', label: '대시보드', icon: LayoutDashboard, exact: true },
   { href: '/dashboard/map', label: '지도 분석', icon: Map },
-  { href: '/dashboard/charts', label: '차트 분석', icon: BarChart3 },
   { href: '/dashboard/strategy', label: '전략 분석', icon: LineChart },
 ]
 

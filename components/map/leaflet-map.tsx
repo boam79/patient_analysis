@@ -12,12 +12,12 @@ interface LeafletMapProps {
     region?: string
     h3Index?: string
   }[]
-  mode?: 'markers' | 'circle'
+  mode?: 'markers' | 'circle' | 'heatmap'
   onLocationSelect?: (h3Index: string, data: any) => void
 }
 
 export function LeafletMap({
-  center = [37.5665, 126.9780],
+  center = [37.5665, 126.978],
   zoom = 11,
   data = [],
   mode = 'markers',
@@ -27,6 +27,7 @@ export function LeafletMap({
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const markerLayerRef = useRef<any>(null)
   const circleLayerRef = useRef<any>(null)
+  const heatLayerRef = useRef<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [leafletLoaded, setLeafletLoaded] = useState(false)
 
@@ -49,6 +50,7 @@ export function LeafletMap({
 
     removeLayer(markerLayerRef)
     removeLayer(circleLayerRef)
+    removeLayer(heatLayerRef)
   }, [])
 
   useEffect(() => {
@@ -71,9 +73,12 @@ export function LeafletMap({
 
         delete (L.Icon.Default.prototype as any)._getIconUrl
         L.Icon.Default.mergeOptions({
-          iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-          iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-          shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+          iconRetinaUrl:
+            'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+          iconUrl:
+            'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+          shadowUrl:
+            'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
         })
 
         ;(window as any).L = L
@@ -86,7 +91,8 @@ export function LeafletMap({
         })
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          attribution:
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
           maxZoom: 19,
         }).addTo(map)
 
@@ -123,11 +129,9 @@ export function LeafletMap({
           : `<div><strong>값: ${point.value.toLocaleString()}</strong></div>`
 
         marker.bindPopup(popupContent)
-
         marker.on('click', () => {
           onLocationSelect?.(point.h3Index || 'temp_h3_index', point)
         })
-
         marker.addTo(markerLayer)
       })
 
@@ -149,22 +153,23 @@ export function LeafletMap({
       points.forEach((point) => {
         let radius = 5
         if (point.value > 0 && maxValue > 0) {
-          const normalizedValue = (point.value - minValue) / (maxValue - minValue || 1)
+          const normalizedValue =
+            (point.value - minValue) / (maxValue - minValue || 1)
           radius = Math.max(5, Math.min(50, 5 + normalizedValue * 45))
         }
 
         let fillColor = '#94a3b8'
         if (point.value > 0) {
           const normalizedValue = maxValue > 0 ? point.value / maxValue : 0
-          if (normalizedValue < 0.33) fillColor = '#3b82f6'
-          else if (normalizedValue < 0.66) fillColor = '#f59e0b'
-          else fillColor = '#ef4444'
+          if (normalizedValue < 0.33) fillColor = '#0B6E6E'
+          else if (normalizedValue < 0.66) fillColor = '#C47A12'
+          else fillColor = '#C23B3B'
         }
 
         const circle = L.circleMarker([point.latitude, point.longitude], {
           radius,
           fillColor,
-          color: '#1e40af',
+          color: '#0A2F2F',
           weight: 2,
           fillOpacity: 0.7,
         })
@@ -184,6 +189,39 @@ export function LeafletMap({
       circleLayerRef.current = circleLayer
     },
     [onLocationSelect]
+  )
+
+  const renderHeatmap = useCallback(
+    async (points: NonNullable<LeafletMapProps['data']>) => {
+      const L = (window as any).L
+      if (!L || !mapRef.current) return
+
+      await import('leaflet.heat')
+      if (!mapRef.current) return
+
+      const maxValue = Math.max(...points.map((d) => d.value), 1)
+      const heatData = points.map((point) => [
+        point.latitude,
+        point.longitude,
+        Math.min(1, point.value / maxValue),
+      ])
+
+      const heatLayer = (L as any).heatLayer(heatData, {
+        radius: 28,
+        blur: 18,
+        maxZoom: 17,
+        max: 1.0,
+        gradient: {
+          0.0: '#0B6E6E',
+          0.5: '#C47A12',
+          1.0: '#C23B3B',
+        },
+      })
+
+      heatLayer.addTo(mapRef.current)
+      heatLayerRef.current = heatLayer
+    },
+    []
   )
 
   useEffect(() => {
@@ -209,8 +247,12 @@ export function LeafletMap({
       return
     }
 
+    clearAllLayers()
+
     if (mode === 'circle') {
       renderCircles(validData)
+    } else if (mode === 'heatmap') {
+      void renderHeatmap(validData)
     } else {
       renderMarkers(validData)
     }
@@ -218,7 +260,15 @@ export function LeafletMap({
     return () => {
       clearAllLayers()
     }
-  }, [leafletLoaded, data, mode, clearAllLayers, renderMarkers, renderCircles])
+  }, [
+    leafletLoaded,
+    data,
+    mode,
+    clearAllLayers,
+    renderMarkers,
+    renderCircles,
+    renderHeatmap,
+  ])
 
   useEffect(() => {
     if (leafletLoaded && mapRef.current && center) {
@@ -241,5 +291,3 @@ export function LeafletMap({
     </div>
   )
 }
-
-

@@ -18,6 +18,16 @@ import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
 import { normalizeGender } from '@/lib/utils/patient-helpers'
 import { filterPatients } from '@/lib/utils/patient-filters'
+import {
+  groupVisitsByPatient,
+  resolvePatientId,
+} from '@/lib/utils/patient-identity'
+import {
+  computeDiseaseRecurrenceRates,
+  computeMonthlyTrend,
+} from '@/lib/utils/monthly-trend'
+import { RetentionChart } from '@/components/charts/retention-chart'
+import { DiseaseSurgeryHeatmap } from '@/components/charts/disease-surgery-heatmap'
 
 // 샘플 데이터
 const SAMPLE_DISEASES = [
@@ -88,9 +98,6 @@ const SAMPLE_SURGERY_MATRIX = [
 const DEFAULT_WINDOW_SIZE = 90
 const MS_PER_DAY = 1000 * 60 * 60 * 24
 
-const getPatientKey = (patient: Pick<PatientData, 'name' | 'address'>) =>
-  `${patient.name}|${patient.address}`
-
 const calculateIntervalsWithinWindow = (visits: PatientData[], windowSize: number) => {
   const intervals: number[] = []
 
@@ -109,6 +116,7 @@ const calculateIntervalsWithinWindow = (visits: PatientData[], windowSize: numbe
 
 export default function DashboardPage() {
   const router = useRouter()
+  const [mapMode, setMapMode] = useState<'markers' | 'heatmap'>('markers')
   const {
     selectedDiseases,
     selectedRegions,
@@ -185,27 +193,93 @@ export default function DashboardPage() {
   }, [isDataLoaded, rawData, selectedDiseases, selectedRegions, selectedSurgeries, ageGroups, genders, dateRange])
 
   const patientVisitsByKey = useMemo(() => {
-    const map = new Map<string, PatientData[]>()
-
     if (!isDataLoaded || filteredRawData.length === 0) {
-      return map
+      return new Map<string, PatientData[]>()
     }
+    return groupVisitsByPatient(filteredRawData)
+  }, [filteredRawData, isDataLoaded])
 
-    filteredRawData.forEach((visit) => {
-      const key = getPatientKey(visit)
-      const visits = map.get(key) ?? []
-      visits.push(visit)
-      map.set(key, visits)
+  const diseaseRecurrenceRates = useMemo(() => {
+    if (!isDataLoaded || filteredRawData.length === 0) {
+      return new Map<string, number>()
+    }
+    return computeDiseaseRecurrenceRates(filteredRawData, windowSize)
+  }, [filteredRawData, isDataLoaded, windowSize])
+
+  const retentionBuckets = useMemo(() => {
+    const defs = [
+      { label: '0-30일', min: 0, max: 30 },
+      { label: '31-60일', min: 31, max: 60 },
+      { label: '61-90일', min: 61, max: 90 },
+      { label: '91-180일', min: 91, max: 180 },
+      { label: '181일 이상', min: 181, max: Infinity },
+    ]
+    const counts = defs.map(() => 0)
+    let total = 0
+    patientVisitsByKey.forEach((visits) => {
+      if (visits.length < 2) return
+      const interval =
+        (new Date(visits[1].visit_date).getTime() -
+          new Date(visits[0].visit_date).getTime()) /
+        MS_PER_DAY
+      const idx = defs.findIndex((b) => interval >= b.min && interval <= b.max)
+      if (idx >= 0) {
+        counts[idx]++
+        total++
+      }
     })
+    return defs.map((b, i) => ({
+      bucket: b.label,
+      count: counts[i],
+      percentage: total > 0 ? Math.round((counts[i] / total) * 1000) / 10 : 0,
+    }))
+  }, [patientVisitsByKey])
 
-    map.forEach((visits) => {
-      visits.sort(
-        (a, b) =>
-          new Date(a.visit_date).getTime() - new Date(b.visit_date).getTime()
+  const diseaseSurgeryHeatmap = useMemo(() => {
+    if (!isDataLoaded || filteredRawData.length === 0) {
+      return null
+    }
+    const surgeryCounts = new Map<string, number>()
+    const diseaseCounts = new Map<string, number>()
+    const matrix = new Map<string, Map<string, number>>()
+
+    filteredRawData.forEach((row) => {
+      if (!row.disease_name) return
+      diseaseCounts.set(
+        row.disease_name,
+        (diseaseCounts.get(row.disease_name) || 0) + 1
       )
+      if (!row.surgery_name) return
+      surgeryCounts.set(
+        row.surgery_name,
+        (surgeryCounts.get(row.surgery_name) || 0) + 1
+      )
+      if (!matrix.has(row.disease_name)) matrix.set(row.disease_name, new Map())
+      const rowMap = matrix.get(row.disease_name)!
+      rowMap.set(row.surgery_name, (rowMap.get(row.surgery_name) || 0) + 1)
     })
 
-    return map
+    const topSurgeries = Array.from(surgeryCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([name]) => name)
+    const topDiseases = Array.from(diseaseCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([name]) => name)
+
+    let maxValue = 0
+    const rows = topDiseases.map((disease) => {
+      const values: Record<string, number> = {}
+      topSurgeries.forEach((surgery) => {
+        const v = matrix.get(disease)?.get(surgery) || 0
+        values[surgery] = v
+        if (v > maxValue) maxValue = v
+      })
+      return { disease, values }
+    })
+
+    return { columns: topSurgeries, rows, maxValue }
   }, [filteredRawData, isDataLoaded])
 
   // 필터 적용된 질병 통계 재계산 (filteredRawData 기반)
@@ -335,7 +409,7 @@ export default function DashboardPage() {
           }
         }
         surgeryStats[patient.surgery_name].ages.push(patient.age)
-        surgeryStats[patient.surgery_name].patientKeys.add(`${patient.name}|${patient.address}`)
+        surgeryStats[patient.surgery_name].patientKeys.add(resolvePatientId(patient))
         
         // 수술-질병 연관 집계
         surgeryStats[patient.surgery_name].diseases[patient.disease_name] = 
@@ -346,7 +420,7 @@ export default function DashboardPage() {
     // 수술별 실제 재방문율 계산: 해당 수술을 받은 환자 중 2회 이상 방문한 비율
     const patientVisitCountMap: Record<string, number> = {}
     rawData.forEach((p) => {
-      const key = `${p.name}|${p.address}`
+      const key = resolvePatientId(p)
       patientVisitCountMap[key] = (patientVisitCountMap[key] || 0) + 1
     })
 
@@ -412,7 +486,7 @@ export default function DashboardPage() {
       }
 
       const stats = regionStatsMap.get(patient.region)!
-      const key = getPatientKey(patient)
+      const key = resolvePatientId(patient)
       stats.patientKeys.add(key)
       stats.ages.push(patient.age)
 
@@ -536,85 +610,14 @@ export default function DashboardPage() {
       .slice(0, 10)
   }, [isDataLoaded, filteredRawData, boxplotData, windowSize])
 
-  // 필터링된 월별 트렌드 계산
+  // 필터링된 월별 트렌드 (공용 집계)
   const filteredMonthlyTrend = useMemo(() => {
-    if (
-      !isDataLoaded ||
-      filteredRawData.length === 0 ||
-      patientVisitsByKey.size === 0
-    ) {
-      return monthlyTrend // 필터 없으면 원본 사용
+    if (!isDataLoaded || filteredRawData.length === 0) {
+      return monthlyTrend
     }
-
-    const monthlyData = new Map<
-      string,
-      { newPatients: Set<string>; returningPatients: Set<string> }
-    >()
-
-    // 환자별 첫 방문 월 추적
-    const patientFirstVisitMonth = new Map<string, string>()
-    
-    // 날짜순으로 정렬된 방문 데이터로 처리
-    const sortedVisits = Array.from(filteredRawData).sort(
-      (a, b) => new Date(a.visit_date).getTime() - new Date(b.visit_date).getTime()
-    )
-
-    sortedVisits.forEach((patient) => {
-      const date = new Date(patient.visit_date)
-      const month = `${date.getMonth() + 1}월`
-      const key = `${patient.name}|${patient.address}`
-
-      if (!monthlyData.has(month)) {
-        monthlyData.set(month, {
-          newPatients: new Set(),
-          returningPatients: new Set(),
-        })
-      }
-
-      const bucket = monthlyData.get(month)!
-
-      // 해당 환자의 첫 방문 월 확인
-      if (!patientFirstVisitMonth.has(key)) {
-        // 첫 방문이면 신규 환자로 분류
-        patientFirstVisitMonth.set(key, month)
-        bucket.newPatients.add(key)
-      } else {
-        // 이미 방문한 적이 있으면 재방문 환자로 분류
-        bucket.returningPatients.add(key)
-      }
-    })
-
-    const monthOrder = [
-      '1월',
-      '2월',
-      '3월',
-      '4월',
-      '5월',
-      '6월',
-      '7월',
-      '8월',
-      '9월',
-      '10월',
-      '11월',
-      '12월',
-    ]
-
-    return monthOrder
-      .filter((month) => monthlyData.has(month))
-      .map((month) => {
-        const data = monthlyData.get(month)!
-        const newCount = data.newPatients.size
-        const returningCount = data.returningPatients.size
-        const total = newCount + returningCount
-
-        return {
-          month,
-          newPatients: newCount,
-          returningPatients: returningCount,
-          recurrenceRate: total > 0 ? (returningCount / total) * 100 : 0,
-        }
-      })
-  }, [isDataLoaded, filteredRawData, monthlyTrend, patientVisitsByKey, windowSize])
+    const computed = computeMonthlyTrend(filteredRawData, windowSize)
+    return computed.length > 0 ? computed : monthlyTrend
+  }, [isDataLoaded, filteredRawData, monthlyTrend, windowSize])
 
   // 선택된 지역의 Top 5 질병/수술 계산
   const selectedRegionStats = useMemo(() => {
@@ -843,13 +846,31 @@ export default function DashboardPage() {
         {/* 중앙 지도 */}
         <Card className="col-span-12 lg:col-span-6" id="map-container">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">
-              공간 분석 지도
-              {selectedRegions.length > 0 && ` (${selectedRegions.length}개 지역 선택)`}
-            </CardTitle>
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-base">
+                공간 분석 지도
+                {selectedRegions.length > 0 && ` (${selectedRegions.length}개 지역 선택)`}
+              </CardTitle>
+              <div className="flex gap-1">
+                <Button
+                  size="sm"
+                  variant={mapMode === 'markers' ? 'default' : 'outline'}
+                  onClick={() => setMapMode('markers')}
+                >
+                  마커
+                </Button>
+                <Button
+                  size="sm"
+                  variant={mapMode === 'heatmap' ? 'default' : 'outline'}
+                  onClick={() => setMapMode('heatmap')}
+                >
+                  히트맵
+                </Button>
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="pt-0">
-            <InteractiveMap data={mapData} mode="markers" />
+            <InteractiveMap data={mapData} mode={mapMode} />
           </CardContent>
         </Card>
 
@@ -941,11 +962,13 @@ export default function DashboardPage() {
 
       {/* 하단 탭 */}
       <Tabs defaultValue="trend" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="trend">Trend</TabsTrigger>
-          <TabsTrigger value="boundary">Boundary</TabsTrigger>
-          <TabsTrigger value="table">Table</TabsTrigger>
-          <TabsTrigger value="surgery">Surgery</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6">
+          <TabsTrigger value="trend">추세</TabsTrigger>
+          <TabsTrigger value="boundary">지역</TabsTrigger>
+          <TabsTrigger value="retention">재방문</TabsTrigger>
+          <TabsTrigger value="table">표</TabsTrigger>
+          <TabsTrigger value="surgery">수술</TabsTrigger>
+          <TabsTrigger value="matrix">연관</TabsTrigger>
         </TabsList>
 
         <TabsContent value="trend" className="mt-3">
@@ -993,13 +1016,42 @@ export default function DashboardPage() {
             </Card>
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">분포 분석</CardTitle>
+                <CardTitle className="text-base">재방문 간격 사분위</CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  지역별 재방문 간격의 최소·Q1·중앙값·Q3·최대 (막대 근사)
+                </p>
               </CardHeader>
               <CardContent className="pt-0">
                 <BoxplotChart data={filteredBoxplotData} />
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="retention" className="mt-3">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">재방문 속도</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                첫→두 번째 방문 간격 분포 (필터 반영)
+              </p>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <RetentionChart
+                data={
+                  retentionBuckets.some((b) => b.count > 0)
+                    ? retentionBuckets
+                    : [
+                        { bucket: '0-30일', count: 0, percentage: 0 },
+                        { bucket: '31-60일', count: 0, percentage: 0 },
+                        { bucket: '61-90일', count: 0, percentage: 0 },
+                        { bucket: '91-180일', count: 0, percentage: 0 },
+                        { bucket: '181일 이상', count: 0, percentage: 0 },
+                      ]
+                }
+              />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="table" className="mt-3">
@@ -1029,8 +1081,8 @@ export default function DashboardPage() {
                         <td className="p-4 font-medium">{disease.name}</td>
                         <td className="p-4 text-right">{disease.count.toLocaleString()}</td>
                         <td className="p-4 text-right">{disease.percentage.toFixed(1)}%</td>
-                        <td className="p-4 text-right">
-                          {(Math.random() * 30 + 30).toFixed(1)}%
+                        <td className="p-4 text-right tabular-nums">
+                          {(diseaseRecurrenceRates.get(disease.name) ?? 0).toFixed(1)}%
                         </td>
                       </tr>
                     ))}
@@ -1074,6 +1126,30 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="matrix" className="mt-3">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">질병 × 수술 히트맵</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                차트 페이지에서 이관 · 필터 반영
+              </p>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {diseaseSurgeryHeatmap ? (
+                <DiseaseSurgeryHeatmap
+                  columns={diseaseSurgeryHeatmap.columns}
+                  rows={diseaseSurgeryHeatmap.rows}
+                  maxValue={diseaseSurgeryHeatmap.maxValue}
+                />
+              ) : (
+                <p className="py-8 text-center text-sm text-muted-foreground">
+                  업로드된 데이터가 있으면 히트맵이 표시됩니다
+                </p>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

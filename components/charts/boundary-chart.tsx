@@ -12,6 +12,7 @@ import {
   ComposedChart,
   Line,
 } from 'recharts'
+import { useFilterStore } from '@/stores/filter-store'
 
 interface BoundaryData {
   region: string
@@ -25,9 +26,23 @@ interface BoundaryChartProps {
 }
 
 export function BoundaryComparisonChart({ data }: BoundaryChartProps) {
+  const { selectedRegions, addRegion, removeRegion } = useFilterStore()
+
+  const handleBarClick = (entry: BoundaryData) => {
+    if (!entry?.region) return
+    if (selectedRegions.includes(entry.region)) {
+      removeRegion(entry.region)
+    } else {
+      addRegion(entry.region)
+    }
+  }
+
   return (
     <div className="space-y-2">
       <h3 className="text-sm font-semibold">시/군/구 비교</h3>
+      <p className="text-xs text-muted-foreground">
+        막대 클릭 시 지역 필터와 지도 선택이 연동됩니다
+      </p>
       <ResponsiveContainer width="100%" height={350}>
         <ComposedChart data={data} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -46,12 +61,23 @@ export function BoundaryComparisonChart({ data }: BoundaryChartProps) {
             }}
           />
           <Legend />
-          <Bar yAxisId="left" dataKey="patients" fill="#3b82f6" name="환자수" radius={[4, 4, 0, 0]} />
+          <Bar
+            yAxisId="left"
+            dataKey="patients"
+            fill="hsl(var(--primary))"
+            name="환자수"
+            radius={[4, 4, 0, 0]}
+            cursor="pointer"
+            onClick={(_: unknown, index: number) => {
+              const entry = data[index]
+              if (entry) handleBarClick(entry)
+            }}
+          />
           <Line
             yAxisId="right"
             type="monotone"
             dataKey="recurrenceRate"
-            stroke="#10B981"
+            stroke="hsl(var(--chart-5))"
             strokeWidth={2}
             name="재방문율 (%)"
             dot={{ r: 4 }}
@@ -91,7 +117,10 @@ export function BoxplotChart({ data }: BoxplotChartProps) {
 
   return (
     <div className="space-y-2">
-      <h3 className="text-sm font-semibold">재방문 간격 분포 (Boxplot)</h3>
+      <h3 className="text-sm font-semibold">재방문 간격 사분위 (막대 근사)</h3>
+      <p className="text-xs text-muted-foreground">
+        통계적 박스플롯이 아니라 Q1·중앙값·Q3 구간을 막대로 표현합니다
+      </p>
       <ResponsiveContainer width="100%" height={350}>
         <BarChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />

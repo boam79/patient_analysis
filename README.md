@@ -1,4 +1,4 @@
-# 병원 CRM v5.0.0
+# 병원 CRM v5.1.0
 
 **병원 CRM** — 방문·질병·수술 데이터 분석 및 경영·마케팅 인사이트
 
@@ -358,6 +358,12 @@ Next.js React TypeScript License
 - **셸**: 이모지 네비 제거, 활성 라우트 인디케이터, 모바일 메뉴, Footer 톤 통일
 - **업로드·대시보드·로그인·Admin**: Harbor Clinical 톤 적용, KPI 메트릭 스트립, 유령 컴포넌트 제거
 - 제안서: `docs/01-proposals/FRONTEND_DESIGN_OVERHAUL_v5.0.md`
+
+### 19. 분석 차트 고도화·정리 v5.1.0 (2026-07-11)
+
+- 가짜 재방문율 제거, 환자키 `resolvePatientId` 통일, charts 페이지→대시보드 흡수
+- 전략 탭 14→7, 지도 히트맵 모드, 월별 공용 집계, 지역↔필터 brushing
+- 제안서: `docs/01-proposals/CHART_ANALYSIS_CONSOLIDATION_v5.1.md`
 
 ---
 
