@@ -1678,3 +1678,19 @@ Round A 구현 완료. PredictionAnalysis 삭제, strategy-metrics 공용 모듈
 ### Lessons
 - 공적 통계는 모집단·정의가 같아야만 벤치마크로 붙일 수 있음. 다르면 배경 인용 + 운영 휴리스틱으로 분리
 
+---
+
+## 📦 샘플 데이터 10,000건 (2026-07-11) — Executor
+
+### Background
+기존 샘플 ~28건으로 대시보드/지도/전략 데모가 빈약. 지역·성별·나이·질병·수술 포함 **10,000 방문 행**으로 확대.
+
+### Approach
+- 시드 고정 생성기 `lib/sample-data-generator.ts` (번들 하드코딩 회피)
+- 약 3.5k 고유 환자 + 재방문, 전국 36개 권역 좌표, 척추·관절 중심 질환
+- 지도 샘플 모드: 전국 중심 zoom 7
+
+### Project Status Board
+- [x] 생성기·연동·테스트
+- [ ] main 푸시
+

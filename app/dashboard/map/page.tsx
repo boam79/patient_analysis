@@ -26,6 +26,8 @@ import {
 } from '@/lib/utils/map-metrics'
 import {
   SAMPLE_DATE_RANGE_LABEL,
+  SAMPLE_MAP_CENTER,
+  SAMPLE_MAP_ZOOM,
   resolveAnalysisData,
   getSampleMapPoints,
   isUsingSampleData,
@@ -790,13 +792,13 @@ export default function MapPage() {
               </div>
             ) : (
               <LeafletMap
-                center={[37.5665, 126.978]}
-                zoom={11}
+                center={usingSample ? SAMPLE_MAP_CENTER : [37.5665, 126.978]}
+                zoom={usingSample ? SAMPLE_MAP_ZOOM : 11}
                 data={layerData}
                 mode={visualizationMode}
                 selectedRegions={selectedRegions}
                 flyToOnSelect
-                flyToZoom={12}
+                flyToZoom={usingSample ? 11 : 12}
                 onLocationSelect={handleLocationSelect}
               />
             )}
