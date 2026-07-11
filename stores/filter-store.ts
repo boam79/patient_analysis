@@ -87,8 +87,8 @@ export type FilterStore = FilterState & FilterActions
 
 const defaultState: FilterState = {
   dateRange: {
-    start: '2024-01-01',
-    end: '2024-12-31',
+    start: '',
+    end: '',
   },
   windowSize: 90,
   selectedDiseases: [],
@@ -253,12 +253,14 @@ export const useFilterStore = create<FilterStore>()(
 
 // 선택자 헬퍼 함수
 export const selectActiveFilters = (state: FilterStore) => {
+  const dateActive = Boolean(state.dateRange.start && state.dateRange.end)
   const activeCount =
     (state.selectedDiseases.length > 0 ? 1 : 0) +
     (state.selectedSurgeries.length > 0 ? 1 : 0) +
     (state.ageGroups.length > 0 ? 1 : 0) +
     (state.selectedRegions.length > 0 ? 1 : 0) +
-    (state.genders.length < 2 ? 1 : 0)
+    (state.genders.length < 2 ? 1 : 0) +
+    (dateActive ? 1 : 0)
 
   return {
     count: activeCount,
@@ -270,10 +272,12 @@ export const selectActiveFilters = (state: FilterStore) => {
 export const generateWhereClause = (state: FilterStore): string => {
   const conditions: string[] = []
 
-  // 기간 필터
-  conditions.push(
-    `date >= '${state.dateRange.start}' AND date <= '${state.dateRange.end}'`
-  )
+  // 기간 필터 (비어 있으면 전체 기간)
+  if (state.dateRange.start && state.dateRange.end) {
+    conditions.push(
+      `date >= '${state.dateRange.start}' AND date <= '${state.dateRange.end}'`
+    )
+  }
 
   // 질병 필터
   if (state.selectedDiseases.length > 0) {

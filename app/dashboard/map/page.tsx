@@ -14,6 +14,8 @@ import { FilterPanel } from '@/components/filter/filter-panel'
 import { useFilterStore } from '@/stores/filter-store'
 import { resolvePatientId, groupVisitsByPatient } from '@/lib/utils/patient-identity'
 import { filterPatients } from '@/lib/utils/patient-filters'
+import { normalizeGender, getAgeGroup } from '@/lib/utils/patient-helpers'
+import { hasSurgery, buildRegionVisitMap, hasActiveFilters as checkActiveFilters } from '@/lib/utils/analysis-helpers'
 
 type VisualizationMode = 'markers' | 'circle' | 'heatmap'
 type AnalysisTab = 'new' | 'returning' | 'patients' | 'recurrence' | 'disease' | 'surgery' | 'age' | 'gender'
@@ -66,15 +68,14 @@ export default function MapPage() {
     dateRange,
   ])
 
-  // 선택된 지역의 상세 통계 계산
+  // 선택된 지역의 상세 통계 계산 (필터 적용된 데이터 기준)
   const locationDetails = useMemo(() => {
-    if (!selectedLocation || !isDataLoaded || rawData.length === 0) {
+    if (!selectedLocation || !isDataLoaded || filteredRawData.length === 0) {
       return null
     }
 
     const region = selectedLocation.data?.region || '미분류'
-    // rawData 기준으로 조회해 지역 필터 적용 후에도 상세 패널이 유지되도록 함
-    const regionData = rawData.filter(p => p.region === region)
+    const regionData = filteredRawData.filter(p => p.region === region)
 
     if (regionData.length === 0) return null
 
@@ -93,8 +94,11 @@ export default function MapPage() {
     // 수술별 집계 (Top 5)
     const surgeryCounts: Record<string, number> = {}
     regionData.forEach(p => {
-      if (p.surgery_name) {
-        surgeryCounts[p.surgery_name] = (surgeryCounts[p.surgery_name] || 0) + 1
+      if (hasSurgery(p)) {
+        const key = p.surgery_name?.toString().trim() || p.surgery_code?.toString().trim()
+        if (key) {
+          surgeryCounts[key] = (surgeryCounts[key] || 0) + 1
+        }
       }
     })
     const topSurgeries = Object.entries(surgeryCounts)
@@ -105,23 +109,16 @@ export default function MapPage() {
     // 연령대별 집계
     const ageGroupCounts: Record<string, number> = {}
     regionData.forEach(p => {
-      const age = p.age
-      let ageGroup = ''
-      if (age < 20) ageGroup = '10대 이하'
-      else if (age < 30) ageGroup = '20대'
-      else if (age < 40) ageGroup = '30대'
-      else if (age < 50) ageGroup = '40대'
-      else if (age < 60) ageGroup = '50대'
-      else if (age < 70) ageGroup = '60대'
-      else ageGroup = '70대 이상'
+      const ageGroup = getAgeGroup(p.age)
       ageGroupCounts[ageGroup] = (ageGroupCounts[ageGroup] || 0) + 1
     })
 
-    // 성별 집계
+    // 성별 집계 (미상은 여성으로 세지 않음)
     const genderCounts = { male: 0, female: 0 }
     regionData.forEach(p => {
-      if (p.gender === 'M' || p.gender === '남성') genderCounts.male++
-      else if (p.gender === 'F' || p.gender === '여성') genderCounts.female++
+      const g = normalizeGender(p.gender)
+      if (g === '남성') genderCounts.male++
+      else if (g === '여성') genderCounts.female++
     })
 
     // 평균 연령
@@ -151,7 +148,7 @@ export default function MapPage() {
       topSurgeries,
       ageGroupCounts,
     }
-  }, [selectedLocation, isDataLoaded, rawData])
+  }, [selectedLocation, isDataLoaded, filteredRawData])
 
   // 실제 데이터가 없으면 샘플 데이터 사용
   const SAMPLE_DATA = [
@@ -275,7 +272,12 @@ export default function MapPage() {
     // 선택된 수술의 지역별 집계 (필터 적용된 데이터 사용)
     const regionCounts: Record<string, number> = {}
     filteredRawData.forEach(patient => {
-      if (patient.surgery_name === selectedSurgery && patient.region && patient.region !== '미분류') {
+      if (
+        hasSurgery(patient) &&
+        patient.surgery_name === selectedSurgery &&
+        patient.region &&
+        patient.region !== '미분류'
+      ) {
         regionCounts[patient.region] = (regionCounts[patient.region] || 0) + 1
       }
     })
@@ -316,8 +318,11 @@ export default function MapPage() {
 
     const surgeryCounts: Record<string, number> = {}
     filteredRawData.forEach(patient => {
-      if (patient.surgery_name) {
-        surgeryCounts[patient.surgery_name] = (surgeryCounts[patient.surgery_name] || 0) + 1
+      if (hasSurgery(patient)) {
+        const key = patient.surgery_name?.toString().trim() || patient.surgery_code?.toString().trim()
+        if (key) {
+          surgeryCounts[key] = (surgeryCounts[key] || 0) + 1
+        }
       }
     })
 
@@ -355,17 +360,7 @@ export default function MapPage() {
     const regionCounts: Record<string, number> = {}
     filteredRawData.forEach(patient => {
       if (patient.region && patient.region !== '미분류') {
-        const age = patient.age
-        let ageGroup = ''
-        if (age < 20) ageGroup = '10대 이하'
-        else if (age < 30) ageGroup = '20대'
-        else if (age < 40) ageGroup = '30대'
-        else if (age < 50) ageGroup = '40대'
-        else if (age < 60) ageGroup = '50대'
-        else if (age < 70) ageGroup = '60대'
-        else ageGroup = '70대 이상'
-
-        if (ageGroup === selectedAgeGroup) {
+        if (getAgeGroup(patient.age) === selectedAgeGroup) {
           regionCounts[patient.region] = (regionCounts[patient.region] || 0) + 1
         }
       }
@@ -386,17 +381,22 @@ export default function MapPage() {
       return []
     }
 
-    // 지역별 성별 집계 (필터 적용된 데이터 사용)
+    // 지역별 성별 집계 (필터 적용된 데이터 사용; 미상은 제외)
     const regionGenderCounts: Record<string, { male: number; female: number; total: number }> = {}
     filteredRawData.forEach(patient => {
       if (patient.region && patient.region !== '미분류') {
         if (!regionGenderCounts[patient.region]) {
           regionGenderCounts[patient.region] = { male: 0, female: 0, total: 0 }
         }
-        
-        const gender = patient.gender === 'M' || patient.gender === '남성' ? 'male' : 'female'
-        regionGenderCounts[patient.region][gender]++
-        regionGenderCounts[patient.region].total++
+
+        const g = normalizeGender(patient.gender)
+        if (g === '남성') {
+          regionGenderCounts[patient.region].male++
+          regionGenderCounts[patient.region].total++
+        } else if (g === '여성') {
+          regionGenderCounts[patient.region].female++
+          regionGenderCounts[patient.region].total++
+        }
       }
     })
 
@@ -455,7 +455,7 @@ export default function MapPage() {
       case 'returning':
         return patientTypeData.returningPatients
       case 'patients':
-        return mapData.filter(m => m.latitude != null && m.longitude != null)
+        return buildRegionVisitMap(filteredRawData, mapData)
       case 'recurrence':
         return recurrenceData
       case 'disease':
@@ -490,7 +490,7 @@ export default function MapPage() {
     const max = data.length > 0 ? Math.max(...data.map(d => d.value)) : 0
 
     return { total, avg, max }
-  }, [activeTab, isDataLoaded, mapData, patientTypeData, recurrenceData, diseaseData, surgeryData, ageGroupData, genderData])
+  }, [activeTab, isDataLoaded, mapData, filteredRawData, patientTypeData, recurrenceData, diseaseData, surgeryData, ageGroupData, genderData])
 
   // Top 5 지역 리스트
   const topRegions = useMemo(() => {
@@ -505,18 +505,18 @@ export default function MapPage() {
         region: item.region || '미분류',
         value: item.value,
       }))
-  }, [activeTab, isDataLoaded, mapData, patientTypeData, recurrenceData, diseaseData, surgeryData])
+  }, [activeTab, isDataLoaded, mapData, filteredRawData, patientTypeData, recurrenceData, diseaseData, surgeryData, ageGroupData, genderData])
 
   // 필터 적용 여부 확인
   const hasActiveFilters = useMemo(() => {
-    return (
-      selectedDiseases.length > 0 ||
-      selectedSurgeries.length > 0 ||
-      ageGroups.length > 0 ||
-      selectedRegions.length > 0 ||
-      (genders.length > 0 && genders.length < 2) ||
-      (dateRange.start !== '2024-01-01' || dateRange.end !== '2024-12-31')
-    )
+    return checkActiveFilters({
+      selectedDiseases,
+      selectedSurgeries,
+      selectedRegions,
+      ageGroups,
+      genders,
+      dateRange,
+    })
   }, [selectedDiseases, selectedSurgeries, ageGroups, selectedRegions, genders, dateRange])
 
   return (
