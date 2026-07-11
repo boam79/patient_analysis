@@ -1,11 +1,11 @@
 'use client'
 
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { FilterPanel } from '@/components/filter/filter-panel'
 import { InteractiveDiseaseChart } from '@/components/charts/interactive-disease-chart'
-import { InteractiveMap } from '@/components/map/interactive-map'
+import { LeafletMap } from '@/components/map/leaflet-map'
 import { AgePyramidChart } from '@/components/charts/age-pyramid-chart'
 import { MonthlyTrendChart, NewVsReturningChart } from '@/components/charts/monthly-trend-chart'
 import { BoundaryComparisonChart, BoxplotChart } from '@/components/charts/boundary-chart'
@@ -121,7 +121,7 @@ const calculateIntervalsWithinWindow = (visits: PatientData[], windowSize: numbe
 
 export default function DashboardPage() {
   const router = useRouter()
-  const [mapMode, setMapMode] = useState<'markers' | 'heatmap'>('markers')
+  const [mapMode, setMapMode] = useState<'markers' | 'circle' | 'heatmap'>('markers')
   const {
     selectedDiseases,
     selectedRegions,
@@ -130,7 +130,31 @@ export default function DashboardPage() {
     genders,
     dateRange,
     windowSize,
+    addRegion,
+    removeRegion,
+    setSelectedH3Index,
+    setSelectedChartData,
   } = useFilterStore()
+
+  const handleMapLocationSelect = useCallback(
+    (h3Index: string, point: { region?: string }) => {
+      const region = point.region
+      if (!region) {
+        setSelectedH3Index(h3Index)
+        return
+      }
+      const current = useFilterStore.getState().selectedRegions
+      if (current.includes(region)) {
+        removeRegion(region)
+        setSelectedH3Index(null)
+      } else {
+        addRegion(region)
+        setSelectedH3Index(h3Index)
+        setSelectedChartData('region', region)
+      }
+    },
+    [addRegion, removeRegion, setSelectedH3Index, setSelectedChartData]
+  )
   
   const { 
     isDataLoaded, 
@@ -826,6 +850,13 @@ export default function DashboardPage() {
                 </Button>
                 <Button
                   size="sm"
+                  variant={mapMode === 'circle' ? 'default' : 'outline'}
+                  onClick={() => setMapMode('circle')}
+                >
+                  원형
+                </Button>
+                <Button
+                  size="sm"
                   variant={mapMode === 'heatmap' ? 'default' : 'outline'}
                   onClick={() => setMapMode('heatmap')}
                 >
@@ -835,7 +866,17 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent className="pt-0">
-            <InteractiveMap data={filteredMapData} mode={mapMode} />
+            <LeafletMap
+              data={filteredMapData}
+              mode={mapMode}
+              selectedRegions={selectedRegions}
+              flyToOnSelect
+              flyToZoom={11}
+              minHeight={480}
+              center={[36.5, 127.5]}
+              zoom={7}
+              onLocationSelect={handleMapLocationSelect}
+            />
           </CardContent>
         </Card>
 

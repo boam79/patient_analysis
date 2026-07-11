@@ -34,14 +34,20 @@
 
 ---
 
-## 3. Round A (이번 구현)
+## 3. Round A (완료)
 
 1. `lib/utils/map-metrics.ts` — 지역 레이어 공용 계산  
 2. `map/page.tsx` 재구성 — 4탭 · 단일 지도 · 버그 수정  
 3. 제안서 문서화 · 패키지 5.3.0
 
-## 4. Round B (승인 후)
+## 4. Round B (이번 구현)
 
-- InteractiveMap vs LeafletMap 이중 엔진 정리  
-- 대시보드 임베드 지도를 LeafletMap 모드와 통일  
-- 클릭 시 지도 팬/줌 to region
+- [x] InteractiveMap 삭제 → LeafletMap 단일 엔진  
+- [x] 대시보드 임베드: 마커/원형/히트맵 + 선택 하이라이트 + 토글 필터  
+- [x] 클릭 시 flyTo 지역  
+- [x] LeafletMap remount 버그 수정 (center/zoom이 init deps에 있던 문제)
+
+## 5. Round C (선택)
+
+- 대시보드 ↔ 지도 페이지 deep-link (`?region=`)  
+- 클러스터 모드

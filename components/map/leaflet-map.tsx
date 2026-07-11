@@ -2,18 +2,26 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 
+export interface LeafletMapPoint {
+  latitude: number
+  longitude: number
+  value: number
+  region?: string
+  h3Index?: string
+}
+
 interface LeafletMapProps {
   center?: [number, number]
   zoom?: number
-  data?: {
-    latitude: number
-    longitude: number
-    value: number
-    region?: string
-    h3Index?: string
-  }[]
+  data?: LeafletMapPoint[]
   mode?: 'markers' | 'circle' | 'heatmap'
-  onLocationSelect?: (h3Index: string, data: any) => void
+  /** 선택된 지역 — 마커/원형 하이라이트 */
+  selectedRegions?: string[]
+  /** 클릭 시 해당 좌표로 부드럽게 이동 */
+  flyToOnSelect?: boolean
+  flyToZoom?: number
+  minHeight?: number
+  onLocationSelect?: (h3Index: string, data: LeafletMapPoint) => void
 }
 
 export function LeafletMap({
@@ -21,6 +29,10 @@ export function LeafletMap({
   zoom = 11,
   data = [],
   mode = 'markers',
+  selectedRegions = [],
+  flyToOnSelect = false,
+  flyToZoom = 12,
+  minHeight = 500,
   onLocationSelect,
 }: LeafletMapProps) {
   const mapRef = useRef<any>(null)
@@ -29,6 +41,9 @@ export function LeafletMap({
   const circleLayerRef = useRef<any>(null)
   const heatLayerRef = useRef<any>(null)
   const heatGenerationRef = useRef(0)
+  const markersByKeyRef = useRef<Map<string, { marker: any; point: LeafletMapPoint }>>(
+    new Map()
+  )
   const [isLoading, setIsLoading] = useState(true)
   const [leafletLoaded, setLeafletLoaded] = useState(false)
 
@@ -52,8 +67,10 @@ export function LeafletMap({
     removeLayer(markerLayerRef)
     removeLayer(circleLayerRef)
     removeLayer(heatLayerRef)
+    markersByKeyRef.current.clear()
   }, [])
 
+  // 지도 초기화 — center/zoom은 최초 1회만 (변경 시 setView로 처리)
   useEffect(() => {
     if (typeof window === 'undefined') return
     if (!mapContainerRef.current || mapRef.current) return
@@ -68,9 +85,11 @@ export function LeafletMap({
       document.head.appendChild(link)
     }
 
+    let cancelled = false
+
     import('leaflet')
       .then((L) => {
-        if (!mapContainerRef.current || mapRef.current) return
+        if (cancelled || !mapContainerRef.current || mapRef.current) return
 
         delete (L.Icon.Default.prototype as any)._getIconUrl
         L.Icon.Default.mergeOptions({
@@ -107,6 +126,7 @@ export function LeafletMap({
       })
 
     return () => {
+      cancelled = true
       clearAllLayers()
       if (mapRef.current) {
         mapRef.current.remove()
@@ -114,36 +134,78 @@ export function LeafletMap({
       }
       setLeafletLoaded(false)
     }
-  }, [center, zoom, clearAllLayers])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount once; center/zoom via setView
+  }, [clearAllLayers])
+
+  const pointKey = (point: LeafletMapPoint, index: number) =>
+    point.h3Index || point.region || `pt-${index}`
+
+  const isSelected = useCallback(
+    (point: LeafletMapPoint) =>
+      Boolean(point.region && selectedRegions.includes(point.region)),
+    [selectedRegions]
+  )
+
+  const handlePointClick = useCallback(
+    (point: LeafletMapPoint) => {
+      const key = point.h3Index || `region-${point.region || 'unknown'}`
+      onLocationSelect?.(key, point)
+      if (flyToOnSelect && mapRef.current) {
+        mapRef.current.flyTo([point.latitude, point.longitude], flyToZoom, {
+          duration: 0.6,
+        })
+      }
+    },
+    [onLocationSelect, flyToOnSelect, flyToZoom]
+  )
+
+  const makeDivIcon = useCallback((L: any, selected: boolean) => {
+    const size = selected ? 14 : 12
+    return L.divIcon({
+      className: 'custom-marker',
+      html: `<div style="
+        background-color: ${selected ? '#10B981' : '#0B6E6E'};
+        width: ${size}px;
+        height: ${size}px;
+        border-radius: 50%;
+        border: 2px solid white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      "></div>`,
+      iconSize: [size, size],
+    })
+  }, [])
 
   const renderMarkers = useCallback(
-    (points: NonNullable<LeafletMapProps['data']>) => {
+    (points: LeafletMapPoint[]) => {
       const L = (window as any).L
       if (!L || !mapRef.current) return
 
       const markerLayer = L.layerGroup()
+      markersByKeyRef.current.clear()
 
-      points.forEach((point) => {
-        const marker = L.marker([point.latitude, point.longitude])
+      points.forEach((point, index) => {
+        const selected = isSelected(point)
+        const marker = L.marker([point.latitude, point.longitude], {
+          icon: makeDivIcon(L, selected),
+        })
         const popupContent = point.region
           ? `<div><strong>${point.region}</strong><br/>값: ${point.value.toLocaleString()}</div>`
           : `<div><strong>값: ${point.value.toLocaleString()}</strong></div>`
 
         marker.bindPopup(popupContent)
-        marker.on('click', () => {
-          onLocationSelect?.(point.h3Index || 'temp_h3_index', point)
-        })
+        marker.on('click', () => handlePointClick(point))
         marker.addTo(markerLayer)
+        markersByKeyRef.current.set(pointKey(point, index), { marker, point })
       })
 
       markerLayer.addTo(mapRef.current)
       markerLayerRef.current = markerLayer
     },
-    [onLocationSelect]
+    [handlePointClick, isSelected, makeDivIcon]
   )
 
   const renderCircles = useCallback(
-    (points: NonNullable<LeafletMapProps['data']>) => {
+    (points: LeafletMapPoint[]) => {
       const L = (window as any).L
       if (!L || !mapRef.current) return
 
@@ -159,8 +221,11 @@ export function LeafletMap({
           radius = Math.max(5, Math.min(50, 5 + normalizedValue * 45))
         }
 
+        const selected = isSelected(point)
         let fillColor = '#94a3b8'
-        if (point.value > 0) {
+        if (selected) {
+          fillColor = '#10B981'
+        } else if (point.value > 0) {
           const normalizedValue = maxValue > 0 ? point.value / maxValue : 0
           if (normalizedValue < 0.33) fillColor = '#0B6E6E'
           else if (normalizedValue < 0.66) fillColor = '#C47A12'
@@ -168,10 +233,10 @@ export function LeafletMap({
         }
 
         const circle = L.circleMarker([point.latitude, point.longitude], {
-          radius,
+          radius: selected ? radius + 2 : radius,
           fillColor,
-          color: '#0A2F2F',
-          weight: 2,
+          color: selected ? '#047857' : '#0A2F2F',
+          weight: selected ? 3 : 2,
           fillOpacity: 0.7,
         })
 
@@ -180,20 +245,18 @@ export function LeafletMap({
           : `<div><strong>값: ${point.value.toLocaleString()}</strong></div>`
 
         circle.bindPopup(popupContent)
-        circle.on('click', () => {
-          onLocationSelect?.(point.h3Index || 'temp_h3_index', point)
-        })
+        circle.on('click', () => handlePointClick(point))
         circle.addTo(circleLayer)
       })
 
       circleLayer.addTo(mapRef.current)
       circleLayerRef.current = circleLayer
     },
-    [onLocationSelect]
+    [handlePointClick, isSelected]
   )
 
   const renderHeatmap = useCallback(
-    async (points: NonNullable<LeafletMapProps['data']>, generation: number) => {
+    async (points: LeafletMapPoint[], generation: number) => {
       const L = (window as any).L
       if (!L || !mapRef.current) return
 
@@ -269,15 +332,17 @@ export function LeafletMap({
     leafletLoaded,
     data,
     mode,
+    selectedRegions,
     clearAllLayers,
     renderMarkers,
     renderCircles,
     renderHeatmap,
   ])
 
+  // 외부 center/zoom 변경 시 remount 없이 이동
   useEffect(() => {
     if (leafletLoaded && mapRef.current && center) {
-      mapRef.current.setView(center, zoom)
+      mapRef.current.setView(center, zoom, { animate: true })
     }
   }, [leafletLoaded, center, zoom])
 
@@ -286,7 +351,7 @@ export function LeafletMap({
       <div
         ref={mapContainerRef}
         className="w-full h-full rounded-lg"
-        style={{ minHeight: '500px', zIndex: 0 }}
+        style={{ minHeight, zIndex: 0 }}
       />
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-background/80">

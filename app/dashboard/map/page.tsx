@@ -618,6 +618,9 @@ export default function MapPage() {
                 zoom={11}
                 data={layerData}
                 mode={visualizationMode}
+                selectedRegions={selectedRegions}
+                flyToOnSelect
+                flyToZoom={12}
                 onLocationSelect={handleLocationSelect}
               />
             )}

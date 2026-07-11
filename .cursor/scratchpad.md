@@ -1578,3 +1578,17 @@ Round A 구현 완료. PredictionAnalysis 삭제, strategy-metrics 공용 모듈
 ### Executor's Feedback
 지도 페이지 ~1332줄 → ~700줄대 재구성. 패키지 5.3.0.
 
+---
+
+## 🗺️ 지도 Round B (2026-07-11) — Executor
+
+### Project Status Board
+- [x] InteractiveMap 삭제, LeafletMap 단일화
+- [x] 대시보드 마커/원형/히트맵 + 선택 하이라이트 + 토글
+- [x] flyTo on select · remount 버그 수정
+- [x] tsc / vitest / build
+- [ ] main 푸시
+
+### Lessons
+- Leaflet init effect에 center/zoom을 deps로 넣으면 setView마다 지도가 remount됨 → mount-once + setView 분리
+
