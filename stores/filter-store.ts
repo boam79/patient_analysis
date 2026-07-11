@@ -240,7 +240,7 @@ export const useFilterStore = create<FilterStore>()(
           })),
       }),
       {
-        name: 'pdr-filter-storage',
+        name: 'pdr-filter-storage-v2',
         partialize: (state) => ({
           dateRange: state.dateRange,
           windowSize: state.windowSize,
@@ -254,12 +254,14 @@ export const useFilterStore = create<FilterStore>()(
 // 선택자 헬퍼 함수
 export const selectActiveFilters = (state: FilterStore) => {
   const dateActive = Boolean(state.dateRange.start && state.dateRange.end)
+  // 성별: 둘 다 선택(또는 비어 있음)이면 필터 비활성 — 하나만 선택했을 때만 활성
+  const genderActive = state.genders.length === 1
   const activeCount =
     (state.selectedDiseases.length > 0 ? 1 : 0) +
     (state.selectedSurgeries.length > 0 ? 1 : 0) +
     (state.ageGroups.length > 0 ? 1 : 0) +
     (state.selectedRegions.length > 0 ? 1 : 0) +
-    (state.genders.length < 2 ? 1 : 0) +
+    (genderActive ? 1 : 0) +
     (dateActive ? 1 : 0)
 
   return {

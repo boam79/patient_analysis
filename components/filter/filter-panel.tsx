@@ -37,20 +37,30 @@ export function FilterPanel() {
   // 데이터 스토어에서 실제 데이터 가져오기
   const { rawData, isDataLoaded } = useDataStore()
 
-  // 활성 필터 계산 (BUG FIX: 성별 필터 계산 수정)
+  // 활성 필터 계산 (날짜·성별 정의는 selectActiveFilters / hasActiveFilters와 동일)
   const activeFilters = useMemo(() => {
+    const dateActive = Boolean(dateRange.start && dateRange.end)
+    const genderActive = genders.length === 1
     const activeCount =
       (selectedDiseases.length > 0 ? 1 : 0) +
       (selectedSurgeries.length > 0 ? 1 : 0) +
       (ageGroups.length > 0 ? 1 : 0) +
       (selectedRegions.length > 0 ? 1 : 0) +
-      (genders.length > 0 && genders.length < 2 ? 1 : 0) // 하나만 선택된 경우만 카운트
+      (genderActive ? 1 : 0) +
+      (dateActive ? 1 : 0)
 
     return {
       count: activeCount,
       hasActiveFilters: activeCount > 0,
     }
-  }, [selectedDiseases, selectedSurgeries, ageGroups, selectedRegions, genders])
+  }, [
+    selectedDiseases,
+    selectedSurgeries,
+    ageGroups,
+    selectedRegions,
+    genders,
+    dateRange,
+  ])
 
   // 샘플 옵션 데이터
   const windowOptions = [
@@ -205,7 +215,7 @@ export function FilterPanel() {
           <div className="space-y-2">
             <label className="text-sm font-medium">
               성별
-              {genders.length < 2 && (
+              {genders.length === 1 && (
                 <span className="ml-2 text-xs text-muted-foreground">
                   ({genders[0]} 선택됨)
                 </span>

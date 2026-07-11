@@ -4,6 +4,7 @@ import { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PatientData } from '@/stores/data-store'
 import { resolvePatientId } from '@/lib/utils/patient-identity'
+import { hasSurgery } from '@/lib/utils/analysis-helpers'
 import { AlertCircle, CheckCircle2, TrendingUp, Users, MapPin, Target, Lightbulb, BarChart3, Activity } from 'lucide-react'
 import { extractMonth } from '@/lib/utils/date-helpers'
 import {
@@ -247,8 +248,8 @@ export function ManagementInsights({ data }: ManagementInsightsProps) {
     const recentMonths = monthlyVisitValues.slice(-6)
     const visitTrend = analyzeTrend(recentMonths)
     
-    // 수술 건수 분석
-    const surgeryCount = data.filter(p => p.surgery_name).length
+    // 수술 건수 분석 (수술명 또는 코드)
+    const surgeryCount = data.filter((p) => hasSurgery(p)).length
     const surgeryRate = data.length > 0 ? (surgeryCount / data.length) * 100 : 0
 
     // ========== 척추관절 전문병원 특화 인사이트 생성 ==========

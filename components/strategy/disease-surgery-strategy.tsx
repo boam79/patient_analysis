@@ -6,9 +6,18 @@ import { PatientData } from '@/stores/data-store'
 import { TrendingUp, Activity } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { resolvePatientId } from '@/lib/utils/patient-identity'
+import { hasSurgery } from '@/lib/utils/analysis-helpers'
 
 interface DiseaseSurgeryStrategyProps {
   data: PatientData[]
+}
+
+function surgeryLabel(p: PatientData): string {
+  return (
+    p.surgery_name?.toString().trim() ||
+    p.surgery_code?.toString().trim() ||
+    ''
+  )
 }
 
 export function DiseaseSurgeryStrategy({ data }: DiseaseSurgeryStrategyProps) {
@@ -60,22 +69,23 @@ export function DiseaseSurgeryStrategy({ data }: DiseaseSurgeryStrategyProps) {
       const diseaseStat = diseaseStats.get(p.disease_name)!
       diseaseStat.count++
       diseaseStat.uniquePatients.add(id)
-      if (p.surgery_name) {
+      if (hasSurgery(p)) {
         diseaseStat.withSurgery++
       }
       diseaseStat.ageSum += p.age
       diseaseStat.ageCount++
 
       // 수술별 통계
-      if (p.surgery_name) {
-        if (!surgeryStats.has(p.surgery_name)) {
-          surgeryStats.set(p.surgery_name, {
+      const sLabel = surgeryLabel(p)
+      if (hasSurgery(p) && sLabel) {
+        if (!surgeryStats.has(sLabel)) {
+          surgeryStats.set(sLabel, {
             count: 0,
             uniquePatients: new Set(),
             diseases: new Set(),
           })
         }
-        const surgeryStat = surgeryStats.get(p.surgery_name)!
+        const surgeryStat = surgeryStats.get(sLabel)!
         surgeryStat.count++
         surgeryStat.uniquePatients.add(id)
         surgeryStat.diseases.add(p.disease_name)
@@ -85,7 +95,7 @@ export function DiseaseSurgeryStrategy({ data }: DiseaseSurgeryStrategyProps) {
           diseaseSurgeryMatrix.set(p.disease_name, new Map())
         }
         const matrix = diseaseSurgeryMatrix.get(p.disease_name)!
-        matrix.set(p.surgery_name, (matrix.get(p.surgery_name) || 0) + 1)
+        matrix.set(sLabel, (matrix.get(sLabel) || 0) + 1)
       }
     })
 
@@ -133,11 +143,13 @@ export function DiseaseSurgeryStrategy({ data }: DiseaseSurgeryStrategyProps) {
       }
       patientDiseases.get(id)!.add(p.disease_name)
       
-      if (p.surgery_name) {
+      if (hasSurgery(p)) {
+        const sLabel = surgeryLabel(p)
+        if (!sLabel) return
         if (!patientSurgeries.has(id)) {
           patientSurgeries.set(id, new Set())
         }
-        patientSurgeries.get(id)!.add(p.surgery_name)
+        patientSurgeries.get(id)!.add(sLabel)
       }
     })
 

@@ -42,9 +42,14 @@ export function filterPatients(
       return false
     }
 
-    // 수술 필터
+    // 수술 필터 (수술명 또는 수술코드 매칭)
     if (selectedSurgeries.length > 0) {
-      if (!patient.surgery_name || !selectedSurgeries.includes(patient.surgery_name)) {
+      const surgeryName = patient.surgery_name?.toString().trim()
+      const surgeryCode = patient.surgery_code?.toString().trim()
+      const matched =
+        (surgeryName && selectedSurgeries.includes(surgeryName)) ||
+        (surgeryCode && selectedSurgeries.includes(surgeryCode))
+      if (!matched) {
         return false
       }
     }

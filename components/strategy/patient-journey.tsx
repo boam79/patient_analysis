@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { GitMerge } from 'lucide-react'
 import type { PatientData } from '@/stores/data-store'
 import { groupVisitsByPatient } from '@/lib/utils/patient-identity'
+import { hasSurgery } from '@/lib/utils/analysis-helpers'
 
 interface PatientJourneyProps {
   data: PatientData[]
@@ -117,10 +118,10 @@ export function PatientJourney({ data }: PatientJourneyProps) {
       const diseases = Array.from(new Set(visits.map((v) => v.disease_name)))
       const primaryDisease = diseases[0]
       if (!top5Diseases.includes(primaryDisease)) return
-      const hasSurgery = visits.some((v) => v.surgery_name)
+      const hasSurgeryFlag = visits.some((v) => hasSurgery(v))
       patientFlows.push({
         disease: primaryDisease,
-        hasSurgery,
+        hasSurgery: hasSurgeryFlag,
         visitCount: visits.length,
       })
     })

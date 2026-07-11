@@ -54,6 +54,32 @@ describe('hasActiveFilters', () => {
       })
     ).toBe(true)
   })
+
+  it('treats empty genders as inactive', () => {
+    expect(
+      hasActiveFilters({
+        selectedDiseases: [],
+        selectedSurgeries: [],
+        selectedRegions: [],
+        ageGroups: [],
+        genders: [],
+        dateRange: { start: '', end: '' },
+      })
+    ).toBe(false)
+  })
+
+  it('treats single gender as active', () => {
+    expect(
+      hasActiveFilters({
+        selectedDiseases: [],
+        selectedSurgeries: [],
+        selectedRegions: [],
+        ageGroups: [],
+        genders: ['남성'],
+        dateRange: { start: '', end: '' },
+      })
+    ).toBe(true)
+  })
 })
 
 describe('buildRegionVisitMap', () => {

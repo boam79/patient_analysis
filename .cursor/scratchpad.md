@@ -1512,3 +1512,35 @@ fbad674 - feat: 차트 데이터 실제 반영 및 필터 시스템 통합
 6. Boundary Bar onClick, 히트맵 정규화/레이스, 업로드 NaN 나이
 
 검증: tsc ✅ / vitest 32/32 ✅ / build ✅ → main 푸시
+
+---
+
+## 🐛 버그 수정 Round 2 (2026-07-11) — Executor
+
+### Background
+사용자: "계속 버그를 찾아" — Round 1 이후 잔여 불일치 추가 수정
+
+### High-level Task Breakdown
+1. ✅ analysis-helpers (hasSurgery, quartiles, hasActiveFilters, buildRegionVisitMap) + 지도 페이지
+2. ✅ 대시보드: 하드코딩 2024 날짜 제거, 지도/질병/boundary/boxplot/월별 항상 재계산
+3. ✅ data-store: hasSurgery + 윈도우(90일) 기반 KPI/boundary/boxplot
+4. ✅ filter-store: 빈 날짜 기본값, persist v2, 성별 활성 카운트 수정
+5. ✅ patient-filters: 수술코드 매칭 / filter-panel 날짜·성별 배지
+6. ✅ strategy: hasSurgery 일관화 (insights/journey/disease-surgery/association)
+
+### Project Status Board
+- [x] Round 2 핵심 버그 수정
+- [x] tsc / vitest 40 / build 통과
+- [ ] 사용자 수동 확인 후 Planner 완료 선언
+
+### Executor's Feedback or Assistance Requests
+#### 2026-07-11 — Executor: Bugfix Round 2
+브랜치 `cursor/bugfix-round2-6e51`에 커밋·푸시·PR 예정.
+수동 확인 요청: 업로드 후 KPI 재방문율·수술 건수, 기간 필터(빈 값=전체), 수술코드만 있는 행 필터/차트 반영.
+
+### Lessons
+- `surgery_name`만 보면 `surgery_code`만 있는 행이 KPI·필터·전략에서 누락됨 → `hasSurgery` 공용화
+- `genders.length < 2`는 빈 배열도 활성으로 오인 → `length === 1`만 활성
+- filter persist 키를 바꿔야 구 기본값(2024 날짜)이 localStorage에 남지 않음
+- data-store 재방문율을 "방문 2회+"로 두면 대시보드 윈도우 KPI와 어긋남
+

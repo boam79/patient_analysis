@@ -60,7 +60,7 @@ export function hasActiveFilters(input: ActiveFilterInput): boolean {
     input.selectedSurgeries.length > 0 ||
     input.selectedRegions.length > 0 ||
     input.ageGroups.length > 0 ||
-    (input.genders.length > 0 && input.genders.length < 2) ||
+    (input.genders.length === 1) ||
     dateActive ||
     windowActive
   )

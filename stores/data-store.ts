@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { devtools, persist, createJSONStorage } from 'zustand/middleware'
 import { resolvePatientId, groupVisitsByPatient } from '@/lib/utils/patient-identity'
 import { computeMonthlyTrend } from '@/lib/utils/monthly-trend'
+import { hasSurgery, calculateQuartiles } from '@/lib/utils/analysis-helpers'
 
 // 병원 CRM 방문 레코드 타입
 export interface PatientData {
@@ -398,48 +399,45 @@ export const useDataStore = create<DataState & DataActions>()(
             female: ageGroupMap.get(ageGroup)?.female || 0,
           }))
 
-          // KPI 계산
-          const surgeryCount = rawData.filter((p) => p.surgery_code).length
-          
-          // 재방문율 계산: 이름+주소 조합으로 동일 환자 판별
-          const patientKey = (p: PatientData) => resolvePatientId(p)
-          const patientVisitCounts: Record<string, number> = {}
-          
-          rawData.forEach((patient) => {
-            const key = patientKey(patient)
-            patientVisitCounts[key] = (patientVisitCounts[key] || 0) + 1
-          })
-          
-          const uniquePatients = Object.keys(patientVisitCounts).length
-          const returningPatients = Object.values(patientVisitCounts).filter(count => count > 1).length
-          const calculatedRecurrenceRate = uniquePatients > 0 ? (returningPatients / uniquePatients) * 100 : 0
-          
-          // 총 환자수 = 고유 환자 수 (이름+주소 기준 중복 제거)
-          const totalPatients = uniquePatients
-          
-          // 평균 재방문 간격 계산: 이름+주소 기준으로 환자별 방문 날짜 간격의 평균
-          let totalIntervals = 0
-          let intervalCount = 0
-          
-          Object.keys(patientVisitCounts).forEach((key) => {
-            const patientVisits = rawData
-              .filter(p => patientKey(p) === key)
-              .map(p => new Date(p.visit_date).getTime())
-              .sort((a, b) => a - b)
-            
-            // 방문이 2회 이상인 경우만 간격 계산
-            if (patientVisits.length > 1) {
-              for (let i = 1; i < patientVisits.length; i++) {
-                const interval = (patientVisits[i] - patientVisits[i-1]) / (1000 * 60 * 60 * 24) // 일 단위
-                totalIntervals += interval
-                intervalCount++
+          // KPI 계산 (기본 윈도우 90일 — 대시보드 KPI와 동일 정의)
+          const DEFAULT_WINDOW = 90
+          const MS_PER_DAY = 1000 * 60 * 60 * 24
+          const surgeryCount = rawData.filter((p) => hasSurgery(p)).length
+
+          const visitsByPatient = groupVisitsByPatient(rawData)
+          const uniquePatients = visitsByPatient.size
+          let returningPatients = 0
+          const intervalsWithinWindow: number[] = []
+
+          visitsByPatient.forEach((visits) => {
+            if (visits.length < 2) return
+            let returned = false
+            for (let i = 1; i < visits.length; i++) {
+              const interval =
+                (new Date(visits[i].visit_date).getTime() -
+                  new Date(visits[i - 1].visit_date).getTime()) /
+                MS_PER_DAY
+              if (interval <= DEFAULT_WINDOW) {
+                intervalsWithinWindow.push(interval)
+                returned = true
               }
             }
+            if (returned) returningPatients++
           })
-          
-          const calculatedAvgInterval = intervalCount > 0 ? Math.round(totalIntervals / intervalCount) : 0
+
+          const calculatedRecurrenceRate =
+            uniquePatients > 0 ? (returningPatients / uniquePatients) * 100 : 0
+          const totalPatients = uniquePatients
+          const calculatedAvgInterval =
+            intervalsWithinWindow.length > 0
+              ? Math.round(
+                  intervalsWithinWindow.reduce((s, v) => s + v, 0) /
+                    intervalsWithinWindow.length
+                )
+              : 0
 
           // 지역별 통계 계산 (Task 1.1)
+          const patientKey = (p: PatientData) => resolvePatientId(p)
           const regionStatsMap = new Map<string, {
             patientKeys: Set<string>
             ages: number[]
@@ -467,84 +465,71 @@ export const useDataStore = create<DataState & DataActions>()(
 
           const boundaryData: BoundaryData[] = Array.from(regionStatsMap.entries())
             .map(([region, stats]) => {
-              const uniquePatients = stats.patientKeys.size
+              const uniqueInRegion = stats.patientKeys.size
               const avgAge = stats.ages.reduce((sum, age) => sum + age, 0) / stats.ages.length
               
-              // 지역별 재방문율 계산
-              const regionPatientVisits: Record<string, number> = {}
-              rawData.forEach((p) => {
-                if (p.region === region) {
-                  const key = patientKey(p)
-                  regionPatientVisits[key] = (regionPatientVisits[key] || 0) + 1
+              // 지역별 재방문율 (윈도우 내 재방문)
+              let returningInRegion = 0
+              stats.patientKeys.forEach((key) => {
+                const visits = (visitsByPatient.get(key) || []).filter(
+                  (v) => v.region === region
+                )
+                if (visits.length < 2) return
+                const sorted = [...visits].sort(
+                  (a, b) =>
+                    new Date(a.visit_date).getTime() -
+                    new Date(b.visit_date).getTime()
+                )
+                for (let i = 1; i < sorted.length; i++) {
+                  const interval =
+                    (new Date(sorted[i].visit_date).getTime() -
+                      new Date(sorted[i - 1].visit_date).getTime()) /
+                    MS_PER_DAY
+                  if (interval <= DEFAULT_WINDOW) {
+                    returningInRegion++
+                    break
+                  }
                 }
               })
               
-              const returningInRegion = Object.values(regionPatientVisits).filter(count => count > 1).length
-              const recurrenceRate = uniquePatients > 0 ? (returningInRegion / uniquePatients) * 100 : 0
+              const recurrenceRate =
+                uniqueInRegion > 0
+                  ? (returningInRegion / uniqueInRegion) * 100
+                  : 0
               
               return {
                 region,
-                patients: uniquePatients,
+                patients: uniqueInRegion,
                 recurrenceRate,
-                avgAge: Math.round(avgAge * 10) / 10, // 소수점 1자리
+                avgAge: Math.round(avgAge * 10) / 10,
               }
             })
             .sort((a, b) => b.patients - a.patients)
-            .slice(0, 10) // Top 10 지역
+            .slice(0, 10)
 
-          // Boxplot 통계 계산 (Task 1.2)
-          // 사분위수 계산 헬퍼 함수 — 선형 보간 방식 (표준 백분위 계산)
-          const interpolatedQuantile = (sorted: number[], p: number): number => {
-            if (sorted.length === 0) return 0
-            const pos = (sorted.length - 1) * p
-            const lower = Math.floor(pos)
-            const upper = Math.ceil(pos)
-            if (lower === upper) return sorted[lower]
-            return sorted[lower] * (upper - pos) + sorted[upper] * (pos - lower)
-          }
-
-          const calculateQuartiles = (values: number[]) => {
-            if (values.length === 0) {
-              return { min: 0, q1: 0, median: 0, q3: 0, max: 0 }
-            }
-            const sorted = [...values].sort((a, b) => a - b)
-            return {
-              min: sorted[0],
-              q1: interpolatedQuantile(sorted, 0.25),
-              median: interpolatedQuantile(sorted, 0.5),
-              q3: interpolatedQuantile(sorted, 0.75),
-              max: sorted[sorted.length - 1],
-            }
-          }
-
-          // 지역별 재방문 간격 수집
+          // Boxplot — 윈도우 내 간격만 + 공통 사분위
           const regionIntervalsMap = new Map<string, number[]>()
 
-          Object.keys(patientVisitCounts).forEach((key) => {
-            const patientVisits = rawData
-              .filter(p => patientKey(p) === key)
-              .sort((a, b) => new Date(a.visit_date).getTime() - new Date(b.visit_date).getTime())
-            
-            if (patientVisits.length > 1) {
-              const region = patientVisits[0].region
-              
-              if (region && region !== '미분류') {
-                if (!regionIntervalsMap.has(region)) {
-                  regionIntervalsMap.set(region, [])
-                }
-                
-                for (let i = 1; i < patientVisits.length; i++) {
-                  const interval = (new Date(patientVisits[i].visit_date).getTime() - 
-                                   new Date(patientVisits[i-1].visit_date).getTime()) / 
-                                   (1000 * 60 * 60 * 24)
-                  regionIntervalsMap.get(region)!.push(interval)
-                }
+          visitsByPatient.forEach((visits, _key) => {
+            if (visits.length < 2) return
+            const region = visits[0].region
+            if (!region || region === '미분류') return
+            if (!regionIntervalsMap.has(region)) {
+              regionIntervalsMap.set(region, [])
+            }
+            for (let i = 1; i < visits.length; i++) {
+              const interval =
+                (new Date(visits[i].visit_date).getTime() -
+                  new Date(visits[i - 1].visit_date).getTime()) /
+                MS_PER_DAY
+              if (interval <= DEFAULT_WINDOW) {
+                regionIntervalsMap.get(region)!.push(interval)
               }
             }
           })
 
           const boxplotData: BoxplotData[] = Array.from(regionIntervalsMap.entries())
-            .filter(([_, intervals]) => intervals.length >= 5) // 최소 5개 데이터포인트 필요
+            .filter(([_, intervals]) => intervals.length >= 5)
             .map(([region, intervals]) => {
               const quartiles = calculateQuartiles(intervals)
               return {
@@ -553,7 +538,7 @@ export const useDataStore = create<DataState & DataActions>()(
               }
             })
             .sort((a, b) => b.median - a.median)
-            .slice(0, 10) // Top 10 지역
+            .slice(0, 10)
 
           // 월별 트렌드 (공용 집계 — 연도 포함 라벨)
           const monthlyTrend = computeMonthlyTrend(rawData)

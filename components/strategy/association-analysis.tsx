@@ -9,6 +9,7 @@ import {
 import { Link2 } from 'lucide-react'
 import type { PatientData } from '@/stores/data-store'
 import { groupVisitsByPatient } from '@/lib/utils/patient-identity'
+import { hasSurgery } from '@/lib/utils/analysis-helpers'
 import { cohensH } from '@/lib/utils/advanced-analysis'
 
 interface AssociationAnalysisProps {
@@ -52,7 +53,17 @@ export function AssociationAnalysis({ data }: AssociationAnalysisProps) {
 
     visitsByPatient.forEach((visits, pid) => {
       const diseases = new Set(visits.map((v) => v.disease_name).filter(Boolean))
-      const surgeries = new Set(visits.map((v) => v.surgery_name).filter((s): s is string => Boolean(s)))
+      const surgeries = new Set(
+        visits
+          .filter((v) => hasSurgery(v))
+          .map(
+            (v) =>
+              v.surgery_name?.toString().trim() ||
+              v.surgery_code?.toString().trim() ||
+              ''
+          )
+          .filter(Boolean)
+      )
 
       diseases.forEach((disease) => {
         const set = diseasePatients.get(disease) ?? new Set()

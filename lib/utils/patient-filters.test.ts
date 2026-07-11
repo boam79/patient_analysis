@@ -57,6 +57,19 @@ describe('filterPatients', () => {
     expect(result[0].region).toBe('부산광역시 해운대구')
   })
 
+  it('수술 필터: 수술코드만 있어도 매칭된다', () => {
+    const data = [
+      makePatient({ surgery_code: 'S80501', surgery_name: undefined }),
+      makePatient({ surgery_name: undefined, surgery_code: undefined }),
+    ]
+    const result = filterPatients(data, {
+      ...noFilters,
+      selectedSurgeries: ['S80501'],
+    })
+    expect(result).toHaveLength(1)
+    expect(result[0].surgery_code).toBe('S80501')
+  })
+
   it('수술 필터 적용 시 수술 기록이 없는 환자는 제외된다', () => {
     const data = [
       makePatient({ surgery_name: '척추 유합술' }),
