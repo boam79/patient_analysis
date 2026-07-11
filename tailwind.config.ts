@@ -43,6 +43,14 @@ const config: Config = {
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
+        brand: {
+          DEFAULT: 'hsl(var(--brand))',
+          ink: 'hsl(var(--brand-ink))',
+        },
+        surface: {
+          DEFAULT: 'hsl(var(--surface))',
+          2: 'hsl(var(--surface-2))',
+        },
         chart: {
           '1': 'hsl(var(--chart-1))',
           '2': 'hsl(var(--chart-2))',
@@ -50,18 +58,15 @@ const config: Config = {
           '4': 'hsl(var(--chart-4))',
           '5': 'hsl(var(--chart-5))',
         },
-        // 병원 CRM 커스텀 색상
-        positive: '#10B981',    // Green 500 - 재방문율 상승
-        negative: '#EF4444',    // Red 500 - 재방문율 하락
-        warning: '#F59E0B',    // Amber 500 - 주의 (n<5)
-        
-        // 질병 카테고리 (ColorBrewer Qualitative Set3)
-        'disease-musculoskeletal': '#8DD3C7',  // 근골격계
-        'disease-circulatory': '#FB8072',      // 순환계
-        'disease-respiratory': '#80B1D3',      // 호흡기
-        'disease-digestive': '#FDB462',        // 소화기
-        'disease-nervous': '#B3DE69',          // 신경계
-        'disease-endocrine': '#FCCDE5',        // 내분비
+        positive: '#1A8F6E',
+        negative: '#C23B3B',
+        warning: '#C47A12',
+        'disease-musculoskeletal': '#8DD3C7',
+        'disease-circulatory': '#FB8072',
+        'disease-respiratory': '#80B1D3',
+        'disease-digestive': '#FDB462',
+        'disease-nervous': '#B3DE69',
+        'disease-endocrine': '#FCCDE5',
       },
       borderRadius: {
         lg: 'var(--radius)',
@@ -69,9 +74,29 @@ const config: Config = {
         sm: 'calc(var(--radius) - 4px)',
       },
       fontFamily: {
-        heading: ['Pretendard Variable', '-apple-system', 'sans-serif'],
-        body: ['Pretendard', '-apple-system', 'sans-serif'],
-        numeric: ['Inter', '-apple-system-font', 'monospace'],
+        display: [
+          'SUITE',
+          'Pretendard Variable',
+          'Pretendard',
+          'sans-serif',
+        ],
+        heading: [
+          'SUITE',
+          'Pretendard Variable',
+          'Pretendard',
+          'sans-serif',
+        ],
+        body: [
+          'Pretendard Variable',
+          'Pretendard',
+          'sans-serif',
+        ],
+        numeric: [
+          'Pretendard Variable',
+          'Pretendard',
+          'ui-monospace',
+          'monospace',
+        ],
       },
       spacing: {
         '1': '4px',
@@ -88,4 +113,3 @@ const config: Config = {
 }
 
 export default config
-

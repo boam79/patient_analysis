@@ -1408,24 +1408,26 @@ fbad674 - feat: 차트 데이터 실제 반영 및 필터 시스템 통합
 
 ### Project Status Board
 
-- [ ] Phase 0: 토큰·타이포 (0/3)
-- [ ] Phase 1: 랜딩·셸 (0/3)
-- [ ] Phase 2: 핵심 화면 (0/3)
-- [ ] Phase 3: Admin·폴리시 (0/3)
-- [ ] Phase 4: 검증 (0/3)
+- [x] Phase 0: 토큰·타이포 (3/3) ✅
+- [x] Phase 1: 랜딩·셸 (3/3) ✅
+- [x] Phase 2: 핵심 화면 (3/3) ✅
+- [x] Phase 3: Admin·폴리시 (3/3) ✅
+- [x] Phase 4: 검증 (lint/tsc/vitest/build) ✅
 
-**현재**: Planner 제안 완료 — **사용자 승인 대기** (구현 착수 전)
+**현재**: Executor 구현 완료 — main 커밋·푸시 진행
 
 ### Executor's Feedback or Assistance Requests
 
-(구현 전) 사용자 확인 필요:
-1. Harbor Clinical(teal mist) 방향 OK? 대안 slate-clinical / sage-clinical
-2. `/` 랜딩 신설 vs 업로드만 브랜드화
-3. Admin 동시 톤 통일 vs 메인만 우선
-
-승인 후 Executor는 **D0.1 하나만** 수행하고 수동 확인을 요청할 것.
+#### 2026-07-11 — Executor: Harbor Clinical v5.0 구현 완료
+- 사용자 지시: 「진행해 main으로 커밋하고 푸쉬해」
+- 선택지 기본값 적용: Harbor Clinical + `/` 랜딩 신설 + Admin 동시 톤 통일
+- 검증: `tsc` ✅ / `lint` ✅ (기존 경고만) / `vitest` 30/30 ✅ / `build` ✅ (`/` 정적 라우트 생성)
+- npm audit: 비파괴 `audit fix` 적용. xlsx·next/postcss 잔여 취약점은 force(브레이킹) 없이 유지
+- 수동 확인 요청: 랜딩·업로드·대시보드·로그인·Admin 톤을 브라우저에서 한 번 봐주세요
 
 ### Lessons
 
 - 디자인 개편은 기능 PR과 분리하고, 토큰→셸→화면 순으로 회귀 범위를 좁힌다.
 - Pretendard를 tailwind에만 적고 로드하지 않으면 시스템 폰트로 폴백된다 — 실로드를 Phase 0에 포함.
+- CDN 폰트 추가 시 CSP Report-Only의 `style-src`/`font-src`에 `cdn.jsdelivr.net`을 함께 허용해야 한다.
+- 사용자가 main 직접 푸시를 명시하면 feature branch PR 대신 main에 커밋한다.

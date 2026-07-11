@@ -18,31 +18,29 @@ export function AdminHeader({ user }: AdminHeaderProps) {
   const handleLogout = async () => {
     const supabase = createClient()
     await supabase.auth.signOut()
-    router.push('/admin/login')
+    router.push('/login-admin')
     router.refresh()
   }
 
   return (
-    <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-6">
-      <div className="flex items-center gap-4">
-        <h1 className="text-lg font-semibold">병원 CRM 관리</h1>
-      </div>
-      
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon">
+    <header className="flex h-16 items-center justify-between border-b border-border bg-card/90 px-6 backdrop-blur-sm">
+      <h1 className="font-display text-lg font-semibold text-brand-ink">관리</h1>
+
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="icon" aria-label="알림">
           <Bell className="h-5 w-5" />
         </Button>
-        
-        <Button variant="ghost" size="icon">
+
+        <Button variant="ghost" size="icon" aria-label="설정">
           <Settings className="h-5 w-5" />
         </Button>
-        
-        <div className="flex items-center gap-3">
+
+        <div className="ml-2 flex items-center gap-3 border-l border-border pl-4">
           <div className="text-right">
             <p className="text-sm font-medium">{user.name || '관리자'}</p>
             <p className="text-xs text-muted-foreground">{user.email}</p>
           </div>
-          <Button variant="ghost" size="icon" onClick={handleLogout}>
+          <Button variant="ghost" size="icon" onClick={handleLogout} aria-label="로그아웃">
             <LogOut className="h-5 w-5" />
           </Button>
         </div>
@@ -50,4 +48,3 @@ export function AdminHeader({ user }: AdminHeaderProps) {
     </header>
   )
 }
-

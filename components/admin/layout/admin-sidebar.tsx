@@ -2,13 +2,13 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { 
-  LayoutDashboard, 
-  Users, 
-  BarChart3, 
-  Search, 
-  Activity, 
-  Settings, 
+import {
+  LayoutDashboard,
+  Users,
+  BarChart3,
+  Search,
+  Activity,
+  Settings,
   FileText,
   AlertTriangle,
 } from 'lucide-react'
@@ -29,28 +29,32 @@ export function AdminSidebar() {
   const pathname = usePathname()
 
   return (
-    <aside className="w-64 bg-slate-900 text-slate-300 min-h-screen">
+    <aside className="min-h-screen w-64 border-r border-border bg-brand-ink text-primary-foreground/80">
       <div className="p-6">
-        <h2 className="text-xl font-bold text-white">제작자 페이지</h2>
+        <Link href="/" className="font-display text-xl font-bold text-white">
+          병원 CRM
+        </Link>
+        <p className="mt-1 text-xs text-white/55">제작자 콘솔</p>
       </div>
-      <nav className="px-3">
+      <nav className="px-3 pb-6">
         {menuItems.map((item) => {
           const Icon = item.icon
-          const isActive = pathname === item.href || 
+          const isActive =
+            pathname === item.href ||
             (item.href !== '/admin' && pathname?.startsWith(item.href))
-          
+
           return (
             <Link
               key={item.href}
               href={item.href}
               className={cn(
-                'flex items-center gap-3 px-3 py-2 rounded-lg mb-1 transition-colors',
+                'mb-1 flex items-center gap-3 rounded-md px-3 py-2 transition-colors',
                 isActive
-                  ? 'bg-slate-800 text-white border-l-4 border-blue-500'
-                  : 'hover:bg-slate-800 text-slate-300'
+                  ? 'bg-white/10 text-white border-l-2 border-primary pl-[10px]'
+                  : 'hover:bg-white/5 text-white/70'
               )}
             >
-              <Icon className="h-5 w-5" />
+              <Icon className="h-4 w-4" />
               <span className="text-sm font-medium">{item.label}</span>
             </Link>
           )
@@ -59,4 +63,3 @@ export function AdminSidebar() {
     </aside>
   )
 }
-

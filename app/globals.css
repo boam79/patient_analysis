@@ -4,58 +4,67 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
+    /* Harbor Clinical — deep teal + cool mist */
+    --background: 195 20% 96%;
+    --foreground: 200 28% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
+    --card-foreground: 200 28% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 84.2% 60.2%;
+    --popover-foreground: 200 28% 11%;
+    --primary: 180 82% 24%;
+    --primary-foreground: 180 30% 98%;
+    --secondary: 195 18% 91%;
+    --secondary-foreground: 200 28% 14%;
+    --muted: 195 16% 92%;
+    --muted-foreground: 198 12% 40%;
+    --accent: 180 28% 90%;
+    --accent-foreground: 180 82% 18%;
+    --destructive: 0 55% 50%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --border: 198 16% 84%;
+    --input: 198 16% 84%;
+    --ring: 180 82% 24%;
+    --chart-1: 180 70% 32%;
+    --chart-2: 200 18% 42%;
+    --chart-3: 32 70% 48%;
+    --chart-4: 8 55% 58%;
+    --chart-5: 150 28% 42%;
     --radius: 0.5rem;
+    --brand: 180 82% 24%;
+    --brand-ink: 180 65% 12%;
+    --surface: 195 20% 96%;
+    --surface-2: 195 18% 91%;
   }
 
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
+    --background: 200 28% 8%;
+    --foreground: 195 20% 96%;
+    --card: 200 24% 11%;
+    --card-foreground: 195 20% 96%;
+    --popover: 200 24% 11%;
+    --popover-foreground: 195 20% 96%;
+    --primary: 180 55% 42%;
+    --primary-foreground: 180 65% 8%;
+    --secondary: 200 18% 16%;
+    --secondary-foreground: 195 20% 96%;
+    --muted: 200 18% 16%;
+    --muted-foreground: 198 12% 65%;
+    --accent: 180 28% 18%;
+    --accent-foreground: 180 40% 90%;
+    --destructive: 0 55% 42%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    --border: 200 16% 20%;
+    --input: 200 16% 20%;
+    --ring: 180 55% 42%;
+    --chart-1: 180 60% 48%;
+    --chart-2: 200 20% 55%;
+    --chart-3: 32 70% 55%;
+    --chart-4: 8 55% 58%;
+    --chart-5: 150 30% 50%;
+    --brand: 180 55% 42%;
+    --brand-ink: 180 40% 90%;
+    --surface: 200 28% 8%;
+    --surface-2: 200 18% 14%;
   }
 }
 
@@ -63,8 +72,71 @@
   * {
     @apply border-border;
   }
+  html {
+    scroll-behavior: smooth;
+  }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-body antialiased;
+    background-image:
+      radial-gradient(ellipse 120% 80% at 10% -10%, hsl(180 40% 88% / 0.55), transparent 55%),
+      radial-gradient(ellipse 90% 60% at 100% 0%, hsl(195 30% 90% / 0.5), transparent 50%),
+      radial-gradient(circle at 1px 1px, hsl(198 16% 78% / 0.35) 1px, transparent 0);
+    background-size: auto, auto, 24px 24px;
+    background-attachment: fixed;
   }
 }
 
+@layer utilities {
+  .font-display {
+    font-family: 'SUITE', 'Pretendard Variable', Pretendard, sans-serif;
+  }
+  .text-brand {
+    color: hsl(var(--brand));
+  }
+  .bg-brand {
+    background-color: hsl(var(--brand));
+  }
+  .animate-fade-up {
+    animation: fade-up 0.45s ease-out both;
+  }
+  .animate-fade-up-delay {
+    animation: fade-up 0.5s ease-out 0.12s both;
+  }
+  .animate-fade-up-delay-2 {
+    animation: fade-up 0.55s ease-out 0.22s both;
+  }
+  .animate-kpi-in {
+    animation: kpi-in 0.4s ease-out both;
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes kpi-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up,
+  .animate-fade-up-delay,
+  .animate-fade-up-delay-2,
+  .animate-kpi-in {
+    animation: none;
+  }
+}

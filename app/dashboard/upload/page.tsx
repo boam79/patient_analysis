@@ -4,8 +4,6 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { FileUpload } from '@/components/upload/file-upload'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { useDataStore, PatientData } from '@/stores/data-store'
 import { useFilterStore } from '@/stores/filter-store'
 import { CheckCircle2, Database, TrendingUp, MapPin } from 'lucide-react'
@@ -220,13 +218,17 @@ export default function UploadPage() {
     }
   }
 
+  const step = success ? 3 : uploadedData ? 2 : 1
+
   return (
-    <div className="container mx-auto px-4 py-8 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="container mx-auto max-w-3xl px-4 py-10 space-y-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold mb-2">데이터 업로드</h1>
+          <h1 className="font-display text-3xl font-bold text-brand-ink mb-2">
+            데이터 업로드
+          </h1>
           <p className="text-muted-foreground">
-            병원 CRM용 데이터 파일을 업로드하고 자동 전처리를 수행합니다
+            파일을 올리면 브라우저에서 바로 전처리합니다
           </p>
         </div>
         {isDataLoaded && (
@@ -237,123 +239,123 @@ export default function UploadPage() {
         )}
       </div>
 
+      <ol className="flex items-center gap-2 text-sm">
+        {[
+          { n: 1, label: '파일 선택' },
+          { n: 2, label: '처리' },
+          { n: 3, label: '완료' },
+        ].map((s, i) => (
+          <li key={s.n} className="flex items-center gap-2">
+            {i > 0 && <span className="mx-1 h-px w-6 bg-border" />}
+            <span
+              className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${
+                step >= s.n
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground'
+              }`}
+            >
+              {s.n}
+            </span>
+            <span className={step >= s.n ? 'font-medium text-foreground' : 'text-muted-foreground'}>
+              {s.label}
+            </span>
+          </li>
+        ))}
+      </ol>
+
       {isDataLoaded && (
-        <Card className="border-primary/50 bg-primary/5">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-primary">
-              <CheckCircle2 className="h-5 w-5" />
-              <div>
-                <p className="font-medium">
-                  저장된 데이터가 있습니다: {totalPatients.toLocaleString()}명
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  새 파일을 업로드하면 기존 데이터를 덮어씁니다
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-primary">
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
+          <div>
+            <p className="font-medium">
+              저장된 데이터: {totalPatients.toLocaleString()}명
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              새 파일을 업로드하면 기존 데이터를 덮어씁니다
+            </p>
+          </div>
+        </div>
       )}
 
       <FileUpload onDataLoaded={handleDataLoaded} />
 
       {uploadedData && (
-        <Card>
-          <CardHeader>
-            <CardTitle>데이터 미리보기</CardTitle>
-            <CardDescription>업로드된 데이터를 확인하세요</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex items-center gap-2">
-                <Database className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="text-sm font-medium">총 레코드</p>
-                  <p className="text-2xl font-bold">{uploadedData.length.toLocaleString()}개</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    방문 기록 (재방문 포함)
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-positive" />
-                <div>
-                  <p className="text-sm font-medium">파일명</p>
-                  <p className="text-sm font-bold truncate">{fileName}</p>
-                </div>
-              </div>
+        <div className="grid grid-cols-2 gap-4 rounded-xl border border-border bg-card/70 px-5 py-4">
+          <div className="flex items-center gap-2">
+            <Database className="h-5 w-5 text-primary" />
+            <div>
+              <p className="text-sm font-medium">총 레코드</p>
+              <p className="font-numeric text-2xl font-bold tabular-nums">
+                {uploadedData.length.toLocaleString()}
+              </p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+          <div className="flex items-center gap-2 min-w-0">
+            <TrendingUp className="h-5 w-5 text-positive shrink-0" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium">파일명</p>
+              <p className="truncate text-sm font-semibold">{fileName}</p>
+            </div>
+          </div>
+        </div>
       )}
 
       {uploadedData && !success && (
-        <Card>
-          <CardContent className="pt-6">
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={useGeocoding}
-                onChange={(e) => setUseGeocoding(e.target.checked)}
-                disabled={processing}
-                className="mt-1 h-4 w-4 rounded border-muted-foreground/50 accent-primary"
-              />
-              <span className="flex items-start gap-2">
-                <MapPin className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-                <span>
-                  <span className="text-sm font-medium block">
-                    실주소 기반 정밀 지오코딩 사용 (선택)
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    좌표가 없는 레코드의 주소를 OpenStreetMap Nominatim으로 조회해 정확한 위치를 계산합니다.
-                    Nominatim 사용 정책상 고유 주소당 약 1초가 소요되며, 결과는 브라우저에 캐싱되어 다음 업로드부터는 즉시 재사용됩니다.
-                    선택하지 않으면 시/군/구 대표 좌표를 사용합니다.
-                  </span>
-                </span>
+        <label className="flex cursor-pointer items-start gap-3 text-sm">
+          <input
+            type="checkbox"
+            checked={useGeocoding}
+            onChange={(e) => setUseGeocoding(e.target.checked)}
+            disabled={processing}
+            className="mt-1 h-4 w-4 rounded border-muted-foreground/50 accent-primary"
+          />
+          <span className="flex items-start gap-2">
+            <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+            <span>
+              <span className="block font-medium">실주소 정밀 지오코딩 (선택)</span>
+              <span className="text-xs text-muted-foreground">
+                좌표 없는 주소만 Nominatim으로 조회합니다. 고유 주소당 약 1초,
+                결과는 브라우저에 캐시됩니다. 미선택 시 시·군·구 대표 좌표를 씁니다.
               </span>
-            </label>
-          </CardContent>
-        </Card>
+            </span>
+          </span>
+        </label>
       )}
 
       {geocodingProgress && (
-        <Card className="border-primary/50 bg-primary/5">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-primary mb-2">
-              <MapPin className="h-4 w-4" />
-              <p className="text-sm font-medium">
-                지오코딩 진행 중... ({geocodingProgress.completed.toLocaleString()} / {geocodingProgress.total.toLocaleString()})
-              </p>
-            </div>
-            <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
-              <div
-                className="h-full bg-primary transition-all duration-300"
-                style={{
-                  width: `${geocodingProgress.total > 0 ? (geocodingProgress.completed / geocodingProgress.total) * 100 : 0}%`,
-                }}
-              />
-            </div>
-          </CardContent>
-        </Card>
+        <div className="space-y-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
+          <div className="flex items-center gap-2 text-sm font-medium text-primary">
+            <MapPin className="h-4 w-4" />
+            지오코딩 중… ({geocodingProgress.completed.toLocaleString()} /{' '}
+            {geocodingProgress.total.toLocaleString()})
+          </div>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full bg-primary transition-all duration-300"
+              style={{
+                width: `${
+                  geocodingProgress.total > 0
+                    ? (geocodingProgress.completed / geocodingProgress.total) * 100
+                    : 0
+                }%`,
+              }}
+            />
+          </div>
+        </div>
       )}
 
       {uploadedData && !success && (
-        <div className="flex justify-end gap-2">
-          <Button
-            onClick={handleProcess}
-            disabled={processing}
-            size="lg"
-          >
+        <div className="flex justify-end">
+          <Button onClick={handleProcess} disabled={processing} size="lg">
             {processing ? (
               <>
-                <div className="animate-spin h-4 w-4 border-2 border-primary-foreground border-t-transparent rounded-full mr-2" />
+                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
                 {geocodingProgress ? '지오코딩 중...' : '처리 중...'}
               </>
             ) : (
               <>
                 <Database className="mr-2 h-4 w-4" />
-                데이터 처리 시작
+                분석 시작
               </>
             )}
           </Button>
@@ -361,26 +363,20 @@ export default function UploadPage() {
       )}
 
       {success && (
-        <Card className="border-positive">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-positive">
-              <CheckCircle2 className="h-5 w-5" />
-              <div>
-                <p className="font-medium">
-                  데이터 처리가 완료되었습니다!
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {uploadedData?.length.toLocaleString()}개 방문 레코드 처리 완료
-                </p>
-              </div>
-            </div>
-            <div className="mt-4">
-              <Button asChild>
-                <a href="/dashboard">대시보드로 이동</a>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="animate-fade-up rounded-xl border border-positive/40 bg-positive/5 px-5 py-5">
+          <div className="flex items-center gap-2 text-positive">
+            <CheckCircle2 className="h-5 w-5" />
+            <p className="font-medium">데이터 처리가 완료되었습니다</p>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            대시보드로 이동합니다…
+          </p>
+          <div className="mt-4">
+            <Button asChild>
+              <a href="/dashboard">대시보드로 이동</a>
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   )

@@ -756,14 +756,13 @@ export default function DashboardPage() {
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-4" id="dashboard-main">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-2">
         <div>
-          <h1 className="text-2xl font-bold">병원 CRM</h1>
+          <h1 className="font-display text-2xl font-bold text-brand-ink">통합 대시보드</h1>
           <p className="text-sm text-muted-foreground">
-            병원 CRM 통합 대시보드 v4.5
-            {isDataLoaded ? ' (실제 데이터)' : ' (샘플 데이터)'}
-            {(selectedDiseases.length > 0 || selectedRegions.length > 0) && 
-              ` | 필터 ${selectedDiseases.length + selectedRegions.length}개 적용`}
+            {isDataLoaded ? '실제 데이터' : '샘플 데이터'}
+            {(selectedDiseases.length > 0 || selectedRegions.length > 0) &&
+              ` · 필터 ${selectedDiseases.length + selectedRegions.length}개`}
           </p>
         </div>
         <div className="flex gap-2">
@@ -777,58 +776,46 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* 필터 패널 */}
       <FilterPanel />
 
-      {/* KPI 카드 - 필터 적용 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-             <Card>
-               <CardContent className="p-4">
-                 <div className="flex items-center justify-between">
-                   <div>
-                     <p className="text-xs text-muted-foreground">총 환자수</p>
-                     <p className="text-xl font-bold">{kpiData.totalPatients.toLocaleString()}</p>
-                     <p className="text-[10px] text-muted-foreground mt-0.5">
-                       (고유 환자 ID)
-                     </p>
-                   </div>
-                   <Users className="h-6 w-6 text-muted-foreground" />
-                 </div>
-               </CardContent>
-             </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground">재방문율</p>
-                <p className="text-xl font-bold">{kpiData.recurrenceRate}%</p>
-              </div>
-              <TrendingUp className="h-6 w-6 text-positive" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground">평균 간격</p>
-                <p className="text-xl font-bold">{kpiData.avgInterval}일</p>
-              </div>
-              <Clock className="h-6 w-6 text-muted-foreground" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground">총 수술 건수</p>
-                <p className="text-xl font-bold">{kpiData.totalSurgery}건</p>
-              </div>
-              <Activity className="h-6 w-6 text-muted-foreground" />
-            </div>
-          </CardContent>
-        </Card>
+      {/* KPI 메트릭 스트립 — 카드 중첩 없이 */}
+      <div className="animate-kpi-in grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border lg:grid-cols-4">
+        <div className="flex items-center justify-between bg-card/90 px-4 py-3">
+          <div>
+            <p className="text-xs text-muted-foreground">총 환자수</p>
+            <p className="font-numeric text-xl font-bold tabular-nums">
+              {kpiData.totalPatients.toLocaleString()}
+            </p>
+          </div>
+          <Users className="h-5 w-5 text-muted-foreground" />
+        </div>
+        <div className="flex items-center justify-between bg-card/90 px-4 py-3">
+          <div>
+            <p className="text-xs text-muted-foreground">재방문율</p>
+            <p className="font-numeric text-xl font-bold tabular-nums">
+              {kpiData.recurrenceRate}%
+            </p>
+          </div>
+          <TrendingUp className="h-5 w-5 text-positive" />
+        </div>
+        <div className="flex items-center justify-between bg-card/90 px-4 py-3">
+          <div>
+            <p className="text-xs text-muted-foreground">평균 간격</p>
+            <p className="font-numeric text-xl font-bold tabular-nums">
+              {kpiData.avgInterval}일
+            </p>
+          </div>
+          <Clock className="h-5 w-5 text-muted-foreground" />
+        </div>
+        <div className="flex items-center justify-between bg-card/90 px-4 py-3">
+          <div>
+            <p className="text-xs text-muted-foreground">총 수술 건수</p>
+            <p className="font-numeric text-xl font-bold tabular-nums">
+              {kpiData.totalSurgery}건
+            </p>
+          </div>
+          <Activity className="h-5 w-5 text-muted-foreground" />
+        </div>
       </div>
 
       {/* 메인 대시보드 */}

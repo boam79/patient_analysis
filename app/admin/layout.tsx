@@ -34,13 +34,11 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-background">
       <AdminHeader user={profile} />
       <div className="flex">
         <AdminSidebar />
-        <main className="flex-1 p-6">
-          {children}
-        </main>
+        <main className="flex-1 p-6">{children}</main>
       </div>
       <Toaster />
     </div>

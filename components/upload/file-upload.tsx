@@ -3,10 +3,10 @@
 import { useState, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Upload, FileText, X, CheckCircle2, AlertCircle } from 'lucide-react'
 import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
+import { cn } from '@/lib/utils'
 
 interface FileUploadProps {
   onDataLoaded: (data: any[], fileName: string) => void
@@ -19,6 +19,20 @@ export function FileUpload({ onDataLoaded }: FileUploadProps) {
   const [error, setError] = useState<string | null>(null)
   const [stats, setStats] = useState<{ rows: number; columns: number } | null>(null)
 
+  const finishData = useCallback((data: any[], fileName: string) => {
+    if (data.length === 0) {
+      setError('파일에 데이터가 없습니다.')
+      setLoading(false)
+      return
+    }
+
+    const columns = Object.keys(data[0]).length
+    setStats({ rows: data.length, columns })
+    setPreview(data.slice(0, 50))
+    onDataLoaded(data, fileName)
+    setLoading(false)
+  }, [onDataLoaded])
+
   const processFile = useCallback(async (acceptedFile: File) => {
     setLoading(true)
     setError(null)
@@ -30,13 +44,12 @@ export function FileUpload({ onDataLoaded }: FileUploadProps) {
       let parsedData: any[] = []
 
       if (fileExtension === 'csv') {
-        // CSV 파싱
         Papa.parse(acceptedFile, {
           header: true,
           skipEmptyLines: true,
           complete: (results) => {
             parsedData = results.data as any[]
-            processData(parsedData, fileName)
+            finishData(parsedData, fileName)
           },
           error: (err) => {
             setError(`CSV 파싱 오류: ${err.message}`)
@@ -44,14 +57,12 @@ export function FileUpload({ onDataLoaded }: FileUploadProps) {
           },
         })
       } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
-        // Excel 파싱
         const data = await acceptedFile.arrayBuffer()
         const workbook = XLSX.read(data, { type: 'array' })
         const firstSheetName = workbook.SheetNames[0]
         const worksheet = workbook.Sheets[firstSheetName]
         parsedData = XLSX.utils.sheet_to_json(worksheet, { header: 1 })
 
-        // 첫 행을 헤더로 사용
         const headers = parsedData[0] as string[]
         const rows = parsedData.slice(1).map((row: any) => {
           const obj: any = {}
@@ -61,7 +72,7 @@ export function FileUpload({ onDataLoaded }: FileUploadProps) {
           return obj
         })
 
-        processData(rows, fileName)
+        finishData(rows, fileName)
       } else {
         setError('지원하지 않는 파일 형식입니다. CSV 또는 Excel 파일을 업로드해주세요.')
         setLoading(false)
@@ -71,27 +82,7 @@ export function FileUpload({ onDataLoaded }: FileUploadProps) {
       setError(`파일 처리 오류: ${err.message}`)
       setLoading(false)
     }
-  }, [])
-
-  const processData = (data: any[], fileName: string) => {
-    if (data.length === 0) {
-      setError('파일에 데이터가 없습니다.')
-      setLoading(false)
-      return
-    }
-
-    // 통계 계산
-    const columns = Object.keys(data[0]).length
-    setStats({ rows: data.length, columns })
-
-    // 프리뷰 (최대 50행)
-    const previewData = data.slice(0, 50)
-    setPreview(previewData)
-
-    // 부모 컴포넌트에 데이터 전달
-    onDataLoaded(data, fileName)
-    setLoading(false)
-  }
+  }, [finishData])
 
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
@@ -124,117 +115,95 @@ export function FileUpload({ onDataLoaded }: FileUploadProps) {
   return (
     <div className="space-y-4">
       {!file ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>데이터 업로드</CardTitle>
-            <CardDescription>
-              CSV 또는 Excel 파일을 드래그하거나 클릭하여 업로드하세요
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div
-              {...getRootProps()}
-              className={`
-                border-2 border-dashed rounded-lg p-12 text-center cursor-pointer
-                transition-colors duration-200
-                ${isDragActive ? 'border-primary bg-primary/5' : 'border-muted-foreground/25'}
-                hover:border-primary hover:bg-primary/5
-              `}
-            >
-              <input {...getInputProps()} />
-              <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-              {isDragActive ? (
-                <p className="text-lg font-medium">파일을 놓아주세요...</p>
-              ) : (
-                <>
-                  <p className="text-lg font-medium mb-2">
-                    파일을 드래그하거나 클릭하여 선택
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    CSV, XLS, XLSX 파일 지원
-                  </p>
-                </>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <div
+          {...getRootProps()}
+          className={cn(
+            'cursor-pointer rounded-xl border-2 border-dashed px-6 py-16 text-center transition-colors duration-200',
+            isDragActive
+              ? 'border-primary bg-primary/5'
+              : 'border-primary/35 bg-card/60 hover:border-primary hover:bg-primary/5'
+          )}
+        >
+          <input {...getInputProps()} />
+          <Upload className="mx-auto mb-4 h-12 w-12 text-brand" />
+          {isDragActive ? (
+            <p className="font-display text-lg font-semibold">파일을 놓아주세요...</p>
+          ) : (
+            <>
+              <p className="font-display text-lg font-semibold mb-2">
+                CSV 또는 Excel 파일을 놓으세요
+              </p>
+              <p className="text-sm text-muted-foreground">
+                클릭하거나 드래그 · CSV, XLS, XLSX
+              </p>
+            </>
+          )}
+          {loading && (
+            <p className="mt-4 text-sm text-brand">파일 읽는 중...</p>
+          )}
+        </div>
       ) : (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                <div>
-                  <CardTitle className="text-lg">{file.name}</CardTitle>
-                  <CardDescription>
-                    {(file.size / 1024).toFixed(2)} KB
-                  </CardDescription>
-                </div>
+        <div className="rounded-xl border border-border bg-card/80 p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <FileText className="h-5 w-5 shrink-0 text-brand" />
+              <div className="min-w-0">
+                <p className="truncate font-medium">{file.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {(file.size / 1024).toFixed(2)} KB
+                  {stats ? ` · ${stats.rows.toLocaleString()}행 · ${stats.columns}열` : ''}
+                </p>
               </div>
-              <Button variant="ghost" size="sm" onClick={clearFile}>
-                <X className="h-4 w-4" />
-              </Button>
             </div>
-          </CardHeader>
-          <CardContent>
-            {loading && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
-                <p>파일 처리 중...</p>
-              </div>
-            )}
+            <Button variant="ghost" size="sm" onClick={clearFile} aria-label="파일 제거">
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
 
-            {error && (
-              <div className="flex items-center gap-2 text-destructive">
-                <AlertCircle className="h-4 w-4" />
-                <p>{error}</p>
-              </div>
-            )}
+          {preview.length > 0 && (
+            <div className="mt-4 overflow-x-auto rounded-md border border-border/70">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-muted/60">
+                  <tr>
+                    {Object.keys(preview[0]).slice(0, 6).map((key) => (
+                      <th key={key} className="px-3 py-2 font-medium">
+                        {key}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {preview.slice(0, 5).map((row, i) => (
+                    <tr key={i} className="border-t border-border/50">
+                      {Object.keys(preview[0])
+                        .slice(0, 6)
+                        .map((key) => (
+                          <td key={key} className="max-w-[140px] truncate px-3 py-1.5 text-muted-foreground">
+                            {String(row[key] ?? '')}
+                          </td>
+                        ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
-            {stats && !loading && !error && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-positive">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <p className="font-medium">
-                    파일 로드 완료: {stats.rows.toLocaleString()}행, {stats.columns}열
-                  </p>
-                </div>
+      {error && (
+        <div className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          {error}
+        </div>
+      )}
 
-                {preview.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-medium mb-2">데이터 프리뷰 (최대 50행)</h3>
-                    <div className="border rounded-lg overflow-auto max-h-96">
-                      <table className="w-full text-sm">
-                        <thead className="bg-muted">
-                          <tr>
-                            {Object.keys(preview[0]).map((header) => (
-                              <th key={header} className="px-4 py-2 text-left font-medium">
-                                {header}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {preview.map((row, idx) => (
-                            <tr key={idx} className="border-t">
-                              {Object.values(row).map((cell: any, cellIdx) => (
-                                <td key={cellIdx} className="px-4 py-2">
-                                  {String(cell || '')}
-                                </td>
-                              ))}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      {file && !error && stats && (
+        <div className="flex items-center gap-2 text-sm text-positive">
+          <CheckCircle2 className="h-4 w-4" />
+          파일 준비 완료
+        </div>
       )}
     </div>
   )
 }
-

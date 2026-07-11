@@ -1,4 +1,4 @@
-# 병원 CRM v4.7.0
+# 병원 CRM v5.0.0
 
 **병원 CRM** — 방문·질병·수술 데이터 분석 및 경영·마케팅 인사이트
 
@@ -347,6 +347,17 @@ Next.js React TypeScript License
 #### 참고
 
 - CSP를 Report-Only에서 강제 모드로 전환하는 작업은 운영 데이터 축적 후 진행 예정 (제안서 3단계 마지막 항목)
+
+---
+
+### 18. 전면 UI 개편 Harbor Clinical v5.0.0 (2026-07-11)
+
+- **디자인 토큰**: deep teal primary + cool mist 배경·도트 패턴 (`app/globals.css`)
+- **타이포**: Pretendard Variable + SUITE CDN 실로드 (`app/layout.tsx`)
+- **랜딩 `/`**: 브랜드 히어로 + CTA (업로드 즉시 리다이렉트 제거)
+- **셸**: 이모지 네비 제거, 활성 라우트 인디케이터, 모바일 메뉴, Footer 톤 통일
+- **업로드·대시보드·로그인·Admin**: Harbor Clinical 톤 적용, KPI 메트릭 스트립, 유령 컴포넌트 제거
+- 제안서: `docs/01-proposals/FRONTEND_DESIGN_OVERHAUL_v5.0.md`
 
 ---
 

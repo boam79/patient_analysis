@@ -35,10 +35,10 @@ const nextConfig: NextConfig = {
     const cspReportOnly = [
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-      "style-src 'self' 'unsafe-inline' https://unpkg.com",
+      "style-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net",
       "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://unpkg.com",
-      "font-src 'self' data:",
-      "connect-src 'self' https://*.supabase.co https://nominatim.openstreetmap.org",
+      "font-src 'self' data: https://cdn.jsdelivr.net",
+      "connect-src 'self' https://*.supabase.co https://nominatim.openstreetmap.org https://cdn.jsdelivr.net",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",

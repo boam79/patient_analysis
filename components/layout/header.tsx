@@ -1,85 +1,142 @@
 'use client'
 
+import { useState } from 'react'
+import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Upload, RefreshCw } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { Upload, RefreshCw, Menu, X, LayoutDashboard, Map, BarChart3, LineChart } from 'lucide-react'
 import { useDataStore } from '@/stores/data-store'
 import { useFilterStore } from '@/stores/filter-store'
+import { cn } from '@/lib/utils'
+
+const navItems = [
+  { href: '/dashboard', label: '대시보드', icon: LayoutDashboard, exact: true },
+  { href: '/dashboard/map', label: '지도 분석', icon: Map },
+  { href: '/dashboard/charts', label: '차트 분석', icon: BarChart3 },
+  { href: '/dashboard/strategy', label: '전략 분석', icon: LineChart },
+]
 
 export function Header() {
   const router = useRouter()
+  const pathname = usePathname()
   const { resetData, isDataLoaded, totalPatients } = useDataStore()
   const { resetFilters } = useFilterStore()
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   const handleReset = () => {
-    // 데이터 및 필터 초기화
     resetData()
     resetFilters()
-    // 업로드 페이지로 이동
     router.push('/dashboard/upload')
+    setMobileOpen(false)
   }
 
-  const handleUpload = () => {
-    router.push('/dashboard/upload')
+  const isActive = (href: string, exact?: boolean) => {
+    if (exact) return pathname === href
+    return pathname === href || pathname?.startsWith(`${href}/`)
   }
 
   return (
-    <header className="border-b bg-background">
-      <div className="container mx-auto px-4 py-4">
-        {/* 로고 및 네비게이션 */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-6">
-          <div className="flex items-center gap-4">
+    <header className="sticky top-0 z-40 border-b border-border/80 bg-card/80 backdrop-blur-md">
+      <div className="container mx-auto px-4 py-3">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-6 min-w-0">
             <button
               onClick={handleReset}
-              className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer group"
+              className="group flex items-center gap-2 hover:opacity-80 transition-opacity"
+              aria-label="데이터 초기화 후 업로드로 이동"
             >
-              <h1 className="text-2xl font-bold">병원 CRM</h1>
-              <RefreshCw className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+              <span className="font-display text-xl font-bold text-brand md:text-2xl">
+                병원 CRM
+              </span>
+              <RefreshCw className="h-3.5 w-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
             </button>
-            <span className="text-sm text-muted-foreground">v4.5</span>
             {isDataLoaded && (
-              <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
+              <span className="hidden sm:inline text-xs tabular-nums text-muted-foreground">
                 {totalPatients.toLocaleString()}명 로드됨
               </span>
             )}
-          </div>
-            <nav className="flex items-center gap-4 ml-8">
-              <a 
-                href="/dashboard" 
-                className="text-sm font-medium transition-colors hover:text-primary"
-              >
-                대시보드
-              </a>
-              <a 
-                href="/dashboard/map" 
-                className="text-sm font-medium transition-colors hover:text-primary"
-              >
-                🗺️ 지도 분석
-              </a>
-              <a 
-                href="/dashboard/charts" 
-                className="text-sm font-medium transition-colors hover:text-primary"
-              >
-                📊 차트 분석
-              </a>
-              <a 
-                href="/dashboard/strategy" 
-                className="text-sm font-medium transition-colors hover:text-primary"
-              >
-                📈 전략 분석
-              </a>
+            <nav className="hidden lg:flex items-center gap-1 ml-2">
+              {navItems.map((item) => {
+                const Icon = item.icon
+                const active = isActive(item.href, item.exact)
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      'inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors border-b-2',
+                      active
+                        ? 'border-primary text-brand'
+                        : 'border-transparent text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {item.label}
+                  </Link>
+                )
+              })}
             </nav>
           </div>
+
           <div className="flex items-center gap-2">
-            <Button variant="default" size="sm" onClick={handleUpload}>
+            <Button
+              variant="default"
+              size="sm"
+              className="hidden sm:inline-flex"
+              onClick={() => router.push('/dashboard/upload')}
+            >
               <Upload className="mr-2 h-4 w-4" />
               데이터 업로드
             </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="lg:hidden"
+              onClick={() => setMobileOpen((v) => !v)}
+              aria-label="메뉴"
+            >
+              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </Button>
           </div>
         </div>
+
+        {mobileOpen && (
+          <nav className="lg:hidden mt-3 flex flex-col gap-1 border-t border-border/60 pt-3 pb-1">
+            {navItems.map((item) => {
+              const Icon = item.icon
+              const active = isActive(item.href, item.exact)
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setMobileOpen(false)}
+                  className={cn(
+                    'flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium',
+                    active
+                      ? 'bg-accent text-brand'
+                      : 'text-muted-foreground hover:bg-muted'
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  {item.label}
+                </Link>
+              )
+            })}
+            <Button
+              variant="default"
+              size="sm"
+              className="mt-2 sm:hidden"
+              onClick={() => {
+                setMobileOpen(false)
+                router.push('/dashboard/upload')
+              }}
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              데이터 업로드
+            </Button>
+          </nav>
+        )}
       </div>
     </header>
   )
 }
-
