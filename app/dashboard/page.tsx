@@ -34,72 +34,13 @@ import {
 } from '@/lib/utils/analysis-helpers'
 import { RetentionChart } from '@/components/charts/retention-chart'
 import { DiseaseSurgeryHeatmap } from '@/components/charts/disease-surgery-heatmap'
-
-// 샘플 데이터
-const SAMPLE_DISEASES = [
-  { name: '무릎관절증', count: 324, percentage: 26.2 },
-  { name: '척추관협착증', count: 287, percentage: 23.3 },
-  { name: '고혈압', count: 198, percentage: 16.0 },
-  { name: '당뇨병', count: 156, percentage: 12.6 },
-  { name: '어깨충돌증후군', count: 134, percentage: 10.9 },
-  { name: '요추추간판장애', count: 98, percentage: 7.9 },
-  { name: '골다공증', count: 76, percentage: 6.2 },
-  { name: '슬개골연골연화증', count: 54, percentage: 4.4 },
-  { name: '회전근개파열', count: 43, percentage: 3.5 },
-  { name: '족저근막염', count: 32, percentage: 2.6 },
-]
-
-const SAMPLE_AGE_PYRAMID = [
-  { ageGroup: '70대 이상', male: 145, female: 178 },
-  { ageGroup: '60대', male: 234, female: 287 },
-  { ageGroup: '50대', male: 298, female: 312 },
-  { ageGroup: '40대', male: 187, female: 198 },
-  { ageGroup: '30대', male: 123, female: 134 },
-  { ageGroup: '20대', male: 76, female: 65 },
-  { ageGroup: '10대 이하', male: 34, female: 28 },
-]
-
-const SAMPLE_MAP_DATA = [
-  { latitude: 37.5665, longitude: 126.9780, value: 0.8, h3Index: 'h3-001', region: '서울 중구' },
-  { latitude: 37.5700, longitude: 126.9850, value: 0.6, h3Index: 'h3-002', region: '서울 동대문구' },
-  { latitude: 37.5550, longitude: 126.9700, value: 0.9, h3Index: 'h3-003', region: '서울 용산구' },
-  { latitude: 37.5800, longitude: 127.0000, value: 0.7, h3Index: 'h3-004', region: '서울 성동구' },
-  { latitude: 37.5500, longitude: 127.0500, value: 0.5, h3Index: 'h3-005', region: '서울 강남구' },
-]
-
-const SAMPLE_MONTHLY_TREND = [
-  { month: '1월', recurrenceRate: 38.2, newPatients: 234, returningPatients: 145 },
-  { month: '2월', recurrenceRate: 41.5, newPatients: 198, returningPatients: 140 },
-  { month: '3월', recurrenceRate: 43.8, newPatients: 287, returningPatients: 223 },
-  { month: '4월', recurrenceRate: 45.2, newPatients: 312, returningPatients: 260 },
-  { month: '5월', recurrenceRate: 44.7, newPatients: 298, returningPatients: 243 },
-  { month: '6월', recurrenceRate: 46.1, newPatients: 276, returningPatients: 235 },
-]
-
-const SAMPLE_BOUNDARY_DATA = [
-  { region: '서울 강남구', patients: 342, recurrenceRate: 48.2, avgAge: 45 },
-  { region: '서울 서초구', patients: 298, recurrenceRate: 46.5, avgAge: 43 },
-  { region: '서울 송파구', patients: 287, recurrenceRate: 45.3, avgAge: 44 },
-  { region: '서울 마포구', patients: 234, recurrenceRate: 43.8, avgAge: 42 },
-]
-
-const SAMPLE_BOXPLOT_DATA = [
-  { region: '강남구', min: 14, q1: 21, median: 28, q3: 35, max: 56 },
-  { region: '서초구', min: 12, q1: 19, median: 26, q3: 32, max: 48 },
-  { region: '송파구', min: 15, q1: 22, median: 29, q3: 36, max: 52 },
-]
-
-const SAMPLE_SURGERY_SCATTER = [
-  { surgeryName: '무릎관절경', avgAge: 58, recurrenceRate: 42.3, patientCount: 187 },
-  { surgeryName: '척추유합술', avgAge: 62, recurrenceRate: 38.7, patientCount: 143 },
-  { surgeryName: '어깨관절경', avgAge: 54, recurrenceRate: 45.8, patientCount: 98 },
-]
-
-const SAMPLE_SURGERY_MATRIX = [
-  { surgery: '무릎관절경수술', '무릎관절증': 145, '척추관협착증': 12, '고혈압': 34 },
-  { surgery: '척추유합술', '무릎관절증': 8, '척추관협착증': 98, '고혈압': 23 },
-  { surgery: '어깨관절경수술', '무릎관절증': 5, '척추관협착증': 7, '고혈압': 18 },
-]
+import {
+  SAMPLE_DATE_RANGE_LABEL,
+  resolveAnalysisData,
+  isUsingSampleData,
+  getSampleMapPoints,
+} from '@/lib/sample-data'
+import { computeRetentionSummary } from '@/lib/utils/strategy-metrics'
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24
 
@@ -156,18 +97,9 @@ export default function DashboardPage() {
     [addRegion, removeRegion, setSelectedH3Index, setSelectedChartData]
   )
   
-  const { 
-    isDataLoaded, 
-    diseases: storeDiseases, 
+  const {
+    isDataLoaded,
     mapData: storeMapData,
-    agePyramid: storeAgePyramid,
-    boundaryData: storeBoundaryData,
-    boxplotData: storeBoxplotData,
-    monthlyTrend: storeMonthlyTrend,
-    totalPatients: storeTotalPatients,
-    recurrenceRate: storeRecurrenceRate,
-    avgInterval: storeAvgInterval,
-    totalSurgery: storeTotalSurgery,
     rawData,
   } = useDataStore()
 
@@ -201,18 +133,18 @@ export default function DashboardPage() {
     loadCharts()
   }, [isDataLoaded, rawData.length])
 
-  // 업로드된 데이터가 있으면 사용, 없으면 샘플 데이터 사용
-  const diseases = isDataLoaded && storeDiseases.length > 0 ? storeDiseases : SAMPLE_DISEASES
-  const mapData = isDataLoaded && storeMapData.length > 0 ? storeMapData : SAMPLE_MAP_DATA
+  // 업로드 데이터 우선, 없으면 공용 샘플
+  const usingSample = isUsingSampleData(isDataLoaded, rawData)
+  const baseData = useMemo(
+    () => resolveAnalysisData(isDataLoaded, rawData),
+    [isDataLoaded, rawData]
+  )
 
-  const boundaryData = isDataLoaded && storeBoundaryData.length > 0 ? storeBoundaryData : SAMPLE_BOUNDARY_DATA
-  const boxplotData = isDataLoaded && storeBoxplotData.length > 0 ? storeBoxplotData : SAMPLE_BOXPLOT_DATA
-  const monthlyTrend = isDataLoaded && storeMonthlyTrend.length > 0 ? storeMonthlyTrend : SAMPLE_MONTHLY_TREND
-  // 필터링된 rawData 계산 (공통 유틸 사용)
+  const storeMapFallback =
+    isDataLoaded && storeMapData.length > 0 ? storeMapData : getSampleMapPoints()
+
   const filteredRawData = useMemo(() => {
-    if (!isDataLoaded || rawData.length === 0) return []
-
-    return filterPatients(rawData, {
+    return filterPatients(baseData, {
       selectedDiseases,
       selectedRegions,
       selectedSurgeries,
@@ -220,10 +152,17 @@ export default function DashboardPage() {
       genders: genders as ('남성' | '여성')[],
       dateRange,
     })
-  }, [isDataLoaded, rawData, selectedDiseases, selectedRegions, selectedSurgeries, ageGroups, genders, dateRange])
+  }, [
+    baseData,
+    selectedDiseases,
+    selectedRegions,
+    selectedSurgeries,
+    ageGroups,
+    genders,
+    dateRange,
+  ])
 
   const filteredMapData = useMemo(() => {
-    if (!isDataLoaded) return mapData
     if (filteredRawData.length === 0) {
       const active = hasActiveFilters({
         selectedDiseases,
@@ -233,12 +172,11 @@ export default function DashboardPage() {
         genders,
         dateRange,
       })
-      return active ? [] : mapData
+      return active ? [] : storeMapFallback
     }
-    return buildRegionVisitMap(filteredRawData, mapData)
+    return buildRegionVisitMap(filteredRawData, storeMapFallback)
   }, [
-    isDataLoaded,
-    mapData,
+    storeMapFallback,
     filteredRawData,
     selectedDiseases,
     selectedSurgeries,
@@ -248,20 +186,19 @@ export default function DashboardPage() {
     dateRange,
   ])
 
-
   const patientVisitsByKey = useMemo(() => {
-    if (!isDataLoaded || filteredRawData.length === 0) {
+    if (filteredRawData.length === 0) {
       return new Map<string, PatientData[]>()
     }
     return groupVisitsByPatient(filteredRawData)
-  }, [filteredRawData, isDataLoaded])
+  }, [filteredRawData])
 
   const diseaseRecurrenceRates = useMemo(() => {
-    if (!isDataLoaded || filteredRawData.length === 0) {
+    if (filteredRawData.length === 0) {
       return new Map<string, number>()
     }
     return computeDiseaseRecurrenceRates(filteredRawData, windowSize)
-  }, [filteredRawData, isDataLoaded, windowSize])
+  }, [filteredRawData, windowSize])
 
   const retentionBuckets = useMemo(() => {
     const defs = [
@@ -293,7 +230,7 @@ export default function DashboardPage() {
   }, [patientVisitsByKey])
 
   const diseaseSurgeryHeatmap = useMemo(() => {
-    if (!isDataLoaded || filteredRawData.length === 0) {
+    if (filteredRawData.length === 0) {
       return null
     }
     const surgeryCounts = new Map<string, number>()
@@ -339,11 +276,9 @@ export default function DashboardPage() {
     })
 
     return { columns: topSurgeries, rows, maxValue }
-  }, [filteredRawData, isDataLoaded])
+  }, [filteredRawData])
 
-  // 필터 적용된 질병 통계 재계산 (filteredRawData 기반)
   const filteredDiseases = useMemo(() => {
-    if (!isDataLoaded) return diseases
     if (filteredRawData.length === 0) return []
 
     const diseaseMap = new Map<string, number>()
@@ -360,13 +295,9 @@ export default function DashboardPage() {
       }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10)
-  }, [diseases, filteredRawData, isDataLoaded])
+  }, [filteredRawData])
 
-  // 연령 피라미드 — 데이터 로드 시 filteredRawData 기준으로 항상 재계산
   const filteredAgePyramid = useMemo(() => {
-    if (!isDataLoaded) {
-      return storeAgePyramid.length > 0 ? storeAgePyramid : SAMPLE_AGE_PYRAMID
-    }
     if (filteredRawData.length === 0) return []
 
     const ageGroupMap = new Map<string, { male: number; female: number }>()
@@ -402,26 +333,11 @@ export default function DashboardPage() {
       male: ageGroupMap.get(ageGroup)?.male || 0,
       female: ageGroupMap.get(ageGroup)?.female || 0,
     }))
-  }, [filteredRawData, isDataLoaded, storeAgePyramid])
+  }, [filteredRawData])
 
   // 수술 데이터 계산 (필터 반영)
   const surgeryData = useMemo(() => {
-    const source =
-      isDataLoaded && filteredRawData.length > 0
-        ? filteredRawData
-        : isDataLoaded
-          ? []
-          : null
-
-    if (source === null) {
-      return {
-        scatter: SAMPLE_SURGERY_SCATTER,
-        matrix: SAMPLE_SURGERY_MATRIX,
-        diseases: ['무릎관절증', '척추관협착증', '고혈압'],
-      }
-    }
-
-    if (source.length === 0) {
+    if (filteredRawData.length === 0) {
       return { scatter: [], matrix: [], diseases: [] as string[] }
     }
 
@@ -430,7 +346,7 @@ export default function DashboardPage() {
       { ages: number[]; patientKeys: Set<string>; diseases: Record<string, number> }
     > = {}
 
-    source.forEach((patient) => {
+    filteredRawData.forEach((patient) => {
       if (!hasSurgery(patient)) return
       const surgeryKey =
         patient.surgery_name?.toString().trim() ||
@@ -451,7 +367,7 @@ export default function DashboardPage() {
     })
 
     const patientVisitCountMap: Record<string, number> = {}
-    source.forEach((p) => {
+    filteredRawData.forEach((p) => {
       const key = resolvePatientId(p)
       patientVisitCountMap[key] = (patientVisitCountMap[key] || 0) + 1
     })
@@ -477,26 +393,20 @@ export default function DashboardPage() {
       .slice(0, 10)
 
     const topSurgeries = scatter.slice(0, 5).map((s) => s.surgeryName)
-    const topDiseases = (
-      diseases.length > 0 ? diseases : SAMPLE_DISEASES
-    )
-      .slice(0, 5)
-      .map((d) => d.name)
+    const topDiseases = filteredDiseases.slice(0, 5).map((d) => d.name)
 
     const matrix = topSurgeries.map((surgery) => {
-      const row: any = { surgery }
+      const row: { surgery: string; [key: string]: string | number } = { surgery }
       topDiseases.forEach((disease) => {
         row[disease] = surgeryStats[surgery]?.diseases[disease] || 0
       })
       return row
-    }) as any[]
+    })
 
     return { scatter, matrix, diseases: topDiseases }
-  }, [isDataLoaded, filteredRawData, diseases])
+  }, [filteredRawData, filteredDiseases])
 
-  // 필터링된 Boundary 데이터 계산 — 로드 시 항상 windowSize 반영
   const filteredBoundaryData = useMemo(() => {
-    if (!isDataLoaded) return boundaryData
     if (filteredRawData.length === 0) return []
 
     const regionStatsMap = new Map<
@@ -559,99 +469,66 @@ export default function DashboardPage() {
       })
       .sort((a, b) => b.patients - a.patients)
       .slice(0, 10)
-  }, [isDataLoaded, filteredRawData, boundaryData, windowSize])
+  }, [filteredRawData, windowSize])
 
-  // 필터링된 Boxplot 데이터 계산 — 로드 시 항상 windowSize + 공통 사분위
   const filteredBoxplotData = useMemo(() => {
-    if (!isDataLoaded) return boxplotData
     if (filteredRawData.length === 0) return []
 
-    const patientKey = (p: PatientData) => resolvePatientId(p)
-
-    // 환자별 방문 횟수 계산
-    const patientVisitCounts: Record<string, number> = {}
-    filteredRawData.forEach((patient) => {
-      const key = patientKey(patient)
-      patientVisitCounts[key] = (patientVisitCounts[key] || 0) + 1
-    })
-
-    // 지역별 재방문 간격 수집
+    const visitsByPatient = groupVisitsByPatient(filteredRawData)
     const regionIntervalsMap = new Map<string, number[]>()
 
-    Object.keys(patientVisitCounts).forEach((key) => {
-      const patientVisits = filteredRawData
-        .filter(p => patientKey(p) === key)
-        .sort((a, b) => new Date(a.visit_date).getTime() - new Date(b.visit_date).getTime())
-      
-      if (patientVisits.length > 1) {
-        const region = patientVisits[0].region
-        
-        if (region && region !== '미분류') {
-          if (!regionIntervalsMap.has(region)) {
-            regionIntervalsMap.set(region, [])
-          }
-          
-          for (let i = 1; i < patientVisits.length; i++) {
-            const interval =
-              (new Date(patientVisits[i].visit_date).getTime() -
-                new Date(patientVisits[i - 1].visit_date).getTime()) /
-              MS_PER_DAY
-
-            if (interval <= windowSize) {
-              regionIntervalsMap.get(region)!.push(interval)
-            }
-          }
+    visitsByPatient.forEach((visits) => {
+      if (visits.length < 2) return
+      const region = visits[0].region
+      if (!region || region === '미분류') return
+      if (!regionIntervalsMap.has(region)) regionIntervalsMap.set(region, [])
+      for (let i = 1; i < visits.length; i++) {
+        const interval =
+          (new Date(visits[i].visit_date).getTime() -
+            new Date(visits[i - 1].visit_date).getTime()) /
+          MS_PER_DAY
+        if (interval <= windowSize) {
+          regionIntervalsMap.get(region)!.push(interval)
         }
       }
     })
 
     return Array.from(regionIntervalsMap.entries())
-      .filter(([_, intervals]) => intervals.length >= 5)
-      .map(([region, intervals]) => {
-        const quartiles = calculateQuartiles(intervals)
-        return {
-          region,
-          ...quartiles,
-        }
-      })
+      .filter(([, intervals]) => intervals.length >= 2)
+      .map(([region, intervals]) => ({
+        region,
+        ...calculateQuartiles(intervals),
+      }))
       .sort((a, b) => b.median - a.median)
       .slice(0, 10)
-  }, [isDataLoaded, filteredRawData, boxplotData, windowSize])
+  }, [filteredRawData, windowSize])
 
-  // 필터링된 월별 트렌드 (공용 집계)
   const filteredMonthlyTrend = useMemo(() => {
-    if (!isDataLoaded) return monthlyTrend
     if (filteredRawData.length === 0) return []
     return computeMonthlyTrend(filteredRawData, windowSize)
-  }, [isDataLoaded, filteredRawData, monthlyTrend, windowSize])
+  }, [filteredRawData, windowSize])
 
-  // 선택된 지역의 Top 5 질병/수술 계산
   const selectedRegionStats = useMemo(() => {
-    if (!isDataLoaded || selectedRegions.length === 0 || filteredRawData.length === 0) {
+    if (selectedRegions.length === 0 || filteredRawData.length === 0) {
       return { diseases: [], surgeries: [], patientCount: 0 }
     }
 
-    // 선택된 지역의 방문 레코드 필터링 (다른 필터 조건을 모두 반영한 filteredRawData 사용)
     const regionPatients = filteredRawData.filter((p) =>
       selectedRegions.includes(p.region)
     )
-    
     if (regionPatients.length === 0) {
       return { diseases: [], surgeries: [], patientCount: 0 }
     }
 
-    // 질병 Top 5
     const diseaseCounts: Record<string, number> = {}
-    regionPatients.forEach(p => {
+    regionPatients.forEach((p) => {
       diseaseCounts[p.disease_name] = (diseaseCounts[p.disease_name] || 0) + 1
     })
-    
     const topDiseases = Object.entries(diseaseCounts)
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5)
 
-    // 수술 Top 5 (수술명 또는 코드)
     const surgeryCounts: Record<string, number> = {}
     regionPatients.forEach((p) => {
       if (!hasSurgery(p)) return
@@ -662,88 +539,37 @@ export default function DashboardPage() {
       if (!key) return
       surgeryCounts[key] = (surgeryCounts[key] || 0) + 1
     })
-    
     const topSurgeries = Object.entries(surgeryCounts)
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5)
 
-    // 고유 환자 수 계산 (이름+주소 기준)
-    const uniquePatientKeys = new Set(
-      regionPatients.map(p => resolvePatientId(p))
-    )
-    
     return {
       diseases: topDiseases,
       surgeries: topSurgeries,
-      patientCount: uniquePatientKeys.size,
+      patientCount: new Set(regionPatients.map((p) => resolvePatientId(p))).size,
       totalRecords: regionPatients.length,
     }
-  }, [isDataLoaded, selectedRegions, filteredRawData])
+  }, [selectedRegions, filteredRawData])
 
-  // KPI 계산 — 데이터 로드 시 항상 동일 정의(윈도우 재방문 + resolvePatientId)
   const kpiData = useMemo(() => {
-    if (isDataLoaded && patientVisitsByKey.size > 0) {
-      const uniquePatients = patientVisitsByKey.size
-      let returningPatients = 0
-      const intervalsWithinWindow: number[] = []
-
-      patientVisitsByKey.forEach((visits) => {
-        const intervals = calculateIntervalsWithinWindow(visits, windowSize)
-        if (intervals.length > 0) {
-          returningPatients++
-          intervalsWithinWindow.push(...intervals)
-        }
-      })
-
-      const recurrenceRate =
-        uniquePatients > 0 ? (returningPatients / uniquePatients) * 100 : 0
-
-      const avgInterval =
-        intervalsWithinWindow.length > 0
-          ? Math.round(
-              intervalsWithinWindow.reduce((sum, interval) => sum + interval, 0) /
-                intervalsWithinWindow.length
-            )
-          : 0
-
-      const surgeryCount = filteredRawData.filter(
-        (p) => hasSurgery(p)
-      ).length
-
+    if (patientVisitsByKey.size > 0) {
+      const summary = computeRetentionSummary(filteredRawData, windowSize)
+      const surgeryCount = filteredRawData.filter((p) => hasSurgery(p)).length
       return {
-        totalPatients: uniquePatients,
-        recurrenceRate: recurrenceRate.toFixed(1),
-        avgInterval,
+        totalPatients: summary.uniquePatients,
+        recurrenceRate: summary.retentionRate.toFixed(1),
+        avgInterval: summary.avgInterval,
         totalSurgery: surgeryCount,
       }
     }
-
-    if (isDataLoaded) {
-      return {
-        totalPatients: storeTotalPatients,
-        recurrenceRate: storeRecurrenceRate.toFixed(1),
-        avgInterval: storeAvgInterval,
-        totalSurgery: storeTotalSurgery,
-      }
-    }
-
     return {
-      totalPatients: 1234,
-      recurrenceRate: '45.2',
-      avgInterval: 28,
-      totalSurgery: Math.floor(1234 * 0.15),
+      totalPatients: 0,
+      recurrenceRate: '0.0',
+      avgInterval: 0,
+      totalSurgery: 0,
     }
-  }, [
-    filteredRawData,
-    isDataLoaded,
-    patientVisitsByKey,
-    windowSize,
-    storeTotalPatients,
-    storeRecurrenceRate,
-    storeAvgInterval,
-    storeTotalSurgery,
-  ])
+  }, [filteredRawData, patientVisitsByKey, windowSize])
 
 
   return (
@@ -752,9 +578,13 @@ export default function DashboardPage() {
         <div>
           <h1 className="font-display text-2xl font-bold text-brand-ink">통합 대시보드</h1>
           <p className="text-sm text-muted-foreground">
-            {isDataLoaded ? '실제 데이터' : '샘플 데이터'}
-            {(selectedDiseases.length > 0 || selectedRegions.length > 0) &&
-              ` · 필터 ${selectedDiseases.length + selectedRegions.length}개`}
+            {usingSample
+              ? `샘플 데이터 (${SAMPLE_DATE_RANGE_LABEL})`
+              : '실제 데이터'}
+            {(selectedDiseases.length > 0 ||
+              selectedRegions.length > 0 ||
+              selectedSurgeries.length > 0) &&
+              ` · 필터 적용`}
           </p>
         </div>
         <div className="flex gap-2">

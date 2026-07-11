@@ -109,7 +109,13 @@ export function RfmAnalysis({ data }: RfmAnalysisProps) {
       const fs = fScore(s.frequency)
       return {
         patientId: s.pid,
-        displayName: s.name.length > 2 ? `${s.name[0]}${'*'.repeat(s.name.length - 2)}${s.name[s.name.length - 1]}` : s.name,
+        displayName: (() => {
+          const name = s.name ?? ''
+          if (name.length > 2) {
+            return `${name[0]}${'*'.repeat(name.length - 2)}${name[name.length - 1]}`
+          }
+          return name || s.pid
+        })(),
         recency: s.recency,
         frequency: s.frequency,
         rScore: rs,

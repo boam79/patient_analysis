@@ -1592,3 +1592,36 @@ Round A 구현 완료. PredictionAnalysis 삭제, strategy-metrics 공용 모듈
 ### Lessons
 - Leaflet init effect에 center/zoom을 deps로 넣으면 setView마다 지도가 remount됨 → mount-once + setView 분리
 
+---
+
+## 🐛 샘플 데이터 통합 버그픽스 v5.3.2 (2026-07-11) — Executor
+
+### Background and Motivation
+기본 샘플 데이터로 대시보드·지도·전략 탭을 폭넓게 점검. 탭마다 다른 샘플·필터 불일치·빈 레이어 등 P0/P1 버그 수정.
+
+### High-level Task Breakdown
+1. [x] `lib/sample-data.ts` 공용 샘플 + 옵션 + resolveAnalysisData
+2. [x] 대시보드: 샘플도 필터 반영, KPI/차트 파생, 수술 매트릭스 타입
+3. [x] 필터 패널: `본태성 고혈압`·샘플 지역 옵션 정렬
+4. [x] 전략: 공용 샘플 import, 날짜 라벨·필터 결과 건수
+5. [x] 지도: 샘플A/B/C 제거, clinical/demographics·위치 상세 샘플 동작
+6. [x] 가드: surgery Math.max, RFM name null, advanced-stats 기준일, cohort maxPeriods
+7. [x] tsc / vitest (56) 통과 · package 5.3.2
+
+### Project Status Board
+- [x] 공용 샘플 모듈
+- [x] 대시보드/필터/전략/지도 수정
+- [x] 엣지 가드
+- [x] 테스트
+- [ ] main 커밋·푸시
+
+### Executor's Feedback or Assistance Requests
+#### 2026-07-11 — Executor: 샘플 경로 버그픽스 완료, 검증 대기
+- 브랜치: `cursor/sample-data-bugfix-6e51`
+- `npm run build`는 supabaseUrl 미설정으로 `/api/log-error` 수집 단계에서 실패(기존 환경 이슈). `tsc`·`vitest`는 통과.
+- 사용자 수동 확인 후 main 머지·태스크 complete 요청.
+
+### Lessons
+- 필터 옵션 질병명(`고혈압`)과 샘플 `disease_name`(`본태성 고혈압`)이 다르면 샘플 모드에서 필터 결과가 항상 0건이 됨
+- 지도 clinical/demographics를 `!isDataLoaded`일 때 빈 배열로 두면 샘플 UX가 깨짐 → `computeMapLayer(sample)`로 통일
+

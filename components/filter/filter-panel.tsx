@@ -8,6 +8,10 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { X, Filter, RefreshCw, CheckCircle } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import {
+  SAMPLE_DISEASE_OPTIONS,
+  SAMPLE_REGION_OPTIONS,
+} from '@/lib/sample-data'
 
 export function FilterPanel() {
   const {
@@ -79,52 +83,38 @@ export function FilterPanel() {
     '70대 이상',
   ]
 
-  // 실제 데이터에서 질병 목록 추출 (Top 20)
+  // 실제 데이터에서 질병 목록 추출 (Top 20) — 샘플은 공용 옵션(본태성 고혈압 등)
   const diseaseOptions = useMemo(() => {
     if (!isDataLoaded || rawData.length === 0) {
-      return [
-        '무릎관절증',
-        '척추관협착증',
-        '고혈압',
-        '당뇨병',
-        '어깨충돌증후군',
-        '요추추간판장애',
-        '골다공증',
-      ]
+      return SAMPLE_DISEASE_OPTIONS
     }
-    
+
     const diseaseCounts = rawData.reduce((acc, patient) => {
       if (patient.disease_name) {
         acc[patient.disease_name] = (acc[patient.disease_name] || 0) + 1
       }
       return acc
     }, {} as Record<string, number>)
-    
+
     return Object.entries(diseaseCounts)
       .sort(([, a], [, b]) => b - a)
       .slice(0, 20)
       .map(([name]) => name)
   }, [isDataLoaded, rawData])
 
-  // 실제 데이터에서 지역 목록 추출
+  // 실제 데이터에서 지역 목록 추출 — 샘플은 공용 샘플 지역과 일치
   const regionOptions = useMemo(() => {
     if (!isDataLoaded || rawData.length === 0) {
-      return [
-        '서울 중구',
-        '서울 동대문구',
-        '서울 용산구',
-        '서울 성동구',
-        '서울 강남구',
-      ]
+      return SAMPLE_REGION_OPTIONS
     }
-    
+
     const regionCounts = rawData.reduce((acc, patient) => {
       if (patient.region && patient.region !== '미분류') {
         acc[patient.region] = (acc[patient.region] || 0) + 1
       }
       return acc
     }, {} as Record<string, number>)
-    
+
     return Object.entries(regionCounts)
       .sort(([, a], [, b]) => b - a)
       .slice(0, 30)

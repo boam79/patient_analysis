@@ -97,14 +97,15 @@ interface SurgeryDiseaseMatrixProps {
 }
 
 export function SurgeryDiseaseMatrix({ data, diseases }: SurgeryDiseaseMatrixProps) {
-  // 히트맵을 위한 최대값 계산
-  const maxValue = Math.max(
-    ...data.flatMap((row) => diseases.map((disease) => (row[disease] as number) || 0))
+  // 히트맵을 위한 최대값 계산 (빈 배열 시 -Infinity 방지)
+  const cellValues = data.flatMap((row) =>
+    diseases.map((disease) => (row[disease] as number) || 0)
   )
+  const maxValue = cellValues.length > 0 ? Math.max(...cellValues) : 0
 
   const getColor = (value: number) => {
     if (!value || value === 0) return 'hsl(var(--muted))'
-    const intensity = value / maxValue
+    const intensity = maxValue > 0 ? value / maxValue : 0
     const hue = 200 // 파란색 계열
     const lightness = 100 - intensity * 50 // 밝기 조절
     return `hsl(${hue}, 70%, ${lightness}%)`

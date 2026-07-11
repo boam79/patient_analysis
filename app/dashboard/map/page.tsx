@@ -24,6 +24,12 @@ import {
   surgeryLabel,
   type MapLayerMetric,
 } from '@/lib/utils/map-metrics'
+import {
+  SAMPLE_DATE_RANGE_LABEL,
+  resolveAnalysisData,
+  getSampleMapPoints,
+  isUsingSampleData,
+} from '@/lib/sample-data'
 
 type VisualizationMode = 'markers' | 'circle' | 'heatmap'
 type PrimaryTab = 'distribution' | 'retention' | 'clinical' | 'demographics'
@@ -32,12 +38,6 @@ type DistMetric = 'visits' | 'unique' | 'new' | 'returning'
 type RetentionMetric = 'recurrence_rate' | 'returning'
 type ClinicalDim = 'disease' | 'surgery'
 type DemoDim = 'age' | 'gender_male_pct'
-
-const SAMPLE_POINTS = [
-  { latitude: 37.5665, longitude: 126.978, value: 80, region: '샘플A', h3Index: 'sample-a' },
-  { latitude: 37.57, longitude: 126.985, value: 60, region: '샘플B', h3Index: 'sample-b' },
-  { latitude: 37.555, longitude: 126.97, value: 90, region: '샘플C', h3Index: 'sample-c' },
-]
 
 const AGE_OPTIONS = [
   '10대 이하',
@@ -85,6 +85,8 @@ export default function MapPage() {
   const [selectedAgeGroup, setSelectedAgeGroup] = useState('')
   const [showFilterPanel, setShowFilterPanel] = useState(false)
 
+  const usingSample = isUsingSampleData(isDataLoaded, rawData)
+
   const handleLocationSelect = useCallback((h3Index: string, data: { region?: string }) => {
     setSelectedLocation({ h3Index, data })
     const region = data?.region
@@ -94,9 +96,18 @@ export default function MapPage() {
     }
   }, [])
 
+  const baseData = useMemo(
+    () => resolveAnalysisData(isDataLoaded, rawData),
+    [isDataLoaded, rawData]
+  )
+
+  const baseMap = useMemo(() => {
+    if (isDataLoaded && mapData.length > 0) return mapData
+    return getSampleMapPoints()
+  }, [isDataLoaded, mapData])
+
   const filteredRawData = useMemo(() => {
-    if (!isDataLoaded || rawData.length === 0) return []
-    return filterPatients(rawData, {
+    return filterPatients(baseData, {
       selectedDiseases,
       selectedRegions,
       selectedSurgeries,
@@ -105,8 +116,7 @@ export default function MapPage() {
       dateRange,
     })
   }, [
-    isDataLoaded,
-    rawData,
+    baseData,
     selectedDiseases,
     selectedSurgeries,
     selectedRegions,
@@ -171,23 +181,9 @@ export default function MapPage() {
   }, [primaryTab, distMetric, retentionMetric, clinicalDim, demoDim])
 
   const layerData = useMemo(() => {
-    if (!isDataLoaded) {
-      if (primaryTab === 'clinical' || primaryTab === 'demographics') return []
-      return SAMPLE_POINTS.map((d) => ({
-        ...d,
-        value:
-          activeMetric === 'recurrence_rate'
-            ? 45
-            : activeMetric === 'returning'
-              ? d.value * 0.4
-              : activeMetric === 'new'
-                ? d.value * 0.6
-                : d.value,
-      }))
-    }
-    if (filteredRawData.length === 0 || mapData.length === 0) return []
+    if (filteredRawData.length === 0 || baseMap.length === 0) return []
 
-    return computeMapLayer(filteredRawData, mapData, {
+    return computeMapLayer(filteredRawData, baseMap, {
       metric: activeMetric,
       windowSize,
       disease: selectedDisease,
@@ -195,22 +191,20 @@ export default function MapPage() {
       ageGroup: selectedAgeGroup || undefined,
     })
   }, [
-    isDataLoaded,
     filteredRawData,
-    mapData,
+    baseMap,
     activeMetric,
     windowSize,
     selectedDisease,
     selectedSurgery,
     selectedAgeGroup,
-    primaryTab,
   ])
 
   const stats = useMemo(() => {
     if (layerData.length === 0) return { total: 0, avg: 0, max: 0 }
     const total = layerData.reduce((s, d) => s + d.value, 0)
     const avg = total / layerData.length
-    const max = Math.max(...layerData.map((d) => d.value))
+    const max = Math.max(0, ...layerData.map((d) => d.value))
     return { total, avg, max }
   }, [layerData])
 
@@ -226,7 +220,7 @@ export default function MapPage() {
   }, [layerData])
 
   const locationDetails = useMemo(() => {
-    if (!selectedLocation || !isDataLoaded || filteredRawData.length === 0) {
+    if (!selectedLocation || filteredRawData.length === 0) {
       return null
     }
     const region = selectedLocation.data?.region || '미분류'
@@ -273,7 +267,12 @@ export default function MapPage() {
         .map(([name, count]) => ({ name, count })),
       ageGroupCounts,
     }
-  }, [selectedLocation, isDataLoaded, filteredRawData, windowSize])
+  }, [selectedLocation, filteredRawData, windowSize])
+
+  const sampleUniquePatients = useMemo(() => {
+    if (!usingSample) return totalPatients
+    return new Set(baseData.map((p) => p.patient_id)).size
+  }, [usingSample, totalPatients, baseData])
 
   const hasActiveFilters = useMemo(
     () =>
@@ -350,9 +349,9 @@ export default function MapPage() {
           <h1 className="text-3xl font-bold mb-2">공간 분석 지도</h1>
           <p className="text-muted-foreground">
             OpenStreetMap 기반 공간 분석
-            {isDataLoaded
-              ? ` (실제 데이터 ${mapData.length}개 지역 · 윈도우 ${windowSize}일)`
-              : ' (샘플 데이터)'}
+            {usingSample
+              ? ` (샘플 데이터 · ${SAMPLE_DATE_RANGE_LABEL} · 윈도우 ${windowSize}일)`
+              : ` (실제 데이터 ${mapData.length}개 지역 · 윈도우 ${windowSize}일)`}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -372,7 +371,7 @@ export default function MapPage() {
               </Badge>
             )}
           </Button>
-          {!isDataLoaded && (
+          {usingSample && (
             <Button
               variant="outline"
               size="sm"
@@ -388,7 +387,8 @@ export default function MapPage() {
           </Badge>
           <Badge variant="secondary">
             <Users className="h-3 w-3 mr-1" />
-            {isDataLoaded ? `${totalPatients.toLocaleString()}명` : '샘플'}
+            {`${sampleUniquePatients.toLocaleString()}명`}
+            {usingSample ? ' · 샘플' : ''}
           </Badge>
         </div>
       </div>
@@ -516,7 +516,7 @@ export default function MapPage() {
               <Select
                 value={selectedDisease}
                 onValueChange={setSelectedDisease}
-                disabled={!isDataLoaded || diseaseOptions.length === 0}
+                disabled={diseaseOptions.length === 0}
               >
                 <SelectTrigger className="w-56">
                   <SelectValue placeholder="질병 선택" />
@@ -533,7 +533,7 @@ export default function MapPage() {
               <Select
                 value={selectedSurgery}
                 onValueChange={setSelectedSurgery}
-                disabled={!isDataLoaded || surgeryOptions.length === 0}
+                disabled={surgeryOptions.length === 0}
               >
                 <SelectTrigger className="w-56">
                   <SelectValue placeholder="수술 선택" />
@@ -594,9 +594,7 @@ export default function MapPage() {
             <CardDescription>{header.description}</CardDescription>
           </CardHeader>
           <CardContent className="p-6">
-            {isDataLoaded &&
-            filteredRawData.length === 0 &&
-            hasActiveFilters ? (
+            {filteredRawData.length === 0 && hasActiveFilters ? (
               <div className="h-[500px] flex items-center justify-center text-muted-foreground">
                 필터 조건에 맞는 데이터가 없습니다
               </div>
@@ -608,7 +606,7 @@ export default function MapPage() {
                   ? '질병을 선택하세요'
                   : '수술을 선택하세요'}
               </div>
-            ) : layerData.length === 0 && isDataLoaded ? (
+            ) : layerData.length === 0 ? (
               <div className="h-[500px] flex items-center justify-center text-muted-foreground">
                 표시할 좌표 데이터가 없습니다
               </div>

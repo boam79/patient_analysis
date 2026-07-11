@@ -23,6 +23,8 @@ import {
   hierarchicalConsistencyRatio,
   buildAnalysisSettingsSnapshot,
 } from '@/lib/utils/advanced-analysis'
+import { getDataReferenceDate } from '@/lib/utils/strategy-metrics'
+
 interface AdvancedStatisticsTabProps {
   data: PatientData[]
 }
@@ -31,21 +33,24 @@ export function AdvancedStatisticsTab({ data }: AdvancedStatisticsTabProps) {
   const analysis = useMemo(() => {
     if (!data?.length) return null
 
-    const maxDate = Math.max(...data.map((p) => new Date(p.visit_date).getTime()))
+    const refMs = getDataReferenceDate(data).getTime()
+    const maxDate = Math.max(
+      0,
+      ...data.map((p) => new Date(p.visit_date).getTime()).filter((t) => !Number.isNaN(t))
+    )
     const visitsByPatient = groupVisitsByPatient(data)
 
     const gapsFirst: (number | null)[] = []
     const censorFirst: (number | null)[] = []
     const kPoints: [number, number][] = []
-    const today = Date.now()
 
     visitsByPatient.forEach((visits) => {
       const sorted = [...visits].sort(
         (a, b) => new Date(a.visit_date).getTime() - new Date(b.visit_date).getTime()
       )
       const last = sorted[sorted.length - 1]
-      const recency = Math.round((today - new Date(last.visit_date).getTime()) / 86400000)
-      kPoints.push([Math.log(1 + sorted.length), Math.min(recency, 3650)])
+      const recency = Math.round((refMs - new Date(last.visit_date).getTime()) / 86400000)
+      kPoints.push([Math.log(1 + sorted.length), Math.min(Math.max(0, recency), 3650)])
 
       if (sorted.length >= 2) {
         const d0 = new Date(sorted[0].visit_date).getTime()

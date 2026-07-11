@@ -138,7 +138,10 @@ export function CohortAnalysis({ data }: CohortAnalysisProps) {
     )
   }
 
-  const maxPeriods = Math.max(...cohortData.map((r) => r.retention.length))
+  const maxPeriods = Math.max(
+    0,
+    ...cohortData.map((r) => r.retention.length)
+  )
   const periodLabels = Array.from({ length: maxPeriods }, (_, i) => `+${i + 1}개월`)
 
   return (
