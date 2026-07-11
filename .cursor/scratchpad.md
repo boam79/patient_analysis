@@ -1670,8 +1670,11 @@ Round A 구현 완료. PredictionAnalysis 삭제, strategy-metrics 공용 모듈
 - [x] 벤치마크 모듈 분리(evidenceLevel)
 - [x] buildManagementInsights 순수 함수화·테스트
 - [x] UI 근거 수준 배지·출처 정리
-- [ ] main 푸시
+- [x] main 푸시 (`9414c91`)
 
+### Executor's Feedback
+#### 2026-07-11 — 경영 인사이트 근거 정확도 v5.3.4 → main
+수동 확인: 전략 탭 인사이트에 가짜 HIRA 수술비중·COC 0.82·%/월 통계청 표현이 없는지 확인 후 Planner complete 요청.
 ### Lessons
 - 공적 통계는 모집단·정의가 같아야만 벤치마크로 붙일 수 있음. 다르면 배경 인용 + 운영 휴리스틱으로 분리
 
