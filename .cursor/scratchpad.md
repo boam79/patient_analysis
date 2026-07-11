@@ -1358,3 +1358,74 @@ fbad674 - feat: 차트 데이터 실제 반영 및 필터 시스템 통합
 - Slack 알림을 받으려면 Cursor Dashboard(Cloud Agents > Secrets) 또는 Vercel 환경변수에 `SLACK_WEBHOOK_URL` 추가
 - 크론 엔드포인트 보호를 원하면 `CRON_SECRET` 추가 후 Vercel Cron 설정에서 동일 값 사용
 - 위 3개 마이그레이션 SQL을 Supabase 대시보드 SQL Editor에서 실행해야 rate limiting/에러 로그/이상탐지 알림 기능이 완전히 동작함 (미실행 시에도 fail-open으로 서비스 자체는 정상 동작, 신규 기능만 비활성 상태로 남음)
+
+---
+
+## 🎨 전면 디자인 개편 제안 (2026-07-11) — Planner Mode
+
+### Background and Motivation
+
+기능(v4.7: 분석·인증·Admin·rate limit·지오코딩·에러로그)은 성숙했으나 UI는 shadcn 기본 흑백 토큰, 랜딩 부재(`/`→업로드 리다이렉트), Pretendard 미로드, 이모지 네비, 카드 중첩, Admin(`slate-900`+blue)과 메인 앱 톤 불일치 상태. 제품 정체성·첫인상·모바일 셸을 v5.0 UI로 맞출 필요가 있음.
+
+**상세 제안서**: `docs/01-proposals/FRONTEND_DESIGN_OVERHAUL_v5.0.md`
+
+### Key Challenges and Analysis
+
+1. **브랜드 부재**: 네비 밖에서도 “병원 CRM”이 식별되지 않음 → 랜딩 히어로 필수 여부 결정 필요
+2. **대시보드 vs 마케팅 규칙**: 대시보드는 카드/밀도 예외 허용하되 중첩·이모지·클리셰 제거
+3. **범위 팽창 위험**: 차트 라이브러리/분석 로직은 비목표로 고정
+4. **유령 컴포넌트**: `main-dashboard.tsx`, `bottom-tabs.tsx` 플레이스홀더 정리
+5. **버전 표기**: UI `v4.5` vs package `v4.7.0` 불일치
+
+**디자인 방향 (제안)**: Harbor Clinical — deep teal `#0B6E6E` + cool mist 표면 + Pretendard/SUITE 실로드. 퍼플·크림세리프테라코타·다크글로우 배제.
+
+### High-level Task Breakdown
+
+#### Phase 0 — 토큰·타이포
+- [ ] D0.1 `globals.css` Harbor Clinical 토큰
+- [ ] D0.2 Pretendard(+SUITE) 실로드
+- [ ] D0.3 `tailwind.config.ts` 매핑 (Inter 의존 제거)
+
+#### Phase 1 — 랜딩·셸
+- [ ] D1.1 `/` 랜딩 (리다이렉트 제거, 브랜드+CTA+풀블리드)
+- [ ] D1.2 Header (이모지 제거, 활성 상태, 모바일)
+- [ ] D1.3 Footer 톤 맞춤
+
+#### Phase 2 — 핵심 화면
+- [ ] D2.1 업로드 페이지 시각 개편
+- [ ] D2.2 대시보드 KPI 메트릭 스트립·카드 중첩 축소
+- [ ] D2.3 로그인·login-admin 톤 통일
+
+#### Phase 3 — Admin·폴리시
+- [ ] D3.1 Admin 셸 토큰 정렬 (teal)
+- [ ] D3.2 모션 2–3개 + reduced-motion
+- [ ] D3.3 유령 컴포넌트·버전 표기 정리
+
+#### Phase 4 — 검증
+- [ ] D4.1 데스크톱·375px 스모크
+- [ ] D4.2 lint/tsc/vitest/build
+- [ ] D4.3 README·메타데이터 v5.0 UI
+
+### Project Status Board
+
+- [ ] Phase 0: 토큰·타이포 (0/3)
+- [ ] Phase 1: 랜딩·셸 (0/3)
+- [ ] Phase 2: 핵심 화면 (0/3)
+- [ ] Phase 3: Admin·폴리시 (0/3)
+- [ ] Phase 4: 검증 (0/3)
+
+**현재**: Planner 제안 완료 — **사용자 승인 대기** (구현 착수 전)
+
+### Executor's Feedback or Assistance Requests
+
+(구현 전) 사용자 확인 필요:
+1. Harbor Clinical(teal mist) 방향 OK? 대안 slate-clinical / sage-clinical
+2. `/` 랜딩 신설 vs 업로드만 브랜드화
+3. Admin 동시 톤 통일 vs 메인만 우선
+
+승인 후 Executor는 **D0.1 하나만** 수행하고 수동 확인을 요청할 것.
+
+### Lessons
+
+- 디자인 개편은 기능 PR과 분리하고, 토큰→셸→화면 순으로 회귀 범위를 좁힌다.
+- Pretendard를 tailwind에만 적고 로드하지 않으면 시스템 폰트로 폴백된다 — 실로드를 Phase 0에 포함.
