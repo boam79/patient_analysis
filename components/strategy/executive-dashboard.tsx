@@ -4,14 +4,22 @@ import { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PatientData } from '@/stores/data-store'
 import { resolvePatientId } from '@/lib/utils/patient-identity'
+import {
+  computeRetentionSummary,
+  computeMonthlyUniquePatientGrowth,
+  DEFAULT_STRATEGY_WINDOW,
+} from '@/lib/utils/strategy-metrics'
 import { Users, TrendingUp, MapPin, Calendar, AlertCircle } from 'lucide-react'
-import { extractMonth, parseDate } from '@/lib/utils/date-helpers'
 
 interface ExecutiveDashboardProps {
   data: PatientData[]
+  windowSize?: number
 }
 
-export function ExecutiveDashboard({ data }: ExecutiveDashboardProps) {
+export function ExecutiveDashboard({
+  data,
+  windowSize = DEFAULT_STRATEGY_WINDOW,
+}: ExecutiveDashboardProps) {
   // 핵심 경영 지표 계산
   const metrics = useMemo(() => {
     if (!data || data.length === 0) {
@@ -28,36 +36,15 @@ export function ExecutiveDashboard({ data }: ExecutiveDashboardProps) {
       }
     }
 
-    // 고유 환자 식별 (이름+주소 기준) - 메인 대시보드 KPI 로직과 동일하게 맞춤
-    const patientKey = (p: PatientData) => resolvePatientId(p)
+    const retention = computeRetentionSummary(data, windowSize)
+    const uniquePatients = retention.uniquePatients
+    const avgVisitsPerPatient =
+      uniquePatients > 0 ? data.length / uniquePatients : 0
 
-    const uniquePatientKeys = new Set(data.map(patientKey))
-    const uniquePatients = uniquePatientKeys.size
-
-    // 환자별 방문 횟수
-    const patientVisitCounts = new Map<string, number>()
-    data.forEach(p => {
-      const key = patientKey(p)
-      patientVisitCounts.set(key, (patientVisitCounts.get(key) || 0) + 1)
-    })
-
-    // 신규 환자 (1회 방문만)
-    const newPatients = Array.from(patientVisitCounts.values()).filter(count => count === 1).length
-    
-    // 재방문 환자 (2회 이상)
-    const returningPatients = Array.from(patientVisitCounts.values()).filter(count => count > 1).length
-
-    // 재방문율
-    const retentionRate = uniquePatients > 0 ? (returningPatients / uniquePatients) * 100 : 0
-
-    // 환자당 평균 방문 횟수
-    const avgVisitsPerPatient = uniquePatients > 0 ? data.length / uniquePatients : 0
-
-    // 지역별 고유 환자 수 (이름+주소 기준)
     const regionPatients = new Map<string, Set<string>>()
-    data.forEach(p => {
+    data.forEach((p) => {
       if (p.region) {
-        const key = patientKey(p)
+        const key = resolvePatientId(p)
         if (!regionPatients.has(p.region)) {
           regionPatients.set(p.region, new Set())
         }
@@ -69,11 +56,10 @@ export function ExecutiveDashboard({ data }: ExecutiveDashboardProps) {
       .sort((a, b) => b.count - a.count)
       .slice(0, 5)
 
-    // 질병별 고유 환자 수 (이름+주소 기준)
     const diseasePatients = new Map<string, Set<string>>()
-    data.forEach(p => {
+    data.forEach((p) => {
       if (p.disease_name) {
-        const key = patientKey(p)
+        const key = resolvePatientId(p)
         if (!diseasePatients.has(p.disease_name)) {
           diseasePatients.set(p.disease_name, new Set())
         }
@@ -85,34 +71,20 @@ export function ExecutiveDashboard({ data }: ExecutiveDashboardProps) {
       .sort((a, b) => b.count - a.count)
       .slice(0, 5)
 
-    // 성장률 계산 (월별 환자 수 비교)
-    const monthlyVisits = new Map<string, number>()
-    data.forEach(p => {
-      const month = extractMonth(p.visit_date)
-      if (month) {
-        monthlyVisits.set(month, (monthlyVisits.get(month) || 0) + 1)
-      }
-    })
-    const sortedMonths = Array.from(monthlyVisits.entries()).sort()
-    let growthRate = 0
-    if (sortedMonths.length >= 2) {
-      const lastMonth = sortedMonths[sortedMonths.length - 1][1]
-      const prevMonth = sortedMonths[sortedMonths.length - 2][1]
-      growthRate = prevMonth > 0 ? ((lastMonth - prevMonth) / prevMonth) * 100 : 0
-    }
+    const growthRate = computeMonthlyUniquePatientGrowth(data)
 
     return {
       totalVisits: data.length,
       uniquePatients,
-      newPatients,
-      returningPatients,
-      retentionRate,
+      newPatients: retention.newPatients,
+      returningPatients: retention.returningPatients,
+      retentionRate: retention.retentionRate,
       topRegions,
       topDiseases,
       growthRate,
       avgVisitsPerPatient,
     }
-  }, [data])
+  }, [data, windowSize])
 
   return (
     <div className="space-y-6">
@@ -140,6 +112,7 @@ export function ExecutiveDashboard({ data }: ExecutiveDashboardProps) {
             <div className="text-2xl font-bold">{metrics.retentionRate.toFixed(1)}%</div>
             <p className="text-xs text-muted-foreground">
               재방문: {metrics.returningPatients}명 | 신규: {metrics.newPatients}명
+              {' '}({windowSize}일 윈도우)
             </p>
           </CardContent>
         </Card>
@@ -171,7 +144,7 @@ export function ExecutiveDashboard({ data }: ExecutiveDashboardProps) {
               {metrics.growthRate >= 0 ? '+' : ''}{metrics.growthRate.toFixed(1)}%
             </div>
             <p className="text-xs text-muted-foreground">
-              전월 대비 환자 수 변화
+              전월 대비 고유 환자 수 변화
             </p>
           </CardContent>
         </Card>

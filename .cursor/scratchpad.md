@@ -1544,3 +1544,20 @@ PR #7: https://github.com/boam79/patient_analysis/pull/7
 - filter persist 키를 바꿔야 구 기본값(2024 날짜)이 localStorage에 남지 않음
 - data-store 재방문율을 "방문 2회+"로 두면 대시보드 윈도우 KPI와 어긋남
 
+---
+
+## 📊 전략 분석 고도화·정리 v5.2 (2026-07-11)
+
+### Planner 제안
+`docs/01-proposals/STRATEGY_ANALYSIS_CONSOLIDATION_v5.2.md`
+
+### Project Status Board
+- [x] 제안서 작성
+- [x] Round A: windowSize·공용 재방문·RFM 기준일·성별 1/2·Prediction 제거·버그 수정
+- [x] tsc / vitest 46 / build
+- [ ] main 머지·푸시
+- [ ] Round B/C (Journey 흡수 등) — 승인 후
+
+### Executor's Feedback
+Round A 구현 완료. PredictionAnalysis 삭제, strategy-metrics 공용 모듈 도입.
+

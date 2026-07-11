@@ -6,7 +6,8 @@ import { Badge } from '@/components/ui/badge'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { AlertTriangle, ShieldCheck, AlertCircle } from 'lucide-react'
 import type { PatientData } from '@/stores/data-store'
-import { groupVisitsByPatient, calcVisitIntervals } from '@/lib/utils/patient-identity'
+import { groupVisitsByPatient } from '@/lib/utils/patient-identity'
+import { getDataReferenceDate } from '@/lib/utils/strategy-metrics'
 import { calculatePercentile } from '@/lib/utils/statistical-insights'
 import { wilsonScoreInterval } from '@/lib/utils/advanced-analysis'
 
@@ -47,7 +48,7 @@ export function RfmAnalysis({ data }: RfmAnalysisProps) {
       return { scores: [], summary: null, riskDistribution: [] }
     }
 
-    const today = Date.now()
+    const today = getDataReferenceDate(data).getTime()
     const MS_PER_DAY = 1000 * 60 * 60 * 24
 
     const visitsByPatient = groupVisitsByPatient(data)

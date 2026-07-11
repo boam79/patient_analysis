@@ -7,16 +7,13 @@ import { PatientData, useDataStore } from '@/stores/data-store'
 import { Users, MapPin, Calendar, Target, BarChart3, AlertTriangle, Activity } from 'lucide-react'
 import { filterPatients } from '@/lib/utils/patient-filters'
 
-// 분석 컴포넌트들 (추가 예정)
 import { PatientFlowAnalysis } from '@/components/strategy/patient-flow-analysis'
 import { RegionalMarketAnalysis } from '@/components/strategy/regional-market-analysis'
 import { DiseaseSurgeryStrategy } from '@/components/strategy/disease-surgery-strategy'
 import { CustomerSegmentAnalysis } from '@/components/strategy/customer-segment-analysis'
 import { TrendAnalysis } from '@/components/strategy/trend-analysis'
-import { PredictionAnalysis } from '@/components/strategy/prediction-analysis'
 import { ExecutiveDashboard } from '@/components/strategy/executive-dashboard'
 import { ManagementInsights } from '@/components/strategy/management-insights'
-// 고도화 분석 컴포넌트
 import { CohortAnalysis } from '@/components/strategy/cohort-analysis'
 import { RfmAnalysis } from '@/components/strategy/rfm-analysis'
 import { AssociationAnalysis } from '@/components/strategy/association-analysis'
@@ -65,14 +62,14 @@ export default function StrategyPage() {
     ageGroups,
     genders,
     dateRange,
+    windowSize,
   } = useFilterStore()
-  
-  const { 
+
+  const {
     rawData,
     isDataLoaded,
   } = useDataStore()
 
-  // 필터링된 데이터 (실제 데이터가 없으면 샘플 데이터 사용)
   const filteredData = useMemo(() => {
     const baseData = isDataLoaded && rawData && rawData.length > 0 ? rawData : SAMPLE_PATIENT_DATA
     if (baseData.length === 0) return []
@@ -95,14 +92,13 @@ export default function StrategyPage() {
           <p className="text-sm text-muted-foreground mt-2">
             병원 CRM 데이터 기반 경영·마케팅 전략 수립을 위한 심화 분석
             {isDataLoaded ? ' (실제 데이터)' : ' (샘플 데이터)'}
+            {' · '}재방문 윈도우 {windowSize}일
           </p>
         </div>
       </div>
 
-      {/* 경영 인사이트 */}
-      <ManagementInsights data={filteredData} />
+      <ManagementInsights data={filteredData} windowSize={windowSize} />
 
-      {/* 전략 분석 탭 */}
       <Tabs defaultValue="executive" className="w-full">
         <TabsList className="flex flex-wrap gap-1 h-auto justify-start">
           <TabsTrigger value="executive" className="flex items-center gap-1 text-xs">
@@ -129,11 +125,11 @@ export default function StrategyPage() {
         </TabsList>
 
         <TabsContent value="executive" className="mt-6">
-          <ExecutiveDashboard data={filteredData} />
+          <ExecutiveDashboard data={filteredData} windowSize={windowSize} />
         </TabsContent>
 
         <TabsContent value="retention" className="mt-6 space-y-8">
-          <PatientFlowAnalysis data={filteredData} />
+          <PatientFlowAnalysis data={filteredData} windowSize={windowSize} />
           <RfmAnalysis data={filteredData} />
           <CohortAnalysis data={filteredData} />
           <PatientJourney data={filteredData} />
@@ -144,7 +140,7 @@ export default function StrategyPage() {
         </TabsContent>
 
         <TabsContent value="clinical" className="mt-6 space-y-8">
-          <DiseaseSurgeryStrategy data={filteredData} />
+          <DiseaseSurgeryStrategy data={filteredData} windowSize={windowSize} />
           <AssociationAnalysis data={filteredData} />
         </TabsContent>
 
@@ -155,7 +151,6 @@ export default function StrategyPage() {
         <TabsContent value="timeseries" className="mt-6 space-y-8">
           <TrendAnalysis data={filteredData} />
           <SeasonalForecast data={filteredData} />
-          <PredictionAnalysis data={filteredData} />
         </TabsContent>
 
         <TabsContent value="advanced" className="mt-6 space-y-8">

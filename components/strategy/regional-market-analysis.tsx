@@ -173,7 +173,9 @@ export function RegionalMarketAnalysis({ data }: RegionalMarketAnalysisProps) {
                 : '0%'}
             </div>
             <p className="text-xs text-muted-foreground">
-              {analysis.growthByRegion.length > 0 ? analysis.growthByRegion[0].region : '-'}
+              {analysis.growthByRegion.length > 0 && analysis.growthByRegion[0].growthRate > 0
+                ? analysis.growthByRegion[0].region
+                : '성장 지역 없음'}
             </p>
           </CardContent>
         </Card>

@@ -28,11 +28,23 @@ export function normalizeGender(gender: string | null | undefined): '남성' | '
   
   const normalized = gender.toString().trim().toUpperCase()
   
-  if (normalized === 'M' || normalized === '남' || normalized === '남성' || normalized === 'MALE') {
+  if (
+    normalized === 'M' ||
+    normalized === '남' ||
+    normalized === '남성' ||
+    normalized === 'MALE' ||
+    normalized === '1'
+  ) {
     return '남성'
   }
   
-  if (normalized === 'F' || normalized === '여' || normalized === '여성' || normalized === 'FEMALE') {
+  if (
+    normalized === 'F' ||
+    normalized === '여' ||
+    normalized === '여성' ||
+    normalized === 'FEMALE' ||
+    normalized === '2'
+  ) {
     return '여성'
   }
   

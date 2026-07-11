@@ -106,7 +106,7 @@ export function AssociationAnalysis({ data }: AssociationAnalysisProps) {
       const h = cohensH(confidence, pSurgery)
 
       // 최소 지지도 5% 이상, 최소 3명 이상
-      if (support >= 0.01 && count >= 3) {
+      if (support >= 0.05 && count >= 3) {
         rules.push({ disease, surgery, support, confidence, lift, count, cohensH: Math.round(h * 1000) / 1000 })
       }
     })

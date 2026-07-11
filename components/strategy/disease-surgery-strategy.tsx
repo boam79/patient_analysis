@@ -3,13 +3,19 @@
 import { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PatientData } from '@/stores/data-store'
-import { TrendingUp, Activity } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { resolvePatientId } from '@/lib/utils/patient-identity'
 import { hasSurgery } from '@/lib/utils/analysis-helpers'
+import { computeDiseaseRecurrenceRates } from '@/lib/utils/monthly-trend'
+import {
+  isReturningWithinWindow,
+  DEFAULT_STRATEGY_WINDOW,
+} from '@/lib/utils/strategy-metrics'
+import { groupVisitsByPatient } from '@/lib/utils/patient-identity'
 
 interface DiseaseSurgeryStrategyProps {
   data: PatientData[]
+  windowSize?: number
 }
 
 function surgeryLabel(p: PatientData): string {
@@ -20,7 +26,10 @@ function surgeryLabel(p: PatientData): string {
   )
 }
 
-export function DiseaseSurgeryStrategy({ data }: DiseaseSurgeryStrategyProps) {
+export function DiseaseSurgeryStrategy({
+  data,
+  windowSize = DEFAULT_STRATEGY_WINDOW,
+}: DiseaseSurgeryStrategyProps) {
   const analysis = useMemo(() => {
     if (!data || data.length === 0) {
       return {
@@ -145,52 +154,47 @@ export function DiseaseSurgeryStrategy({ data }: DiseaseSurgeryStrategyProps) {
       
       if (hasSurgery(p)) {
         const sLabel = surgeryLabel(p)
-        if (!sLabel) return
-        if (!patientSurgeries.has(id)) {
-          patientSurgeries.set(id, new Set())
+        if (sLabel) {
+          if (!patientSurgeries.has(id)) {
+            patientSurgeries.set(id, new Set())
+          }
+          patientSurgeries.get(id)!.add(sLabel)
         }
-        patientSurgeries.get(id)!.add(sLabel)
       }
     })
 
-    // 질병별 재방문율
-    const diseaseRetention = new Map<string, { total: number; returning: number }>()
-    patientVisitCounts.forEach((count, patientId) => {
-      const diseases = patientDiseases.get(patientId) || new Set()
-      diseases.forEach(disease => {
-        if (!diseaseRetention.has(disease)) {
-          diseaseRetention.set(disease, { total: 0, returning: 0 })
-        }
-        const stat = diseaseRetention.get(disease)!
-        stat.total++
-        if (count > 1) {
-          stat.returning++
-        }
-      })
+    // 질병별 재방문율 (윈도우 — 대시보드와 동일)
+    const diseaseRates = computeDiseaseRecurrenceRates(data, windowSize)
+    const visitsByPatient = groupVisitsByPatient(data)
+    const diseaseTotals = new Map<string, number>()
+    visitsByPatient.forEach((visits) => {
+      const primary = visits[0]?.disease_name
+      if (!primary) return
+      diseaseTotals.set(primary, (diseaseTotals.get(primary) || 0) + 1)
     })
 
-    const diseaseRetentionArray = Array.from(diseaseRetention.entries())
-      .map(([disease, stat]) => ({
+    const diseaseRetentionArray = Array.from(diseaseTotals.entries())
+      .map(([disease, total]) => ({
         disease,
-        retentionRate: stat.total > 0 ? (stat.returning / stat.total) * 100 : 0,
-        total: stat.total,
-        returning: stat.returning,
+        retentionRate: diseaseRates.get(disease) || 0,
+        total,
+        returning: Math.round(((diseaseRates.get(disease) || 0) / 100) * total),
       }))
       .sort((a, b) => b.total - a.total)
 
-    // 수술별 재방문율
+    // 수술별 재방문율 (해당 수술 경험 환자, 윈도우)
     const surgeryRetention = new Map<string, { total: number; returning: number }>()
-    patientVisitCounts.forEach((count, patientId) => {
-      const surgeries = patientSurgeries.get(patientId) || new Set()
-      surgeries.forEach(surgery => {
+    visitsByPatient.forEach((visits, patientId) => {
+      const surgeries = patientSurgeries.get(patientId)
+      if (!surgeries || surgeries.size === 0) return
+      const returned = isReturningWithinWindow(visits, windowSize)
+      surgeries.forEach((surgery) => {
         if (!surgeryRetention.has(surgery)) {
           surgeryRetention.set(surgery, { total: 0, returning: 0 })
         }
         const stat = surgeryRetention.get(surgery)!
         stat.total++
-        if (count > 1) {
-          stat.returning++
-        }
+        if (returned) stat.returning++
       })
     })
 
@@ -210,7 +214,7 @@ export function DiseaseSurgeryStrategy({ data }: DiseaseSurgeryStrategyProps) {
       diseaseRetention: diseaseRetentionArray,
       surgeryRetention: surgeryRetentionArray,
     }
-  }, [data])
+  }, [data, windowSize])
 
   return (
     <div className="space-y-6">
@@ -252,7 +256,7 @@ export function DiseaseSurgeryStrategy({ data }: DiseaseSurgeryStrategyProps) {
       {/* 질병별 재방문율 */}
       <Card>
         <CardHeader>
-          <CardTitle>질병별 재방문율 Top 10</CardTitle>
+          <CardTitle>질병별 재방문율 Top 10 ({windowSize}일 윈도우)</CardTitle>
         </CardHeader>
         <CardContent>
           {analysis.diseaseRetention.length === 0 ? (
@@ -266,6 +270,29 @@ export function DiseaseSurgeryStrategy({ data }: DiseaseSurgeryStrategyProps) {
                 <Tooltip />
                 <Legend />
                 <Bar dataKey="retentionRate" fill="#82ca9d" name="재방문율 (%)" />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 수술별 재방문율 */}
+      <Card>
+        <CardHeader>
+          <CardTitle>수술별 재방문율 ({windowSize}일 윈도우)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {analysis.surgeryRetention.length === 0 ? (
+            <p className="text-sm text-muted-foreground">수술 데이터가 없습니다.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={analysis.surgeryRetention.slice(0, 10)}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="surgery" angle={-45} textAnchor="end" height={100} />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="retentionRate" fill="#8884d8" name="재방문율 (%)" />
               </BarChart>
             </ResponsiveContainer>
           )}

@@ -5,21 +5,21 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PatientData } from '@/stores/data-store'
 import { resolvePatientId } from '@/lib/utils/patient-identity'
 import { hasSurgery } from '@/lib/utils/analysis-helpers'
+import {
+  computeRetentionSummary,
+  computeMonthlyUniquePatientGrowth,
+  DEFAULT_STRATEGY_WINDOW,
+} from '@/lib/utils/strategy-metrics'
 import { AlertCircle, CheckCircle2, TrendingUp, Users, MapPin, Target, Lightbulb, BarChart3, Activity } from 'lucide-react'
 import { extractMonth } from '@/lib/utils/date-helpers'
 import {
-  calculateMean,
-  calculateStdDev,
   calculateZScore,
-  calculatePercentile,
   analyzeTrend,
-  calculateDynamicThresholds,
-  compareWithBaseline,
-  type TrendResult
 } from '@/lib/utils/statistical-insights'
 
 interface ManagementInsightsProps {
   data: PatientData[]
+  windowSize?: number
 }
 
 type InsightCategory = 'warning' | 'info' | 'success' | 'critical'
@@ -148,7 +148,10 @@ const SPINE_JOINT_BENCHMARKS = {
     source: '공정거래위원회 HHI 기준, 보건복지부 전문병원 현황 통계 2023',
   },
 }
-export function ManagementInsights({ data }: ManagementInsightsProps) {
+export function ManagementInsights({
+  data,
+  windowSize = DEFAULT_STRATEGY_WINDOW,
+}: ManagementInsightsProps) {
   const insights = useMemo(() => {
     if (!data || data.length === 0) {
       return []
@@ -157,24 +160,12 @@ export function ManagementInsights({ data }: ManagementInsightsProps) {
     const insightsList: Insight[] = []
 
     // ========== 기본 데이터 계산 ==========
-    
-    // 고유 환자 식별
     const patientKey = (p: PatientData) => resolvePatientId(p)
-    const uniquePatientKeys = new Set(data.map(patientKey))
-    const uniquePatients = uniquePatientKeys.size
-
-    // 환자별 방문 횟수
-    const patientVisitCounts = new Map<string, number>()
-    data.forEach(p => {
-      const key = patientKey(p)
-      patientVisitCounts.set(key, (patientVisitCounts.get(key) || 0) + 1)
-    })
-
-    const visitCountValues = Array.from(patientVisitCounts.values())
-    const newPatients = visitCountValues.filter(count => count === 1).length
-    const returningPatients = visitCountValues.filter(count => count > 1).length
-    const retentionRate = uniquePatients > 0 ? (returningPatients / uniquePatients) * 100 : 0
-    const avgVisitsPerPatient = uniquePatients > 0 ? data.length / uniquePatients : 0
+    const retention = computeRetentionSummary(data, windowSize)
+    const uniquePatients = retention.uniquePatients
+    const retentionRate = retention.retentionRate
+    const avgVisitsPerPatient =
+      uniquePatients > 0 ? data.length / uniquePatients : 0
 
     // 지역별 분석
     const regionPatients = new Map<string, Set<string>>()
@@ -211,40 +202,20 @@ export function ManagementInsights({ data }: ManagementInsightsProps) {
     // ========== 월별 데이터 분석 (통계 기반) ==========
     
     const monthlyVisits = new Map<string, number>()
-    const monthlyNewPatients = new Map<string, Set<string>>()
     
     data.forEach(p => {
       const month = extractMonth(p.visit_date)
       if (month) {
         monthlyVisits.set(month, (monthlyVisits.get(month) || 0) + 1)
-        
-        if (!monthlyNewPatients.has(month)) {
-          monthlyNewPatients.set(month, new Set())
-        }
-        monthlyNewPatients.get(month)!.add(patientKey(p))
       }
     })
     
     const sortedMonths = Array.from(monthlyVisits.entries()).sort()
     const monthlyVisitValues = sortedMonths.map(([, count]) => count)
     
-    // 월별 방문 수 통계
-    const visitMean = calculateMean(monthlyVisitValues)
-    const visitStdDev = calculateStdDev(monthlyVisitValues)
-    const visitThresholds = calculateDynamicThresholds(monthlyVisitValues)
+    const growthRate = computeMonthlyUniquePatientGrowth(data)
     
-    // 성장률 계산 (마지막 달 vs 이전 달)
-    let growthRate = 0
-    let lastMonthVisits = 0
-    let prevMonthVisits = 0
-    
-    if (sortedMonths.length >= 2) {
-      lastMonthVisits = sortedMonths[sortedMonths.length - 1][1]
-      prevMonthVisits = sortedMonths[sortedMonths.length - 2][1]
-      growthRate = prevMonthVisits > 0 ? ((lastMonthVisits - prevMonthVisits) / prevMonthVisits) * 100 : 0
-    }
-    
-    // 트렌드 분석 (최근 6개월)
+    // 트렌드 분석 (최근 6개월) — 방문 수 시계열
     const recentMonths = monthlyVisitValues.slice(-6)
     const visitTrend = analyzeTrend(recentMonths)
     
@@ -313,8 +284,6 @@ export function ManagementInsights({ data }: ManagementInsightsProps) {
     const growthBench = SPINE_JOINT_BENCHMARKS.growthRate
 
     if (sortedMonths.length >= 2) {
-      compareWithBaseline(lastMonthVisits, prevMonthVisits, visitStdDev)
-
       if (growthRate <= growthBench.criticalThreshold) {
         insightsList.push({
           id: 'growth-critical',
@@ -505,7 +474,7 @@ export function ManagementInsights({ data }: ManagementInsightsProps) {
           confidence: 82,
           recommendations: [
             `${topRegions[0].region} 권역 주요 척추관절 질환 특화 마케팅 유지`,
-            '타 지역 환자 비율 목표 ${mktBench.expectedOutRegionRate}% 이상 달성 현황 모니터링',
+            `타 지역 환자 비율 목표 ${mktBench.expectedOutRegionRate}% 이상 달성 현황 모니터링`,
           ],
         })
       }
@@ -534,7 +503,9 @@ export function ManagementInsights({ data }: ManagementInsightsProps) {
       })
     }
 
-    // 8. 신규 환자 비율 — 전문병원 특성 반영
+    // 8. 신규 환자 비율 — 전문병원 특성 반영 (윈도우 미재방문 = 신규)
+    const newPatients = retention.newPatients
+    const returningPatients = retention.returningPatients
     const newPatientRate = uniquePatients > 0 ? (newPatients / uniquePatients) * 100 : 0
 
     if (newPatientRate > 70) {
@@ -581,7 +552,7 @@ export function ManagementInsights({ data }: ManagementInsightsProps) {
       }
       return priorityOrder[b.priority] - priorityOrder[a.priority]
     })
-  }, [data])
+  }, [data, windowSize])
 
   if (insights.length === 0) {
     return null

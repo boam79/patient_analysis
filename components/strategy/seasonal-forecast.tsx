@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Legend, Area, ReferenceLine,
+  ResponsiveContainer, Legend, Area, ReferenceLine, Cell,
 } from 'recharts'
 import { TrendingUp, Sun } from 'lucide-react'
 import type { PatientData } from '@/stores/data-store'
@@ -198,7 +198,7 @@ export function SeasonalForecast({ data }: SeasonalForecastProps) {
             월별 방문 수 추이 및 예측 (95% 신뢰구간)
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            지수 평활법 기반 예측. 음영 영역은 95% 신뢰구간입니다.
+            지수 평활법 기반 단기 예측(기존 이동평균 예측 패널 흡수). 음영 영역은 95% 신뢰구간입니다.
           </p>
         </CardHeader>
         <CardContent>
@@ -290,7 +290,7 @@ export function SeasonalForecast({ data }: SeasonalForecastProps) {
               <ReferenceLine y={100} stroke="#94a3b8" strokeDasharray="4 4" label={{ value: '기준(100)', position: 'right', fontSize: 11 }} />
               <Bar dataKey="계절지수" radius={[4, 4, 0, 0]}>
                 {seasonalIndex.map((entry, i) => (
-                  <rect
+                  <Cell
                     key={i}
                     fill={entry.isPeak ? '#f97316' : entry.isLow ? '#93c5fd' : '#a3a3a3'}
                   />

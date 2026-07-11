@@ -3,16 +3,26 @@
 import { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PatientData } from '@/stores/data-store'
-import { Users, TrendingUp, TrendingDown, ArrowRight } from 'lucide-react'
+import { Users, TrendingUp, TrendingDown } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts'
 import { parseDate } from '@/lib/utils/date-helpers'
-import { resolvePatientId } from '@/lib/utils/patient-identity'
+import { groupVisitsByPatient } from '@/lib/utils/patient-identity'
+import { computeDiseaseRecurrenceRates } from '@/lib/utils/monthly-trend'
+import {
+  computeRetentionSummary,
+  isReturningWithinWindow,
+  DEFAULT_STRATEGY_WINDOW,
+} from '@/lib/utils/strategy-metrics'
 
 interface PatientFlowAnalysisProps {
   data: PatientData[]
+  windowSize?: number
 }
 
-export function PatientFlowAnalysis({ data }: PatientFlowAnalysisProps) {
+export function PatientFlowAnalysis({
+  data,
+  windowSize = DEFAULT_STRATEGY_WINDOW,
+}: PatientFlowAnalysisProps) {
   // 환자 유입/유지 분석
   const flowAnalysis = useMemo(() => {
     if (!data || data.length === 0) {
@@ -30,43 +40,32 @@ export function PatientFlowAnalysis({ data }: PatientFlowAnalysisProps) {
       }
     }
 
-    // 환자별 방문 횟수
+    const visitsByPatient = groupVisitsByPatient(data)
+    const retention = computeRetentionSummary(data, windowSize)
+
     const patientVisitCounts = new Map<string, number>()
     const patientFirstVisit = new Map<string, string>()
     const patientLastVisit = new Map<string, string>()
     const patientDiseases = new Map<string, Set<string>>()
     const patientRegions = new Map<string, Set<string>>()
 
-    data.forEach(p => {
-      const id = resolvePatientId(p)
-      const count = (patientVisitCounts.get(id) || 0) + 1
-      patientVisitCounts.set(id, count)
-      
-      if (!patientFirstVisit.has(id)) {
-        patientFirstVisit.set(id, p.visit_date)
-      }
-      // 마지막 방문일 업데이트 (날짜 비교)
-      const currentLastVisit = patientLastVisit.get(id)
-      if (!currentLastVisit || (parseDate(p.visit_date) && parseDate(currentLastVisit) && parseDate(p.visit_date)! > parseDate(currentLastVisit)!)) {
-        patientLastVisit.set(id, p.visit_date)
-      }
-      
-      if (!patientDiseases.has(id)) {
-        patientDiseases.set(id, new Set())
-      }
-      patientDiseases.get(id)!.add(p.disease_name)
-      
-      if (!patientRegions.has(id)) {
-        patientRegions.set(id, new Set())
-      }
-      if (p.region) {
-        patientRegions.get(id)!.add(p.region)
-      }
+    visitsByPatient.forEach((visits, id) => {
+      patientVisitCounts.set(id, visits.length)
+      patientFirstVisit.set(id, visits[0].visit_date)
+      patientLastVisit.set(id, visits[visits.length - 1].visit_date)
+      const diseases = new Set<string>()
+      const regions = new Set<string>()
+      visits.forEach((p) => {
+        if (p.disease_name) diseases.add(p.disease_name)
+        if (p.region) regions.add(p.region)
+      })
+      patientDiseases.set(id, diseases)
+      patientRegions.set(id, regions)
     })
 
     // 환자 여정 분석 (1회, 2회, 3회, 4회, 5회 이상)
     const journeyMap = new Map<string, number>()
-    patientVisitCounts.forEach((count, patientId) => {
+    patientVisitCounts.forEach((count) => {
       let category = ''
       if (count === 1) category = '1회 방문'
       else if (count === 2) category = '2회 방문'
@@ -91,46 +90,37 @@ export function PatientFlowAnalysis({ data }: PatientFlowAnalysisProps) {
       return { visits: visitCount, patients: count }
     })
 
-    // 질병별 재방문율
-    const diseaseRetention = new Map<string, { total: number; returning: number }>()
-    patientVisitCounts.forEach((count, patientId) => {
-      const diseases = patientDiseases.get(patientId) || new Set()
-      diseases.forEach(disease => {
-        if (!diseaseRetention.has(disease)) {
-          diseaseRetention.set(disease, { total: 0, returning: 0 })
-        }
-        const stats = diseaseRetention.get(disease)!
-        stats.total++
-        if (count > 1) {
-          stats.returning++
-        }
-      })
+    // 질병별 재방문율 (윈도우 기준 — 대시보드와 동일)
+    const diseaseRates = computeDiseaseRecurrenceRates(data, windowSize)
+    const diseaseTotals = new Map<string, number>()
+    visitsByPatient.forEach((visits) => {
+      const primary = visits[0]?.disease_name
+      if (!primary) return
+      diseaseTotals.set(primary, (diseaseTotals.get(primary) || 0) + 1)
     })
-
-    const retentionByDisease = Array.from(diseaseRetention.entries())
-      .map(([disease, stats]) => ({
+    const retentionByDisease = Array.from(diseaseTotals.entries())
+      .map(([disease, total]) => ({
         disease,
-        retentionRate: stats.total > 0 ? (stats.returning / stats.total) * 100 : 0,
-        total: stats.total,
-        returning: stats.returning,
+        retentionRate: diseaseRates.get(disease) || 0,
+        total,
+        returning: Math.round(((diseaseRates.get(disease) || 0) / 100) * total),
       }))
       .sort((a, b) => b.total - a.total)
       .slice(0, 10)
 
-    // 지역별 재방문율
+    // 지역별 재방문율 (윈도우)
     const regionRetention = new Map<string, { total: number; returning: number }>()
-    patientVisitCounts.forEach((count, patientId) => {
-      const regions = patientRegions.get(patientId) || new Set()
-      regions.forEach(region => {
-        if (!regionRetention.has(region)) {
-          regionRetention.set(region, { total: 0, returning: 0 })
-        }
-        const stats = regionRetention.get(region)!
-        stats.total++
-        if (count > 1) {
-          stats.returning++
-        }
-      })
+    visitsByPatient.forEach((visits) => {
+      const region = visits[0]?.region
+      if (!region) return
+      if (!regionRetention.has(region)) {
+        regionRetention.set(region, { total: 0, returning: 0 })
+      }
+      const stats = regionRetention.get(region)!
+      stats.total++
+      if (isReturningWithinWindow(visits, windowSize)) {
+        stats.returning++
+      }
     })
 
     const retentionByRegion = Array.from(regionRetention.entries())
@@ -143,28 +133,29 @@ export function PatientFlowAnalysis({ data }: PatientFlowAnalysisProps) {
       .sort((a, b) => b.total - a.total)
       .slice(0, 10)
 
-    // 이탈 환자 분석 (1회 방문만)
-    const churnedPatients = Array.from(patientVisitCounts.entries())
-      .filter(([_, count]) => count === 1)
-      .map(([patientId, _]) => patientId)
-
-    const churnedByDisease = new Map<string, number>()
-    const churnedByRegion = new Map<string, number>()
-
-    churnedPatients.forEach(patientId => {
-      const diseases = patientDiseases.get(patientId) || new Set()
-      diseases.forEach(disease => {
-        churnedByDisease.set(disease, (churnedByDisease.get(disease) || 0) + 1)
-      })
-      
-      const regions = patientRegions.get(patientId) || new Set()
-      regions.forEach(region => {
-        churnedByRegion.set(region, (churnedByRegion.get(region) || 0) + 1)
-      })
+    // 이탈(1회 방문만) — 방문 횟수 기준 유지 (윈도우와 별개 지표)
+    const churnedIds: string[] = []
+    patientVisitCounts.forEach((count, id) => {
+      if (count === 1) churnedIds.push(id)
     })
+    const totalChurned = churnedIds.length
+    const churnRate =
+      patientVisitCounts.size > 0
+        ? (totalChurned / patientVisitCounts.size) * 100
+        : 0
 
-    const totalPatients = patientVisitCounts.size
-    const churnRate = totalPatients > 0 ? (churnedPatients.length / totalPatients) * 100 : 0
+    const churnedByDiseaseMap = new Map<string, number>()
+    const churnedByRegionMap = new Map<string, number>()
+    churnedIds.forEach((id) => {
+      const disease = Array.from(patientDiseases.get(id) || [])[0]
+      const region = Array.from(patientRegions.get(id) || [])[0]
+      if (disease) {
+        churnedByDiseaseMap.set(disease, (churnedByDiseaseMap.get(disease) || 0) + 1)
+      }
+      if (region) {
+        churnedByRegionMap.set(region, (churnedByRegionMap.get(region) || 0) + 1)
+      }
+    })
 
     return {
       patientJourney,
@@ -172,19 +163,20 @@ export function PatientFlowAnalysis({ data }: PatientFlowAnalysisProps) {
       retentionByDisease,
       retentionByRegion,
       churnAnalysis: {
-        totalChurned: churnedPatients.length,
+        totalChurned,
         churnRate,
-        churnedByDisease: Array.from(churnedByDisease.entries())
+        churnedByDisease: Array.from(churnedByDiseaseMap.entries())
           .map(([disease, count]) => ({ disease, count }))
           .sort((a, b) => b.count - a.count)
-          .slice(0, 10),
-        churnedByRegion: Array.from(churnedByRegion.entries())
+          .slice(0, 5),
+        churnedByRegion: Array.from(churnedByRegionMap.entries())
           .map(([region, count]) => ({ region, count }))
           .sort((a, b) => b.count - a.count)
-          .slice(0, 10),
+          .slice(0, 5),
       },
+      windowRetentionRate: retention.retentionRate,
     }
-  }, [data])
+  }, [data, windowSize])
 
   return (
     <div className="space-y-6">
@@ -218,7 +210,8 @@ export function PatientFlowAnalysis({ data }: PatientFlowAnalysisProps) {
                 .toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
-              2회 이상 방문한 환자
+              2회+ 방문 · 윈도우 재방문율{' '}
+              {(flowAnalysis.windowRetentionRate ?? 0).toFixed(1)}% ({windowSize}일)
             </p>
           </CardContent>
         </Card>
