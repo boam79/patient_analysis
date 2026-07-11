@@ -1431,3 +1431,60 @@ fbad674 - feat: 차트 데이터 실제 반영 및 필터 시스템 통합
 - Pretendard를 tailwind에만 적고 로드하지 않으면 시스템 폰트로 폴백된다 — 실로드를 Phase 0에 포함.
 - CDN 폰트 추가 시 CSP Report-Only의 `style-src`/`font-src`에 `cdn.jsdelivr.net`을 함께 허용해야 한다.
 - 사용자가 main 직접 푸시를 명시하면 feature branch PR 대신 main에 커밋한다.
+
+---
+
+## 📊 분석 차트 고도화·정리 제안 (2026-07-11) — Planner Mode
+
+### Background and Motivation
+
+사용자 요청: 분석 차트에 대해 **기능 고도화** 또는 **없어도 되는 것** 제안.  
+실측 결과 대시보드·차트·지도·전략에 동일 계열 지표가 2~6중으로 겹치고, 가짜 재방문율·죽은 컴포넌트·필터 미적용(charts)·이중 지도 엔진이 존재.
+
+**상세 제안서**: `docs/01-proposals/CHART_ANALYSIS_CONSOLIDATION_v5.1.md`
+
+### Key Challenges and Analysis
+
+1. **신뢰성**: 대시보드 테이블 재방문율 `Math.random()` — 즉시 제거/수정 대상
+2. **중복**: charts≈dashboard, 전략 시계열 3탭, 질병-수술 3UI, 지도 2엔진
+3. **일관성**: 환자키 `name|address` vs `patient_id`, charts 페이지 필터 무시
+4. **과다 IA**: 전략 14탭 — 운영자 인지 부하
+
+### High-level Task Breakdown
+
+#### Phase R — 신뢰·정리
+- [ ] R1 가짜 재방문율 수정/열 삭제
+- [ ] R2 OptimizedDiseaseChart 삭제
+- [ ] R3 Boxplot 라벨 정정
+- [ ] R4 환자 키 통일
+
+#### Phase C — 중복 축소
+- [ ] C1 charts 페이지 폐지 또는 필터 연동
+- [ ] C2 Top 질병 컴포넌트 통합
+- [ ] C3 전략 예측→계절성 병합
+- [ ] C4 지도 엔진 통합 + 히트맵/클러스터
+
+#### Phase E — 고도화
+- [ ] E1 월별 추세 공통 훅 + brush
+- [ ] E2 질병×수술 + Lift
+- [ ] E3 전략 7탭 재편
+- [ ] E4 지역↔지도 brushing
+
+### Project Status Board
+
+- [ ] Phase R (0/4)
+- [ ] Phase C (0/4)
+- [ ] Phase E (0/4)
+
+**현재**: Planner 제안 완료 — 사용자 선택( charts 폐지 여부 / 전략 재편 / 우선 Phase ) 대기
+
+### Executor's Feedback or Assistance Requests
+
+(구현 전) 확인 필요:
+1. `/dashboard/charts` 폐지 vs 필터 연동 유지
+2. 전략 14→7 재편 동의 여부
+3. Phase R만 먼저 vs C까지
+
+### Lessons
+
+- 차트 고도화 전에 가짜 지표·중복 라우트를 먼저 줄이는 편이 ROI가 높다.
