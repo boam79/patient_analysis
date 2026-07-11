@@ -1555,7 +1555,7 @@ PR #7: https://github.com/boam79/patient_analysis/pull/7
 - [x] 제안서 작성
 - [x] Round A: windowSize·공용 재방문·RFM 기준일·성별 1/2·Prediction 제거·버그 수정
 - [x] tsc / vitest 46 / build
-- [ ] main 머지·푸시
+- [x] main 머지·푸시 (`cbfad81`)
 - [ ] Round B/C (Journey 흡수 등) — 승인 후
 
 ### Executor's Feedback
