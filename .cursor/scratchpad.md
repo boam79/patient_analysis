@@ -1613,13 +1613,14 @@ Round A 구현 완료. PredictionAnalysis 삭제, strategy-metrics 공용 모듈
 - [x] 대시보드/필터/전략/지도 수정
 - [x] 엣지 가드
 - [x] 테스트
-- [ ] main 커밋·푸시
+- [x] main 커밋·푸시 (`bece366`)
 
 ### Executor's Feedback or Assistance Requests
-#### 2026-07-11 — Executor: 샘플 경로 버그픽스 완료, 검증 대기
-- 브랜치: `cursor/sample-data-bugfix-6e51`
-- `npm run build`는 supabaseUrl 미설정으로 `/api/log-error` 수집 단계에서 실패(기존 환경 이슈). `tsc`·`vitest`는 통과.
-- 사용자 수동 확인 후 main 머지·태스크 complete 요청.
+#### 2026-07-11 — Executor: 샘플 경로 버그픽스 → main 반영
+- 브랜치: `cursor/sample-data-bugfix-6e51` → `main` fast-forward (`bece366`)
+- PR: https://github.com/boam79/patient_analysis/pull/8
+- `tsc`·`vitest` 56통과. build는 supabaseUrl 미설정으로 기존처럼 `/api/log-error`에서 실패 가능.
+- **수동 확인 요청**: 업로드 없이 필터(본태성 고혈압 / 서울 강남구), 지도 clinical·인구 탭, 전략 RFM/고급통계 확인 후 Planner에 complete 요청.
 
 ### Lessons
 - 필터 옵션 질병명(`고혈압`)과 샘플 `disease_name`(`본태성 고혈압`)이 다르면 샘플 모드에서 필터 결과가 항상 0건이 됨
