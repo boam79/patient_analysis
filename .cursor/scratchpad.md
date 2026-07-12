@@ -1766,3 +1766,25 @@ Round A 구현 완료. PredictionAnalysis 삭제, strategy-metrics 공용 모듈
 
 - 기능 정리(v5.3 탭)와 디자인 개편(v5.4)을 같은 PR에 넣지 말 것 — 회귀 범위가 섞임
 - 대시보드 예외(카드 허용)여도 **지도 히어로를 Card로 감싸면** 공간 제품이 죽음 → canvas/plane 패턴 분리
+
+---
+
+## 🎨 지도·전략 디자인 개편 v5.4 — Executor (2026-07-12)
+
+### Project Status Board
+- [x] D0 공유 패턴 (globals.css)
+- [x] D1 지도 Canvas
+- [x] D2 전략 Insight Brief
+- [x] D3 모션·검증 (tsc / vitest 66 / lint / build)
+- [ ] 사용자 수동 확인 후 Planner complete
+
+### Executor's Feedback
+#### 2026-07-12 — 전부 구현 완료
+- 지도: sticky 툴바, 풀블리드 canvas, 사이드 레일, Sheet 상세, `?tab=` 딥링크
+- 전략: 인사이트 3+접기, 메트릭 스트립, 스크롤 탭, 섹션 헤더, 지도 링크
+- 패키지 5.4.0 / README 섹션 20
+- **수동 확인 요청**: `/dashboard/map`, `/dashboard/strategy` 데스크톱·모바일
+
+### Lessons
+- Leaflet `h-full`은 부모가 absolute/명시 높이가 있어야 함 → canvas에 `absolute inset-0` 래퍼
+- `window.innerWidth`를 렌더 중 쓰면 hydration 불일치 → minHeight 고정값 사용

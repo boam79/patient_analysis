@@ -21,6 +21,9 @@ interface LeafletMapProps {
   flyToOnSelect?: boolean
   flyToZoom?: number
   minHeight?: number
+  /** 캔버스 모드: rounded 제거 등 */
+  className?: string
+  rounded?: boolean
   onLocationSelect?: (h3Index: string, data: LeafletMapPoint) => void
 }
 
@@ -33,6 +36,8 @@ export function LeafletMap({
   flyToOnSelect = false,
   flyToZoom = 12,
   minHeight = 500,
+  className,
+  rounded = true,
   onLocationSelect,
 }: LeafletMapProps) {
   const mapRef = useRef<any>(null)
@@ -347,15 +352,15 @@ export function LeafletMap({
   }, [leafletLoaded, center, zoom])
 
   return (
-    <div className="relative w-full h-full">
+    <div className={`relative h-full w-full ${className ?? ''}`}>
       <div
         ref={mapContainerRef}
-        className="w-full h-full rounded-lg"
+        className={`h-full w-full ${rounded ? 'rounded-lg' : 'rounded-none'}`}
         style={{ minHeight, zIndex: 0 }}
       />
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-background/80">
-          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
         </div>
       )}
     </div>

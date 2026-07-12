@@ -2,7 +2,7 @@
 
 **작성일**: 2026-07-12  
 **역할**: Planner  
-**상태**: 제안 (구현 전 승인 대기)  
+**상태**: Executor 구현 완료 (D0–D3)  
 **범위**: `/dashboard/map`, `/dashboard/strategy`, `components/map/*`, `components/strategy/*`의 **시각·정보 구조·인터랙션**  
 **비목표**: 분석 로직·지표 정의 변경, 신규 차트 라이브러리, 탭 기능 추가
 

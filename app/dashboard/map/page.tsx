@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { LeafletMap } from '@/components/map/leaflet-map'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -32,6 +31,7 @@ import {
   getSampleMapPoints,
   isUsingSampleData,
 } from '@/lib/sample-data'
+import { cn } from '@/lib/utils'
 
 type VisualizationMode = 'markers' | 'circle' | 'heatmap'
 type PrimaryTab = 'distribution' | 'retention' | 'clinical' | 'demographics'
@@ -88,6 +88,20 @@ export default function MapPage() {
   const [selectedSurgery, setSelectedSurgery] = useState('')
   const [selectedAgeGroup, setSelectedAgeGroup] = useState('')
   const [showFilterPanel, setShowFilterPanel] = useState(false)
+  const [mobileStatsOpen, setMobileStatsOpen] = useState(false)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const tab = new URLSearchParams(window.location.search).get('tab')
+    if (
+      tab === 'distribution' ||
+      tab === 'retention' ||
+      tab === 'clinical' ||
+      tab === 'demographics'
+    ) {
+      setPrimaryTab(tab)
+    }
+  }, [])
 
   const usingSample = isUsingSampleData(isDataLoaded, rawData)
 
@@ -521,137 +535,83 @@ export default function MapPage() {
   const header = titleForTab()
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">공간 분석 지도</h1>
-          <p className="text-muted-foreground">
-            OpenStreetMap 기반 공간 분석
-            {usingSample
-              ? ` (샘플 데이터 · ${SAMPLE_DATE_RANGE_LABEL} · 윈도우 ${windowSize}일)`
-              : ` (실제 데이터 ${mapData.length}개 지역 · 윈도우 ${windowSize}일)`}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant={showFilterPanel ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setShowFilterPanel(!showFilterPanel)}
-          >
-            <Filter className="h-4 w-4 mr-2" />
-            필터
-            {hasActiveFilters && (
-              <Badge
-                variant="secondary"
-                className="ml-2 h-5 w-5 flex items-center justify-center p-0 rounded-full"
-              >
-                !
-              </Badge>
-            )}
-          </Button>
+    <div className="flex min-h-[calc(100vh-4rem)] flex-col">
+      <div className="border-b border-border/80 bg-card/40 px-4 py-3">
+        <div className="container mx-auto flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <h1 className="font-display text-2xl font-bold tracking-tight md:text-3xl">
+              공간 분석 지도
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {usingSample
+                ? `샘플 · ${SAMPLE_DATE_RANGE_LABEL}`
+                : `실제 ${mapData.length}개 지역`}
+              {' · '}윈도우 {windowSize}일 · {sampleUniquePatients.toLocaleString()}명
+            </p>
+          </div>
           {usingSample && (
             <Button
               variant="outline"
               size="sm"
               onClick={() => router.push('/dashboard/upload')}
             >
-              <Upload className="h-4 w-4 mr-2" />
+              <Upload className="mr-2 h-4 w-4" />
               데이터 업로드
             </Button>
           )}
-          <Badge variant="outline">
-            <Map className="h-3 w-3 mr-1" />
-            OpenStreetMap
-          </Badge>
-          <Badge variant="secondary">
-            <Users className="h-3 w-3 mr-1" />
-            {`${sampleUniquePatients.toLocaleString()}명`}
-            {usingSample ? ' · 샘플' : ''}
-          </Badge>
         </div>
       </div>
 
       {showFilterPanel && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>필터</CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowFilterPanel(false)}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </CardHeader>
-          <CardContent>
+        <div className="border-b border-border bg-card px-4 py-3">
+          <div className="container mx-auto">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-sm font-medium">필터</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowFilterPanel(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
             <FilterPanel />
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">시각화:</span>
-          <Button
-            variant={visualizationMode === 'markers' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setVisualizationMode('markers')}
-          >
-            <Map className="h-4 w-4 mr-1" />
-            마커
-          </Button>
-          <Button
-            variant={visualizationMode === 'circle' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setVisualizationMode('circle')}
-          >
-            <Circle className="h-4 w-4 mr-1" />
-            원형
-          </Button>
-          <Button
-            variant={visualizationMode === 'heatmap' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setVisualizationMode('heatmap')}
-          >
-            <Layers className="h-4 w-4 mr-1" />
-            히트맵
-          </Button>
-        </div>
-      </div>
+      <div className="analysis-toolbar">
+        <Tabs
+          value={primaryTab}
+          onValueChange={(v) => setPrimaryTab(v as PrimaryTab)}
+          className="w-auto"
+        >
+          <TabsList className="h-8 bg-muted/60">
+            <TabsTrigger value="distribution" className="h-7 gap-1 px-2 text-xs">
+              <Users className="h-3.5 w-3.5" />
+              분포
+            </TabsTrigger>
+            <TabsTrigger value="retention" className="h-7 gap-1 px-2 text-xs">
+              <Activity className="h-3.5 w-3.5" />
+              재방문
+            </TabsTrigger>
+            <TabsTrigger value="clinical" className="h-7 gap-1 px-2 text-xs">
+              <Stethoscope className="h-3.5 w-3.5" />
+              임상
+            </TabsTrigger>
+            <TabsTrigger value="demographics" className="h-7 gap-1 px-2 text-xs">
+              <Layers className="h-3.5 w-3.5" />
+              인구
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
 
-      <Tabs
-        value={primaryTab}
-        onValueChange={(v) => setPrimaryTab(v as PrimaryTab)}
-        className="w-full"
-      >
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mb-4 h-auto">
-          <TabsTrigger value="distribution" className="gap-1">
-            <Users className="h-4 w-4" />
-            분포
-          </TabsTrigger>
-          <TabsTrigger value="retention" className="gap-1">
-            <Activity className="h-4 w-4" />
-            재방문
-          </TabsTrigger>
-          <TabsTrigger value="clinical" className="gap-1">
-            <Stethoscope className="h-4 w-4" />
-            임상
-          </TabsTrigger>
-          <TabsTrigger value="demographics" className="gap-1">
-            <Layers className="h-4 w-4" />
-            인구통계
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
-
-      {/* 보조 셀렉터 */}
-      <div className="flex flex-wrap gap-3 items-center">
         {primaryTab === 'distribution' && (
           <Select
             value={distMetric}
             onValueChange={(v) => setDistMetric(v as DistMetric)}
           >
-            <SelectTrigger className="w-44">
+            <SelectTrigger className="h-8 w-36 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -667,7 +627,7 @@ export default function MapPage() {
             value={retentionMetric}
             onValueChange={(v) => setRetentionMetric(v as RetentionMetric)}
           >
-            <SelectTrigger className="w-44">
+            <SelectTrigger className="h-8 w-40 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -682,7 +642,7 @@ export default function MapPage() {
               value={clinicalDim}
               onValueChange={(v) => handleClinicalDimChange(v as ClinicalDim)}
             >
-              <SelectTrigger className="w-32">
+              <SelectTrigger className="h-8 w-28 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -696,7 +656,7 @@ export default function MapPage() {
                 onValueChange={handleClinicalDiseaseChange}
                 disabled={diseaseOptions.length === 0}
               >
-                <SelectTrigger className="w-56">
+                <SelectTrigger className="h-8 w-48 text-xs">
                   <SelectValue placeholder="질병 선택" />
                 </SelectTrigger>
                 <SelectContent className="z-[10000]">
@@ -713,7 +673,7 @@ export default function MapPage() {
                 onValueChange={handleClinicalSurgeryChange}
                 disabled={surgeryOptions.length === 0}
               >
-                <SelectTrigger className="w-56">
+                <SelectTrigger className="h-8 w-48 text-xs">
                   <SelectValue placeholder="수술 선택" />
                 </SelectTrigger>
                 <SelectContent className="z-[10000]">
@@ -733,7 +693,7 @@ export default function MapPage() {
               value={demoDim}
               onValueChange={(v) => setDemoDim(v as DemoDim)}
             >
-              <SelectTrigger className="w-36">
+              <SelectTrigger className="h-8 w-36 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -748,7 +708,7 @@ export default function MapPage() {
                   setSelectedAgeGroup(v === '__all__' ? '' : v)
                 }
               >
-                <SelectTrigger className="w-40">
+                <SelectTrigger className="h-8 w-36 text-xs">
                   <SelectValue placeholder="전체 연령" />
                 </SelectTrigger>
                 <SelectContent>
@@ -763,162 +723,262 @@ export default function MapPage() {
             )}
           </>
         )}
+
+        <div className="ml-auto flex flex-wrap items-center gap-1">
+          {(
+            [
+              { mode: 'markers' as const, icon: Map, label: '마커' },
+              { mode: 'circle' as const, icon: Circle, label: '원형' },
+              { mode: 'heatmap' as const, icon: Layers, label: '히트맵' },
+            ] as const
+          ).map(({ mode, icon: Icon, label }) => (
+            <Button
+              key={mode}
+              variant={visualizationMode === mode ? 'default' : 'outline'}
+              size="sm"
+              className="h-8 px-2 text-xs"
+              onClick={() => setVisualizationMode(mode)}
+            >
+              <Icon className="mr-1 h-3.5 w-3.5" />
+              {label}
+            </Button>
+          ))}
+          <Button
+            variant={showFilterPanel ? 'default' : 'outline'}
+            size="sm"
+            className="h-8 px-2 text-xs"
+            onClick={() => setShowFilterPanel(!showFilterPanel)}
+          >
+            <Filter className="mr-1 h-3.5 w-3.5" />
+            필터
+            {hasActiveFilters && (
+              <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
+                !
+              </Badge>
+            )}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 px-2 text-xs lg:hidden"
+            onClick={() => setMobileStatsOpen((v) => !v)}
+          >
+            통계
+          </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-4">
-        <Card className="col-span-12 lg:col-span-9">
-          <CardHeader>
-            <CardTitle>{header.title}</CardTitle>
-            <CardDescription>{header.description}</CardDescription>
-          </CardHeader>
-          <CardContent className="p-6">
-            {analysisRows.length === 0 && hasActiveFilters ? (
-              <div className="h-[500px] flex items-center justify-center text-muted-foreground">
-                필터 조건에 맞는 데이터가 없습니다
-              </div>
-            ) : primaryTab === 'clinical' &&
-              ((clinicalDim === 'disease' && !selectedDisease) ||
-                (clinicalDim === 'surgery' && !selectedSurgery)) ? (
-              <div className="h-[500px] flex items-center justify-center text-muted-foreground">
+      <div className="relative flex min-h-0 flex-1 flex-col lg:flex-row">
+        <div className="analysis-canvas relative min-h-[50vh] flex-1 border-0 border-b lg:min-h-[70vh] lg:border-b-0">
+          {analysisRows.length === 0 && hasActiveFilters ? (
+            <div className="flex h-full min-h-[50vh] items-center justify-center text-muted-foreground lg:min-h-[70vh]">
+              필터 조건에 맞는 데이터가 없습니다
+            </div>
+          ) : primaryTab === 'clinical' &&
+            ((clinicalDim === 'disease' && !selectedDisease) ||
+              (clinicalDim === 'surgery' && !selectedSurgery)) ? (
+            <div className="flex h-full min-h-[50vh] flex-col items-center justify-center gap-2 text-muted-foreground lg:min-h-[70vh]">
+              <p>
                 {clinicalDim === 'disease'
                   ? '질병을 선택하세요'
                   : '수술을 선택하세요'}
+              </p>
+              <p className="text-xs">상단 툴바에서 항목을 고르면 지도가 갱신됩니다</p>
+            </div>
+          ) : layerData.length === 0 ? (
+            <div className="flex h-full min-h-[50vh] items-center justify-center text-muted-foreground lg:min-h-[70vh]">
+              {primaryTab === 'clinical'
+                ? '선택한 질병/수술에 해당하는 지역이 없습니다'
+                : '표시할 좌표 데이터가 없습니다'}
+            </div>
+          ) : (
+            <>
+              <div className="absolute inset-0">
+                <LeafletMap
+                  center={usingSample ? SAMPLE_MAP_CENTER : [37.5665, 126.978]}
+                  zoom={usingSample ? SAMPLE_MAP_ZOOM : 11}
+                  data={layerData}
+                  mode={visualizationMode}
+                  selectedRegions={selectedRegions}
+                  flyToOnSelect
+                  flyToZoom={usingSample ? 11 : 12}
+                  minHeight={520}
+                  rounded={false}
+                  onLocationSelect={handleLocationSelect}
+                />
               </div>
-            ) : layerData.length === 0 ? (
-              <div className="h-[500px] flex items-center justify-center text-muted-foreground">
-                {primaryTab === 'clinical'
-                  ? '선택한 질병/수술에 해당하는 지역이 없습니다'
-                  : '표시할 좌표 데이터가 없습니다'}
+              <div className="map-legend">
+                <p className="font-medium text-foreground">{header.title}</p>
+                <p>{header.description}</p>
+                {visualizationMode === 'heatmap' && (
+                  <div className="mt-1 flex items-center gap-1">
+                    <span
+                      className="h-2 w-16"
+                      style={{
+                        background:
+                          'linear-gradient(90deg, hsl(180 70% 32%), hsl(32 70% 48%))',
+                      }}
+                    />
+                    <span>낮음 → 높음</span>
+                  </div>
+                )}
               </div>
-            ) : (
-              <LeafletMap
-                center={usingSample ? SAMPLE_MAP_CENTER : [37.5665, 126.978]}
-                zoom={usingSample ? SAMPLE_MAP_ZOOM : 11}
-                data={layerData}
-                mode={visualizationMode}
-                selectedRegions={selectedRegions}
-                flyToOnSelect
-                flyToZoom={usingSample ? 11 : 12}
-                onLocationSelect={handleLocationSelect}
-              />
-            )}
-          </CardContent>
-        </Card>
+            </>
+          )}
+        </div>
 
-        <Card className="col-span-12 lg:col-span-3">
-          <CardHeader>
-            <CardTitle>통계</CardTitle>
-            <CardDescription>{header.title}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {!isPercentMetric && (
-                <div>
-                  <p className="text-sm font-medium">합계</p>
-                  <p className="text-2xl font-bold">
-                    {Math.round(stats.total).toLocaleString()}
+        <aside
+          className={cn(
+            'stats-rail w-full shrink-0 lg:w-72 lg:animate-rail-settle',
+            mobileStatsOpen ? 'block' : 'hidden lg:block'
+          )}
+          key={`${primaryTab}-${activeMetric}-${visualizationMode}`}
+        >
+          <div className="border-b border-border px-4 py-3">
+            <p className="text-sm font-semibold">{header.title}</p>
+            <p className="text-xs text-muted-foreground">{header.description}</p>
+          </div>
+          <div className="space-y-4 px-4 py-4 animate-rail-settle">
+            {!isPercentMetric && (
+              <div>
+                <p className="text-xs text-muted-foreground">합계</p>
+                <p className="font-numeric text-2xl font-semibold tabular-nums">
+                  {Math.round(stats.total).toLocaleString()}
+                  <span className="ml-1 text-sm font-normal text-muted-foreground">
                     {activeMetric === 'visits' ? '건' : '명'}
-                  </p>
-                </div>
-              )}
-              <div>
-                <p className="text-sm font-medium">
-                  {isPercentMetric ? '평균' : '평균/지역'}
-                </p>
-                <p className="text-2xl font-bold">
-                  {isPercentMetric
-                    ? `${stats.avg.toFixed(1)}%`
-                    : Math.round(stats.avg).toLocaleString()}
+                  </span>
                 </p>
               </div>
-              <div>
-                <p className="text-sm font-medium">최대</p>
-                <p className="text-2xl font-bold">
-                  {isPercentMetric
-                    ? `${stats.max.toFixed(1)}%`
-                    : Math.round(stats.max).toLocaleString()}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm font-medium">표시 지역</p>
-                <p className="text-2xl font-bold">{layerData.length}개</p>
-              </div>
+            )}
+            <div>
+              <p className="text-xs text-muted-foreground">
+                {isPercentMetric ? '평균' : '평균/지역'}
+              </p>
+              <p className="font-numeric text-2xl font-semibold tabular-nums">
+                {isPercentMetric
+                  ? `${stats.avg.toFixed(1)}%`
+                  : Math.round(stats.avg).toLocaleString()}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">최대</p>
+              <p className="font-numeric text-2xl font-semibold tabular-nums">
+                {isPercentMetric
+                  ? `${stats.max.toFixed(1)}%`
+                  : Math.round(stats.max).toLocaleString()}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">표시 지역</p>
+              <p className="font-numeric text-2xl font-semibold tabular-nums">
+                {layerData.length}
+                <span className="ml-1 text-sm font-normal text-muted-foreground">
+                  개
+                </span>
+              </p>
+            </div>
 
-              {topRegions.length > 0 && (
-                <div className="pt-4 border-t">
-                  <p className="text-sm font-medium mb-2">Top 5 지역</p>
-                  <div className="space-y-2">
-                    {topRegions.map((item) => (
-                      <div
+            {topRegions.length > 0 && (
+              <div className="border-t border-border pt-4">
+                <p className="mb-2 text-xs font-medium text-muted-foreground">
+                  Top 5 지역 · 클릭 시 선택
+                </p>
+                <div className="space-y-1">
+                  {topRegions.map((item) => {
+                    const point = layerData.find((d) => d.region === item.region)
+                    return (
+                      <button
                         key={item.region}
-                        className="flex items-center justify-between text-sm"
+                        type="button"
+                        className="flex w-full items-center justify-between gap-2 rounded-sm px-1 py-1.5 text-left text-sm hover:bg-accent hover:underline"
+                        onClick={() => {
+                          if (point) {
+                            handleLocationSelect(point.h3Index || item.region, {
+                              region: item.region,
+                            })
+                          }
+                        }}
                       >
-                        <span className="text-muted-foreground truncate mr-2">
+                        <span className="truncate text-muted-foreground">
                           {item.rank}. {item.region}
                         </span>
-                        <span className="font-medium shrink-0">
+                        <span className="shrink-0 font-medium tabular-nums">
                           {isPercentMetric
                             ? `${item.value.toFixed(1)}%`
                             : Math.round(item.value).toLocaleString()}
                         </span>
-                      </div>
-                    ))}
-                  </div>
+                      </button>
+                    )
+                  })}
                 </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+              </div>
+            )}
+          </div>
+        </aside>
       </div>
 
       {locationDetails && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>{locationDetails.region}</CardTitle>
-              <CardDescription>
-                선택 지역 상세 · 윈도우 {windowSize}일
-              </CardDescription>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSelectedLocation(null)}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-4 mb-4">
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-brand-ink/20 lg:bg-transparent"
+            onClick={() => setSelectedLocation(null)}
+            aria-hidden
+          />
+          <div
+            className={cn(
+              'fixed z-50 border border-border bg-card shadow-lg',
+              'inset-x-0 bottom-0 max-h-[70vh] overflow-y-auto animate-sheet-in-mobile rounded-t-lg',
+              'lg:inset-y-auto lg:bottom-4 lg:right-4 lg:top-auto lg:max-h-[min(80vh,640px)] lg:w-[22rem] lg:animate-sheet-in lg:rounded-md'
+            )}
+            role="dialog"
+            aria-label={`${locationDetails.region} 상세`}
+          >
+            <div className="flex items-start justify-between border-b border-border px-4 py-3">
               <div>
-                <p className="text-sm text-muted-foreground">방문 건수</p>
-                <p className="text-xl font-bold">
+                <p className="font-display text-lg font-semibold">
+                  {locationDetails.region}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  선택 지역 · 윈도우 {windowSize}일
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedLocation(null)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="metric-strip border-0 border-b">
+              <div className="metric-strip-item py-2">
+                <span className="metric-strip-label">방문</span>
+                <span className="text-lg font-semibold tabular-nums">
                   {locationDetails.visitRows.toLocaleString()}
-                </p>
+                </span>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">고유 환자</p>
-                <p className="text-xl font-bold">
+              <div className="metric-strip-item py-2">
+                <span className="metric-strip-label">고유</span>
+                <span className="text-lg font-semibold tabular-nums">
                   {locationDetails.unique.toLocaleString()}
-                </p>
+                </span>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">신환 / 재환</p>
-                <p className="text-xl font-bold">
-                  {locationDetails.newPatients} /{' '}
-                  {locationDetails.returningPatients}
-                </p>
+              <div className="metric-strip-item py-2">
+                <span className="metric-strip-label">신/재</span>
+                <span className="text-lg font-semibold tabular-nums">
+                  {locationDetails.newPatients}/{locationDetails.returningPatients}
+                </span>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">재방문율</p>
-                <p className="text-xl font-bold">
+              <div className="metric-strip-item py-2">
+                <span className="metric-strip-label">재방문율</span>
+                <span className="text-lg font-semibold tabular-nums">
                   {locationDetails.recurrenceRate.toFixed(1)}%
-                </p>
+                </span>
               </div>
             </div>
-            <div className="grid gap-4 md:grid-cols-3 text-sm">
+            <div className="grid gap-4 p-4 text-sm sm:grid-cols-3 lg:grid-cols-1">
               <div>
-                <p className="font-medium mb-2">질병 Top 5</p>
+                <p className="mb-1 font-medium">질병 Top 5</p>
                 <ul className="space-y-1 text-muted-foreground">
                   {locationDetails.topDiseases.map((d) => (
                     <li key={d.name}>
@@ -928,7 +988,7 @@ export default function MapPage() {
                 </ul>
               </div>
               <div>
-                <p className="font-medium mb-2">수술 Top 5</p>
+                <p className="mb-1 font-medium">수술 Top 5</p>
                 <ul className="space-y-1 text-muted-foreground">
                   {locationDetails.topSurgeries.length === 0 && <li>없음</li>}
                   {locationDetails.topSurgeries.map((d) => (
@@ -939,8 +999,8 @@ export default function MapPage() {
                 </ul>
               </div>
               <div>
-                <p className="font-medium mb-2">
-                  평균 연령 {locationDetails.avgAge}세 · 남{' '}
+                <p className="mb-1 font-medium">
+                  평균 {locationDetails.avgAge}세 · 남{' '}
                   {locationDetails.genderCounts.male} / 여{' '}
                   {locationDetails.genderCounts.female}
                 </p>
@@ -955,9 +1015,10 @@ export default function MapPage() {
                 </ul>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </>
       )}
     </div>
   )
 }
+

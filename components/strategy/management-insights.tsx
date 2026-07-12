@@ -1,19 +1,13 @@
 'use client'
 
-import { useMemo } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useMemo, useState } from 'react'
 import { PatientData } from '@/stores/data-store'
 import { DEFAULT_STRATEGY_WINDOW } from '@/lib/utils/strategy-metrics'
 import {
   AlertCircle,
   CheckCircle2,
-  TrendingUp,
-  Users,
-  MapPin,
-  Target,
-  Lightbulb,
-  BarChart3,
-  Activity,
+  ChevronDown,
+  ChevronUp,
   Info,
 } from 'lucide-react'
 import {
@@ -21,33 +15,51 @@ import {
   type InsightCategory,
 } from '@/lib/utils/management-insights'
 import { INSIGHT_SOURCES } from '@/lib/utils/management-insight-benchmarks'
+import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
 
 interface ManagementInsightsProps {
   data: PatientData[]
   windowSize?: number
 }
 
+const PRIORITY_COUNT = 3
+
 function iconFor(category: InsightCategory) {
   switch (category) {
     case 'critical':
-      return <AlertCircle className="h-5 w-5 text-red-600" />
+      return <AlertCircle className="h-4 w-4 text-destructive" />
     case 'warning':
-      return <AlertCircle className="h-5 w-5 text-yellow-600" />
+      return <AlertCircle className="h-4 w-4 text-warning" />
     case 'success':
-      return <CheckCircle2 className="h-5 w-5 text-green-600" />
+      return <CheckCircle2 className="h-4 w-4 text-positive" />
     default:
-      return <Info className="h-5 w-5 text-blue-600" />
+      return <Info className="h-4 w-4 text-info" />
+  }
+}
+
+function rowClass(category: InsightCategory) {
+  switch (category) {
+    case 'critical':
+      return 'insight-row insight-row-critical'
+    case 'warning':
+      return 'insight-row insight-row-warning'
+    case 'success':
+      return 'insight-row insight-row-success'
+    default:
+      return 'insight-row insight-row-info'
   }
 }
 
 /**
- * 경영 인사이트 — 측정 가능한 CRM 지표 + 근거 수준 명시.
- * 공적 평가 수치를 임의로 붙여 쓰지 않음.
+ * 경영 인사이트 — Insight Brief: 우선 3건 + 접기, Harbor accent bar.
  */
 export function ManagementInsights({
   data,
   windowSize = DEFAULT_STRATEGY_WINDOW,
 }: ManagementInsightsProps) {
+  const [expanded, setExpanded] = useState(false)
+
   const insights = useMemo(
     () => buildManagementInsights(data, windowSize),
     [data, windowSize]
@@ -57,100 +69,114 @@ export function ManagementInsights({
     return null
   }
 
-  const categoryStyles: Record<InsightCategory, string> = {
-    critical: 'border-red-200 bg-red-50/50',
-    warning: 'border-yellow-200 bg-yellow-50/50',
-    info: 'border-blue-200 bg-blue-50/50',
-    success: 'border-green-200 bg-green-50/50',
-  }
-
   const evidenceLabel = {
     official: '공적 근거',
     literature: '문헌·사례',
     operational: '운영 휴리스틱',
   } as const
 
+  const visible = expanded ? insights : insights.slice(0, PRIORITY_COUNT)
+  const hiddenCount = Math.max(0, insights.length - PRIORITY_COUNT)
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Lightbulb className="h-5 w-5" />
-          경영 인사이트
-          <span className="text-sm font-normal text-muted-foreground">
-            ({insights.length}개 · 윈도우 {windowSize}일)
-          </span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {insights.map((insight) => (
-          <div
+    <section className="space-y-3" aria-labelledby="insights-heading">
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h2 id="insights-heading" className="section-heading">
+            경영 인사이트
+          </h2>
+          <p className="section-lead">
+            우선 {Math.min(PRIORITY_COUNT, insights.length)}건 · 전체{' '}
+            {insights.length}개 · 윈도우 {windowSize}일
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        {visible.map((insight, index) => (
+          <article
             key={insight.id}
-            className={`rounded-lg border p-4 ${categoryStyles[insight.category]}`}
+            className={cn(
+              rowClass(insight.category),
+              index === 0 && 'animate-fade-up'
+            )}
           >
             <div className="flex items-start gap-3">
-              <div className="mt-0.5">{iconFor(insight.category)}</div>
-              <div className="flex-1 space-y-2">
+              <div className="mt-0.5 shrink-0">{iconFor(insight.category)}</div>
+              <div className="min-w-0 flex-1 space-y-1.5">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="font-semibold">{insight.title}</h3>
-                  <span className="text-xs rounded-full bg-background/80 px-2 py-0.5 text-muted-foreground">
+                  <h3 className="text-sm font-semibold text-foreground">
+                    {insight.title}
+                  </h3>
+                  <span className="evidence-badge">
                     {evidenceLabel[insight.evidenceLevel]}
                   </span>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-[11px] tabular-nums text-muted-foreground">
                     신뢰도 {insight.confidence}
                   </span>
                 </div>
-                <p className="text-sm text-muted-foreground">{insight.description}</p>
-                <p className="text-xs text-muted-foreground border-l-2 border-muted pl-2">
+                <p className="text-sm text-muted-foreground">
+                  {insight.description}
+                </p>
+                <p className="border-l-2 border-border pl-2 text-xs text-muted-foreground">
                   {insight.statisticalBasis}
                 </p>
-                {insight.recommendations && insight.recommendations.length > 0 && (
-                  <ul className="text-sm list-disc pl-5 space-y-1">
-                    {insight.recommendations.map((rec) => (
-                      <li key={rec}>{rec}</li>
-                    ))}
-                  </ul>
-                )}
+                {insight.recommendations &&
+                  insight.recommendations.length > 0 && (
+                    <ul className="list-disc space-y-0.5 pl-5 text-sm text-foreground/90">
+                      {insight.recommendations.map((rec) => (
+                        <li key={rec}>{rec}</li>
+                      ))}
+                    </ul>
+                  )}
               </div>
             </div>
-          </div>
+          </article>
         ))}
+      </div>
 
-        <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground space-y-2">
-          <p className="font-medium text-foreground">근거 사용 원칙</p>
+      {hiddenCount > 0 && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-8 px-2 text-muted-foreground"
+          onClick={() => setExpanded((v) => !v)}
+        >
+          {expanded ? (
+            <>
+              <ChevronUp className="mr-1 h-4 w-4" />
+              접기
+            </>
+          ) : (
+            <>
+              <ChevronDown className="mr-1 h-4 w-4" />
+              나머지 {hiddenCount}건 펼치기
+            </>
+          )}
+        </Button>
+      )}
+
+      <details className="border border-border bg-card/60 px-3 py-2 text-xs text-muted-foreground">
+        <summary className="cursor-pointer font-medium text-foreground">
+          근거 사용 원칙
+        </summary>
+        <div className="mt-2 space-y-2">
           <p>
-            재방문율·성장률·수술 방문 비중 등은 <strong>본 데이터의 정의</strong>와
-            <strong> 운영 경보선</strong>으로 판단합니다. 공적 통계는 배경·지정 기준
-            안내용으로만 인용하며, 지표 정의가 다르면 직접 비교하지 않습니다.
+            재방문율·성장률·수술 방문 비중 등은{' '}
+            <strong>본 데이터의 정의</strong>와 <strong>운영 경보선</strong>
+            으로 판단합니다. 공적 통계는 배경·지정 기준 안내용으로만
+            인용하며, 지표 정의가 다르면 직접 비교하지 않습니다.
           </p>
-          <ul className="list-disc pl-4 space-y-1">
+          <ul className="list-disc space-y-1 pl-4">
             <li>{INSIGHT_SOURCES.specialtyHospitalRule.label}</li>
             <li>{INSIGHT_SOURCES.mohwSpecialty2024.label}</li>
             <li>{INSIGHT_SOURCES.kostatElderly2023.label}</li>
             <li>{INSIGHT_SOURCES.oecdOutpatient2023.label}</li>
             <li>{INSIGHT_SOURCES.hiraSpineClinicalMonitor.label}</li>
           </ul>
-          <div className="flex flex-wrap gap-3 pt-1 text-muted-foreground/80">
-            <span className="inline-flex items-center gap-1">
-              <Users className="h-3 w-3" /> 윈도우 재방문
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <TrendingUp className="h-3 w-3" /> MoM 성장
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <MapPin className="h-3 w-3" /> 지역 HHI
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <Target className="h-3 w-3" /> 수술 방문 비중
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <BarChart3 className="h-3 w-3" /> 질환 구성
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <Activity className="h-3 w-3" /> 추세
-            </span>
-          </div>
         </div>
-      </CardContent>
-    </Card>
+      </details>
+    </section>
   )
 }

@@ -34,6 +34,9 @@
     --brand-ink: 180 65% 12%;
     --surface: 195 20% 96%;
     --surface-2: 195 18% 91%;
+    --positive: 158 69% 33%;
+    --warning: 35 83% 42%;
+    --info: 200 55% 42%;
   }
 
   .dark {
@@ -65,6 +68,9 @@
     --brand-ink: 180 40% 90%;
     --surface: 200 28% 8%;
     --surface-2: 200 18% 14%;
+    --positive: 158 50% 45%;
+    --warning: 35 70% 50%;
+    --info: 200 50% 55%;
   }
 }
 
@@ -96,6 +102,15 @@
   .bg-brand {
     background-color: hsl(var(--brand));
   }
+  .text-positive {
+    color: hsl(var(--positive));
+  }
+  .text-warning {
+    color: hsl(var(--warning));
+  }
+  .text-info {
+    color: hsl(var(--info));
+  }
   .animate-fade-up {
     animation: fade-up 0.45s ease-out both;
   }
@@ -107,6 +122,77 @@
   }
   .animate-kpi-in {
     animation: kpi-in 0.4s ease-out both;
+  }
+  .animate-rail-settle {
+    animation: rail-settle 0.2s ease-out both;
+  }
+  .animate-sheet-in {
+    animation: sheet-in 0.28s ease-out both;
+  }
+  .animate-sheet-in-mobile {
+    animation: sheet-in-mobile 0.28s ease-out both;
+  }
+
+  /* Harbor Clinical — Analysis Surfaces */
+  .analysis-canvas {
+    @apply relative w-full overflow-hidden border border-border bg-card;
+    min-height: 70vh;
+  }
+  .analysis-toolbar {
+    @apply sticky top-14 z-30 flex flex-wrap items-center gap-2 border-b border-border/80 bg-card/90 px-3 py-2 backdrop-blur-md md:gap-3;
+  }
+  .metric-strip {
+    @apply flex flex-wrap divide-x divide-border border border-border bg-card;
+  }
+  .metric-strip-item {
+    @apply flex min-w-[8rem] flex-1 flex-col gap-0.5 px-4 py-3;
+  }
+  .metric-strip-label {
+    @apply text-xs font-medium text-muted-foreground;
+  }
+  .metric-strip-value {
+    @apply font-numeric text-2xl font-semibold tabular-nums tracking-tight text-foreground;
+  }
+  .insight-row {
+    @apply relative border border-border bg-surface-2/60 pl-4 pr-3 py-3;
+  }
+  .insight-row::before {
+    content: '';
+    @apply absolute bottom-0 left-0 top-0 w-[3px];
+    background: hsl(var(--info));
+  }
+  .insight-row-critical::before {
+    background: hsl(var(--destructive));
+  }
+  .insight-row-warning::before {
+    background: hsl(var(--warning));
+  }
+  .insight-row-success::before {
+    background: hsl(var(--positive));
+  }
+  .insight-row-info::before {
+    background: hsl(var(--info));
+  }
+  .evidence-badge {
+    @apply inline-flex items-center rounded-sm border border-border bg-card px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground;
+  }
+  .stats-rail {
+    @apply flex flex-col border-border bg-surface/80 lg:border-l;
+  }
+  .map-legend {
+    @apply absolute bottom-3 left-3 z-[500] rounded-sm border border-border/80 bg-card/90 px-2.5 py-1.5 text-[11px] text-muted-foreground backdrop-blur-sm;
+  }
+  .tabs-scroll {
+    @apply flex w-full overflow-x-auto pb-px [-ms-overflow-style:none] [scrollbar-width:none];
+  }
+  .tabs-scroll::-webkit-scrollbar {
+    display: none;
+  }
+  .section-heading {
+    @apply font-display text-lg font-semibold tracking-tight text-foreground;
+  }
+  .section-lead {
+    @apply mt-1 text-sm text-muted-foreground;
   }
 }
 
@@ -132,11 +218,45 @@
   }
 }
 
+@keyframes rail-settle {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes sheet-in-mobile {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-up,
   .animate-fade-up-delay,
   .animate-fade-up-delay-2,
-  .animate-kpi-in {
+  .animate-kpi-in,
+  .animate-rail-settle,
+  .animate-sheet-in,
+  .animate-sheet-in-mobile {
     animation: none;
   }
 }
