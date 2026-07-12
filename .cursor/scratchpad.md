@@ -1697,3 +1697,72 @@ Round A 구현 완료. PredictionAnalysis 삭제, strategy-metrics 공용 모듈
 ### Executor's Feedback
 샘플 라벨 `2024-01 ~ 2024-12 · 10,000건`. 업로드 없이 대시보드/지도/전략 확인 후 Planner complete 요청.
 
+
+---
+
+## 🎨 지도·경영마케팅 인사이트 디자인 개편 제안 (2026-07-12) — Planner Mode
+
+### Background and Motivation
+
+사용자 요청: **대시보드 지도분석 · 경영마케팅인사이트의 디자인 개편 제안**.  
+기능은 v5.3(지도 4탭)·v5.2(전략 지표)·v5.0(Harbor Clinical 셸)까지 성숙했으나, **지도는 Card inset + 세로 컨트롤 스택**, **전략은 인사이트 카드 벽 + KPI 4카드 그리드**로 본문 UI가 브랜드 원칙과 어긋남.
+
+**상세 제안서**: `docs/01-proposals/MAP_STRATEGY_DESIGN_OVERHAUL_v5.4.md`
+
+### Key Challenges and Analysis
+
+1. **지도 시각 앵커 약함**: Leaflet이 `Card`+`p-6`+고정 500px 안에 갇혀 첫 뷰포트에서 지도가 주인공이 아님
+2. **컨트롤 분산**: 제목→필터→시각화 버튼→Tabs→Select→지도 — sticky 단일 툴바 필요
+3. **전략 첫인상 = 카드 벽**: `ManagementInsights`가 탭 위에 전체 목록 → 우선 1~3 + 접기로 전환
+4. **Harbor 토큰 미적용**: 인사이트 `red/yellow/blue/green-50`, pill 배지 — semantic 토큰·사각 배지로
+5. **범위 팽창 위험**: 탭 축소·지표 로직은 비목표(v5.2 Round B와 분리). 레이아웃·스타일·Sheet만
+
+**디자인 방향**: Harbor Clinical — Analysis Surfaces (지도=풀블리드 plane, 전략=Insight Brief)
+
+### High-level Task Breakdown
+
+#### Phase D0 — 공유 패턴
+- [ ] D0.1 `.analysis-canvas` / `.metric-strip` / `.insight-row` 유틸
+- [ ] D0.2 인사이트·지도 색을 CSS 변수만 사용 (`bg-red-50` 제거)
+
+#### Phase D1 — 지도 Canvas
+- [ ] D1.1 sticky 통합 툴바
+- [ ] D1.2 풀블리드 지도 + 사이드 레일
+- [ ] D1.3 지역 상세 Sheet + 범례 + 모바일
+
+#### Phase D2 — 전략 Insight Brief
+- [ ] D2.1 인사이트 우선 3 + accent bar + 사각 배지
+- [ ] D2.2 Executive 메트릭 스트립 + 스크롤 탭
+- [ ] D2.3 섹션 헤더·서브앵커·지도 딥링크
+
+#### Phase D3 — 폴리시·검증
+- [ ] D3.1 모션 2–3 + reduced-motion
+- [ ] D3.2 데스크톱·375px / tsc·vitest·build
+- [ ] D3.3 README UI v5.4 노트
+
+### Project Status Board
+
+- [x] Planner 제안서 작성
+- [ ] 사용자 승인 (기본값 또는 선택지 변경)
+- [ ] Executor Phase D0
+- [ ] Executor Phase D1
+- [ ] Executor Phase D2
+- [ ] Executor Phase D3
+
+**현재**: Planner 제안 완료 — **Executor 진행 전 사용자 승인 대기**
+
+### Executor's Feedback or Assistance Requests
+
+#### 2026-07-12 — Planner
+구현은 하지 않음. 승인 시 Executor는 **Phase D0부터 한 단계씩**, 수동 확인 후 다음 Phase.
+
+**승인 시 기본 선택지** (변경 없으면 이대로):
+- 지도 통계 = 우측 레일
+- 지역 상세 = 우측 Sheet (모바일 하단)
+- 인사이트 기본 = 우선 3건
+- Executive = 메트릭 스트립
+
+### Lessons
+
+- 기능 정리(v5.3 탭)와 디자인 개편(v5.4)을 같은 PR에 넣지 말 것 — 회귀 범위가 섞임
+- 대시보드 예외(카드 허용)여도 **지도 히어로를 Card로 감싸면** 공간 제품이 죽음 → canvas/plane 패턴 분리
