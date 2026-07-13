@@ -1788,3 +1788,6 @@ Round A 구현 완료. PredictionAnalysis 삭제, strategy-metrics 공용 모듈
 ### Lessons
 - Leaflet `h-full`은 부모가 absolute/명시 높이가 있어야 함 → canvas에 `absolute inset-0` 래퍼
 - `window.innerWidth`를 렌더 중 쓰면 hydration 불일치 → minHeight 고정값 사용
+
+### Lessons (2026-07-13)
+- 헤더 「병원 CRM」은 홈(`/`) 링크여야 함. reset→upload는 타이틀 클릭 UX와 충돌.
