@@ -4,9 +4,8 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Upload, RefreshCw, Menu, X, LayoutDashboard, Map, LineChart } from 'lucide-react'
+import { Upload, Menu, X, LayoutDashboard, Map, LineChart } from 'lucide-react'
 import { useDataStore } from '@/stores/data-store'
-import { useFilterStore } from '@/stores/filter-store'
 import { cn } from '@/lib/utils'
 
 const navItems = [
@@ -18,16 +17,8 @@ const navItems = [
 export function Header() {
   const router = useRouter()
   const pathname = usePathname()
-  const { resetData, isDataLoaded, totalPatients } = useDataStore()
-  const { resetFilters } = useFilterStore()
+  const { isDataLoaded, totalPatients } = useDataStore()
   const [mobileOpen, setMobileOpen] = useState(false)
-
-  const handleReset = () => {
-    resetData()
-    resetFilters()
-    router.push('/dashboard/upload')
-    setMobileOpen(false)
-  }
 
   const isActive = (href: string, exact?: boolean) => {
     if (exact) return pathname === href
@@ -39,16 +30,14 @@ export function Header() {
       <div className="container mx-auto px-4 py-3">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-6 min-w-0">
-            <button
-              onClick={handleReset}
-              className="group flex items-center gap-2 hover:opacity-80 transition-opacity"
-              aria-label="데이터 초기화 후 업로드로 이동"
+            <Link
+              href="/"
+              className="font-display text-xl font-bold text-brand transition-opacity hover:opacity-80 md:text-2xl"
+              aria-label="메인으로 이동"
+              onClick={() => setMobileOpen(false)}
             >
-              <span className="font-display text-xl font-bold text-brand md:text-2xl">
-                병원 CRM
-              </span>
-              <RefreshCw className="h-3.5 w-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-            </button>
+              병원 CRM
+            </Link>
             {isDataLoaded && (
               <span className="hidden sm:inline text-xs tabular-nums text-muted-foreground">
                 {totalPatients.toLocaleString()}명 로드됨

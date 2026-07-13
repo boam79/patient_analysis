@@ -1,4 +1,4 @@
-# 병원 CRM v5.1.0
+# 병원 CRM v5.4.0
 
 **병원 CRM** — 방문·질병·수술 데이터 분석 및 경영·마케팅 인사이트
 
@@ -364,6 +364,13 @@ Next.js React TypeScript License
 - 가짜 재방문율 제거, 환자키 `resolvePatientId` 통일, charts 페이지→대시보드 흡수
 - 전략 탭 14→7, 지도 히트맵 모드, 월별 공용 집계, 지역↔필터 brushing
 - 제안서: `docs/01-proposals/CHART_ANALYSIS_CONSOLIDATION_v5.1.md`
+
+### 20. 지도·전략 UI Analysis Surfaces v5.4.0 (2026-07-12)
+
+- **지도**: 풀블리드 Map Canvas, sticky 통합 툴바, 사이드 통계 레일, 지역 상세 Sheet, 히트맵 범례
+- **전략**: Insight Brief(우선 3건+접기), Executive 메트릭 스트립, 가로 스크롤 탭, 섹션 헤더·서브앵커, 지도 딥링크
+- Harbor Clinical 토큰 연장 (`.analysis-canvas`, `.metric-strip`, `.insight-row`)
+- 제안서: `docs/01-proposals/MAP_STRATEGY_DESIGN_OVERHAUL_v5.4.md`
 
 ---
 
