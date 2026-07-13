@@ -1697,3 +1697,53 @@ Round A 구현 완료. PredictionAnalysis 삭제, strategy-metrics 공용 모듈
 ### Executor's Feedback
 샘플 라벨 `2024-01 ~ 2024-12 · 10,000건`. 업로드 없이 대시보드/지도/전략 확인 후 Planner complete 요청.
 
+
+### 2026-07-13 — 헤더 타이틀 수정 main 반영
+- 원인: 수정이 PR 브랜치에만 있고 production(main)은 구 코드(reset→upload)
+- 조치: `3da768a`를 main에 cherry-pick 후 푸시 (`dc27873`)
+- 교훈: 사용자가 배포 환경에서 확인 중이면 버그픽스는 main에 즉시 반영할 것
+
+---
+
+## 🐛 버그 헌트 (2026-07-13) — Planner
+
+### Background
+사용자: "버그를 찾아줘". main(`dc27873`) 기준 실측. 헤더→메인 수정은 main 반영됨.
+
+### Key Findings (우선순위)
+
+| ID | Sev | 요약 |
+|----|-----|------|
+| B1 | P0 | 업로드 후 mapData 비면 샘플 좌표 폴백 (`map/page.tsx` baseMap) |
+| B2 | P1 | 임상 탭이 전역 filter-store 질병/수술 덮어씀 |
+| B3 | P1 | 히트맵 모드 클릭 핸들러 없음 |
+| B4 | P1 | 지도 지역 클릭=추가만, 대시보드=토글 — UX 불일치 |
+| B5 | P1 | mapData Top 50 슬라이스 — 하위 지역 미표시 |
+| B6 | P1 | 질병「환자수」가 방문 행 수 (고유 환자 아님) |
+| B7 | P1 | 신환/재환을 환자 전역으로 모든 방문 지역에 복제 |
+| B8 | P2 | 필터 persist 부분만 / windowSize 배지 불일치 / 성별 []=전체 |
+| B9 | P2 | 지도 환자 배지 필터 미반영, 인사이트 빈 상태 null |
+
+### Project Status Board
+- [x] 조사·문서화
+- [ ] 사용자 승인 후 Executor 수정 (B1→B7 권장)
+
+### Executor 대기
+수정 범위(전부 / P0+P1만) 지시 후 진행.
+
+## 🐛 버그픽스 전부 → main (2026-07-13) — Executor
+
+### Project Status Board
+- [x] B1 샘플 좌표 폴백 금지
+- [x] B2 임상 탭 로컬 전용
+- [x] B3 히트맵 클릭
+- [x] B4 지도 지역 토글
+- [x] B5 Top50 제거
+- [x] B6 고유 환자 집계
+- [x] B7 지역별 신환/재환
+- [x] B8 필터 persist v3 · window 배지 · 성별 빈배열 방지
+- [x] B9 배지·인사이트 empty · 히트맵 카피
+- [x] tsc / vitest 67 / lint → main 푸시
+
+### Lessons
+- 버그픽스는 사용자가 보는 main에 바로 반영. PR만 고치면 "아직도 안 됨"이 반복됨.

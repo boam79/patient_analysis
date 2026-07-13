@@ -13,7 +13,7 @@ import {
   SAMPLE_REGION_OPTIONS,
   SAMPLE_SURGERY_OPTIONS,
 } from '@/lib/sample-data'
-import { hasSurgery } from '@/lib/utils/analysis-helpers'
+import { hasSurgery, hasActiveFilters as checkActiveFilters } from '@/lib/utils/analysis-helpers'
 import { surgeryLabel } from '@/lib/utils/map-metrics'
 
 export function FilterPanel() {
@@ -45,30 +45,42 @@ export function FilterPanel() {
   // 데이터 스토어에서 실제 데이터 가져오기
   const { rawData, isDataLoaded } = useDataStore()
 
-  // 활성 필터 계산 (날짜·성별 정의는 selectActiveFilters / hasActiveFilters와 동일)
-  const activeFilters = useMemo(() => {
-    const dateActive = Boolean(dateRange.start && dateRange.end)
-    const genderActive = genders.length === 1
-    const activeCount =
-      (selectedDiseases.length > 0 ? 1 : 0) +
-      (selectedSurgeries.length > 0 ? 1 : 0) +
-      (ageGroups.length > 0 ? 1 : 0) +
-      (selectedRegions.length > 0 ? 1 : 0) +
-      (genderActive ? 1 : 0) +
-      (dateActive ? 1 : 0)
-
-    return {
-      count: activeCount,
-      hasActiveFilters: activeCount > 0,
-    }
-  }, [
-    selectedDiseases,
-    selectedSurgeries,
-    ageGroups,
-    selectedRegions,
-    genders,
-    dateRange,
-  ])
+  // 활성 필터 계산 (지도·대시보드와 동일 헬퍼)
+  const activeFilters = useMemo(
+    () => {
+      const active = checkActiveFilters({
+        selectedDiseases,
+        selectedSurgeries,
+        selectedRegions,
+        ageGroups,
+        genders,
+        dateRange,
+        windowSize,
+        defaultWindowSize: 90,
+      })
+      const dateActive = Boolean(dateRange.start && dateRange.end)
+      const genderActive = genders.length === 1
+      const windowActive = windowSize !== 90
+      const count =
+        (selectedDiseases.length > 0 ? 1 : 0) +
+        (selectedSurgeries.length > 0 ? 1 : 0) +
+        (ageGroups.length > 0 ? 1 : 0) +
+        (selectedRegions.length > 0 ? 1 : 0) +
+        (genderActive ? 1 : 0) +
+        (dateActive ? 1 : 0) +
+        (windowActive ? 1 : 0)
+      return { count, hasActiveFilters: active }
+    },
+    [
+      selectedDiseases,
+      selectedSurgeries,
+      ageGroups,
+      selectedRegions,
+      genders,
+      dateRange,
+      windowSize,
+    ]
+  )
 
   // 샘플 옵션 데이터
   const windowOptions = [

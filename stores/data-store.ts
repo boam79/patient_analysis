@@ -358,8 +358,7 @@ export const useDataStore = create<DataState & DataActions>()(
           }
         })
         .filter((item): item is NonNullable<typeof item> => item !== null)
-        .sort((a, b) => b.value - a.value)
-        .slice(0, 50) as MapData[] // 상위 50개 지역만 표시
+        .sort((a, b) => b.value - a.value) as MapData[]
 
           // 연령 피라미드 계산
           const ageGroupMap = new Map<string, { male: number; female: number }>()

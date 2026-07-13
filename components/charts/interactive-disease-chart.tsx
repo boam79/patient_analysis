@@ -68,7 +68,7 @@ export const InteractiveDiseaseChart = memo(function InteractiveDiseaseChart({ d
             formatter={(value: any) => {
               const item = data.find((d) => d.count === value)
               const percentageText = item ? `${item.percentage.toFixed(1)}%` : ''
-              return [`${value}명${percentageText ? ` (${percentageText})` : ''}`, '환자수']
+              return [`${value}명${percentageText ? ` (${percentageText})` : ''}`, '고유 환자']
             }}
           />
           <Bar

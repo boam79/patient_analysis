@@ -157,6 +157,50 @@ describe('computeMapLayer', () => {
     const layer = computeMapLayer(rows, multiMap, { metric: 'visits' })
     expect(layer.map((p) => p.region)).toEqual(['서울 강남구'])
   })
+
+  it('classifies new/returning per region, not globally', () => {
+    const multiMap = [
+      ...baseMap,
+      {
+        latitude: 37.48,
+        longitude: 127.03,
+        region: '서울 서초구',
+        h3Index: 'h3_b',
+      },
+    ]
+    // 같은 환자: 강남에서만 재방문, 서초는 1회
+    const rows = [
+      makePatient({
+        patient_id: 'A',
+        visit_date: '2024-01-01',
+        region: '서울 강남구',
+      }),
+      makePatient({
+        patient_id: 'A',
+        visit_date: '2024-01-20',
+        region: '서울 강남구',
+      }),
+      makePatient({
+        patient_id: 'A',
+        visit_date: '2024-02-01',
+        region: '서울 서초구',
+        latitude: 37.48,
+        longitude: 127.03,
+      }),
+    ]
+    const returning = computeMapLayer(rows, multiMap, {
+      metric: 'returning',
+      windowSize: 90,
+    })
+    const neu = computeMapLayer(rows, multiMap, {
+      metric: 'new',
+      windowSize: 90,
+    })
+    expect(returning.find((p) => p.region === '서울 강남구')?.value).toBe(1)
+    expect(returning.find((p) => p.region === '서울 서초구')).toBeUndefined()
+    expect(neu.find((p) => p.region === '서울 서초구')?.value).toBe(1)
+    expect(neu.find((p) => p.region === '서울 강남구')).toBeUndefined()
+  })
 })
 
 describe('computeRegionPatientSplit', () => {

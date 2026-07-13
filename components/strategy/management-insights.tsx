@@ -54,7 +54,23 @@ export function ManagementInsights({
   )
 
   if (insights.length === 0) {
-    return null
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Lightbulb className="h-5 w-5" />
+            경영 인사이트
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            {data.length === 0
+              ? '필터 결과가 없어 인사이트를 생성할 수 없습니다.'
+              : '현재 조건에서 생성할 인사이트가 없습니다.'}
+          </p>
+        </CardContent>
+      </Card>
+    )
   }
 
   const categoryStyles: Record<InsightCategory, string> = {

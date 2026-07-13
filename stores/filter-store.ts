@@ -214,11 +214,13 @@ export const useFilterStore = create<FilterStore>()(
         toggleGender: (gender) =>
           set((state) => {
             const exists = state.genders.includes(gender)
-            return {
-              genders: exists
-                ? state.genders.filter((g) => g !== gender)
-                : [...state.genders, gender],
+            if (exists) {
+              const next = state.genders.filter((g) => g !== gender)
+              // 빈 배열이면 필터가 "전체 표시"로 조용히 바뀌므로 마지막 하나는 유지
+              if (next.length === 0) return {}
+              return { genders: next }
             }
+            return { genders: [...state.genders, gender] }
           }),
 
         // 지도 선택
@@ -240,11 +242,15 @@ export const useFilterStore = create<FilterStore>()(
           })),
       }),
       {
-        name: 'pdr-filter-storage-v2',
+        name: 'pdr-filter-storage-v3',
         partialize: (state) => ({
           dateRange: state.dateRange,
           windowSize: state.windowSize,
           genders: state.genders,
+          selectedDiseases: state.selectedDiseases,
+          selectedSurgeries: state.selectedSurgeries,
+          ageGroups: state.ageGroups,
+          selectedRegions: state.selectedRegions,
         }),
       }
     )
@@ -256,13 +262,15 @@ export const selectActiveFilters = (state: FilterStore) => {
   const dateActive = Boolean(state.dateRange.start && state.dateRange.end)
   // 성별: 둘 다 선택(또는 비어 있음)이면 필터 비활성 — 하나만 선택했을 때만 활성
   const genderActive = state.genders.length === 1
+  const windowActive = state.windowSize !== 90
   const activeCount =
     (state.selectedDiseases.length > 0 ? 1 : 0) +
     (state.selectedSurgeries.length > 0 ? 1 : 0) +
     (state.ageGroups.length > 0 ? 1 : 0) +
     (state.selectedRegions.length > 0 ? 1 : 0) +
     (genderActive ? 1 : 0) +
-    (dateActive ? 1 : 0)
+    (dateActive ? 1 : 0) +
+    (windowActive ? 1 : 0)
 
   return {
     count: activeCount,

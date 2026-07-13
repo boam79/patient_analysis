@@ -17,6 +17,7 @@ import { normalizeGender, getAgeGroup } from '@/lib/utils/patient-helpers'
 import {
   hasSurgery,
   hasActiveFilters as checkActiveFilters,
+  buildRegionVisitMap,
 } from '@/lib/utils/analysis-helpers'
 import {
   computeMapLayer,
@@ -59,7 +60,7 @@ const MODE_LABEL: Record<VisualizationMode, string> = {
 
 export default function MapPage() {
   const router = useRouter()
-  const { mapData, isDataLoaded, rawData, totalPatients } = useDataStore()
+  const { mapData, isDataLoaded, rawData } = useDataStore()
   const {
     selectedDiseases,
     selectedSurgeries,
@@ -68,8 +69,8 @@ export default function MapPage() {
     genders,
     dateRange,
     windowSize,
-    setDiseases,
-    setSurgeries,
+    addRegion,
+    removeRegion,
   } = useFilterStore()
 
   const [selectedLocation, setSelectedLocation] = useState<{
@@ -95,20 +96,31 @@ export default function MapPage() {
     setSelectedLocation({ h3Index, data })
     const region = data?.region
     if (region) {
-      const { selectedRegions: regions, addRegion } = useFilterStore.getState()
-      if (!regions.includes(region)) addRegion(region)
+      const { selectedRegions: regions } = useFilterStore.getState()
+      if (regions.includes(region)) {
+        removeRegion(region)
+      } else {
+        addRegion(region)
+      }
     }
-  }, [])
+  }, [addRegion, removeRegion])
 
   const baseData = useMemo(
     () => resolveAnalysisData(isDataLoaded, rawData),
     [isDataLoaded, rawData]
   )
 
+  // 업로드 후에는 샘플 좌표 폴백 금지. mapData 없으면 행 좌표로 보강.
   const baseMap = useMemo(() => {
-    if (isDataLoaded && mapData.length > 0) return mapData
-    return getSampleMapPoints()
-  }, [isDataLoaded, mapData])
+    if (!isDataLoaded) return getSampleMapPoints()
+    if (mapData.length > 0) return mapData
+    return buildRegionVisitMap(baseData, []).map((p) => ({
+      latitude: p.latitude,
+      longitude: p.longitude,
+      region: p.region,
+      h3Index: p.h3Index,
+    }))
+  }, [isDataLoaded, mapData, baseData])
 
   const sharedFilterBase = useMemo(
     () => ({
@@ -143,52 +155,36 @@ export default function MapPage() {
   )
 
   /**
-   * 임상 탭: 자기 차원 필터는 로컬 셀렉트가 담당.
-   * 패널의 같은 차원 필터는 무시해 이중 필터로 0건이 되는 것을 막는다.
+   * 임상 탭: 패널 질병/수술을 쓰지 않고 로컬 셀렉트만 사용.
+   * (전역 filter-store를 덮어쓰지 않아 대시보드/전략과 충돌하지 않음)
    */
   const clinicalRows = useMemo(
     () =>
       filterPatients(baseData, {
         ...sharedFilterBase,
-        selectedDiseases: clinicalDim === 'surgery' ? selectedDiseases : [],
-        selectedSurgeries: clinicalDim === 'disease' ? selectedSurgeries : [],
+        selectedDiseases: [],
+        selectedSurgeries: [],
       }),
-    [baseData, sharedFilterBase, clinicalDim, selectedDiseases, selectedSurgeries]
+    [baseData, sharedFilterBase]
   )
 
   const analysisRows =
     primaryTab === 'clinical' ? clinicalRows : panelFilteredData
 
   const diseaseOptions = useMemo(() => {
-    const source =
-      clinicalDim === 'disease'
-        ? filterPatients(baseData, {
-            ...sharedFilterBase,
-            selectedDiseases: [],
-            selectedSurgeries,
-          })
-        : contextData
     const counts: Record<string, number> = {}
-    source.forEach((p) => {
+    contextData.forEach((p) => {
       if (p.disease_name) counts[p.disease_name] = (counts[p.disease_name] || 0) + 1
     })
     return Object.entries(counts)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 20)
       .map(([name]) => name)
-  }, [baseData, sharedFilterBase, selectedSurgeries, clinicalDim, contextData])
+  }, [contextData])
 
   const surgeryOptions = useMemo(() => {
-    const source =
-      clinicalDim === 'surgery'
-        ? filterPatients(baseData, {
-            ...sharedFilterBase,
-            selectedDiseases,
-            selectedSurgeries: [],
-          })
-        : contextData
     const counts: Record<string, number> = {}
-    source.forEach((p) => {
+    contextData.forEach((p) => {
       if (!hasSurgery(p)) return
       const key = surgeryLabel(p)
       if (key) counts[key] = (counts[key] || 0) + 1
@@ -197,115 +193,43 @@ export default function MapPage() {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 20)
       .map(([name]) => name)
-  }, [baseData, sharedFilterBase, selectedDiseases, clinicalDim, contextData])
-
-  // 임상 셀렉트 ↔ 패널 필터 동기화 (한쪽만 남아 충돌하지 않게)
-  useEffect(() => {
-    if (primaryTab !== 'clinical') return
-    if (clinicalDim === 'disease') {
-      if (selectedDiseases.length === 1 && selectedDiseases[0] !== selectedDisease) {
-        setSelectedDisease(selectedDiseases[0])
-      }
-    } else if (
-      selectedSurgeries.length === 1 &&
-      selectedSurgeries[0] !== selectedSurgery
-    ) {
-      setSelectedSurgery(selectedSurgeries[0])
-    }
-  }, [
-    primaryTab,
-    clinicalDim,
-    selectedDiseases,
-    selectedSurgeries,
-    selectedDisease,
-    selectedSurgery,
-  ])
+  }, [contextData])
 
   useEffect(() => {
     if (!selectedDisease && diseaseOptions[0]) {
       setSelectedDisease(diseaseOptions[0])
-      if (primaryTab === 'clinical' && clinicalDim === 'disease') {
-        setDiseases([diseaseOptions[0]])
-        setSurgeries([])
-      }
     } else if (
       selectedDisease &&
       diseaseOptions.length > 0 &&
       !diseaseOptions.includes(selectedDisease)
     ) {
       setSelectedDisease(diseaseOptions[0])
-      if (primaryTab === 'clinical' && clinicalDim === 'disease') {
-        setDiseases([diseaseOptions[0]])
-        setSurgeries([])
-      }
     }
-  }, [
-    diseaseOptions,
-    selectedDisease,
-    primaryTab,
-    clinicalDim,
-    setDiseases,
-    setSurgeries,
-  ])
+  }, [diseaseOptions, selectedDisease])
 
   useEffect(() => {
     if (!selectedSurgery && surgeryOptions[0]) {
       setSelectedSurgery(surgeryOptions[0])
-      if (primaryTab === 'clinical' && clinicalDim === 'surgery') {
-        setSurgeries([surgeryOptions[0]])
-        setDiseases([])
-      }
     } else if (
       selectedSurgery &&
       surgeryOptions.length > 0 &&
       !surgeryOptions.includes(selectedSurgery)
     ) {
       setSelectedSurgery(surgeryOptions[0])
-      if (primaryTab === 'clinical' && clinicalDim === 'surgery') {
-        setSurgeries([surgeryOptions[0]])
-        setDiseases([])
-      }
     }
-  }, [
-    surgeryOptions,
-    selectedSurgery,
-    primaryTab,
-    clinicalDim,
-    setDiseases,
-    setSurgeries,
-  ])
+  }, [surgeryOptions, selectedSurgery])
 
-  const handleClinicalDiseaseChange = useCallback(
-    (disease: string) => {
-      setSelectedDisease(disease)
-      setDiseases([disease])
-      setSurgeries([])
-    },
-    [setDiseases, setSurgeries]
-  )
+  const handleClinicalDiseaseChange = useCallback((disease: string) => {
+    setSelectedDisease(disease)
+  }, [])
 
-  const handleClinicalSurgeryChange = useCallback(
-    (surgery: string) => {
-      setSelectedSurgery(surgery)
-      setSurgeries([surgery])
-      setDiseases([])
-    },
-    [setDiseases, setSurgeries]
-  )
+  const handleClinicalSurgeryChange = useCallback((surgery: string) => {
+    setSelectedSurgery(surgery)
+  }, [])
 
-  const handleClinicalDimChange = useCallback(
-    (dim: ClinicalDim) => {
-      setClinicalDim(dim)
-      if (dim === 'disease') {
-        setSurgeries([])
-        if (selectedDisease) setDiseases([selectedDisease])
-      } else {
-        setDiseases([])
-        if (selectedSurgery) setSurgeries([selectedSurgery])
-      }
-    },
-    [selectedDisease, selectedSurgery, setDiseases, setSurgeries]
-  )
+  const handleClinicalDimChange = useCallback((dim: ClinicalDim) => {
+    setClinicalDim(dim)
+  }, [])
 
   const activeMetric: MapLayerMetric = useMemo(() => {
     if (primaryTab === 'distribution') return distMetric
@@ -318,30 +242,20 @@ export default function MapPage() {
     if (analysisRows.length === 0 || baseMap.length === 0) return []
 
     if (primaryTab === 'clinical' && clinicalDim === 'disease') {
-      const diseaseFocus =
-        selectedDisease ||
-        (selectedDiseases.length > 0 ? selectedDiseases : undefined)
-      if (!diseaseFocus || (Array.isArray(diseaseFocus) && diseaseFocus.length === 0)) {
-        return []
-      }
+      if (!selectedDisease) return []
       return computeMapLayer(analysisRows, baseMap, {
         metric: 'disease',
         windowSize,
-        disease: diseaseFocus,
+        disease: selectedDisease,
       })
     }
 
     if (primaryTab === 'clinical' && clinicalDim === 'surgery') {
-      const surgeryFocus =
-        selectedSurgery ||
-        (selectedSurgeries.length > 0 ? selectedSurgeries : undefined)
-      if (!surgeryFocus || (Array.isArray(surgeryFocus) && surgeryFocus.length === 0)) {
-        return []
-      }
+      if (!selectedSurgery) return []
       return computeMapLayer(analysisRows, baseMap, {
         metric: 'surgery',
         windowSize,
-        surgery: surgeryFocus,
+        surgery: selectedSurgery,
       })
     }
 
@@ -357,8 +271,6 @@ export default function MapPage() {
     windowSize,
     selectedDisease,
     selectedSurgery,
-    selectedDiseases,
-    selectedSurgeries,
     selectedAgeGroup,
     primaryTab,
     clinicalDim,
@@ -447,10 +359,9 @@ export default function MapPage() {
     selectedSurgery,
   ])
 
-  const sampleUniquePatients = useMemo(() => {
-    if (!usingSample) return totalPatients
-    return new Set(baseData.map((p) => p.patient_id)).size
-  }, [usingSample, totalPatients, baseData])
+  const displayedUniquePatients = useMemo(() => {
+    return new Set(analysisRows.map((p) => p.patient_id || `${p.name}|${p.address}`)).size
+  }, [analysisRows])
 
   const hasActiveFilters = useMemo(
     () =>
@@ -565,7 +476,7 @@ export default function MapPage() {
           </Badge>
           <Badge variant="secondary">
             <Users className="h-3 w-3 mr-1" />
-            {`${sampleUniquePatients.toLocaleString()}명`}
+            {`${displayedUniquePatients.toLocaleString()}명`}
             {usingSample ? ' · 샘플' : ''}
           </Badge>
         </div>

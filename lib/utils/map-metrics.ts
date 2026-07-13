@@ -161,23 +161,24 @@ export function computeMapLayer(
     return withCoords(baseMap, regionValues)
   }
 
-  // unique / new / returning / recurrence_rate — 환자 단위
+  // unique / new / returning / recurrence_rate — 환자×지역 단위
+  // (전역 재방문 여부를 모든 방문 지역에 복제하지 않음)
   const byPatient = groupVisitsByPatient(rows)
   const regionUnique = new Map<string, Set<string>>()
   const regionNew = new Map<string, Set<string>>()
   const regionReturning = new Map<string, Set<string>>()
 
   byPatient.forEach((visits, patientId) => {
-    const returning = isReturningWithinWindow(visits, windowSize)
-    const regions = new Set(
-      visits
-        .map((v) => v.region)
-        .filter((r): r is string => Boolean(r) && r !== '미분류')
-    )
-    regions.forEach((region) => {
+    const visitsByRegion = new Map<string, typeof visits>()
+    visits.forEach((v) => {
+      if (!v.region || v.region === '미분류') return
+      if (!visitsByRegion.has(v.region)) visitsByRegion.set(v.region, [])
+      visitsByRegion.get(v.region)!.push(v)
+    })
+    visitsByRegion.forEach((regionVisits, region) => {
       if (!regionUnique.has(region)) regionUnique.set(region, new Set())
       regionUnique.get(region)!.add(patientId)
-      if (returning) {
+      if (isReturningWithinWindow(regionVisits, windowSize)) {
         if (!regionReturning.has(region)) regionReturning.set(region, new Set())
         regionReturning.get(region)!.add(patientId)
       } else {

@@ -140,8 +140,17 @@ export default function DashboardPage() {
     [isDataLoaded, rawData]
   )
 
-  const storeMapFallback =
-    isDataLoaded && storeMapData.length > 0 ? storeMapData : getSampleMapPoints()
+  const storeMapFallback = useMemo(() => {
+    if (!isDataLoaded) return getSampleMapPoints()
+    if (storeMapData.length > 0) return storeMapData
+    return buildRegionVisitMap(baseData, []).map((p) => ({
+      latitude: p.latitude,
+      longitude: p.longitude,
+      region: p.region,
+      h3Index: p.h3Index,
+      value: p.value,
+    }))
+  }, [isDataLoaded, storeMapData, baseData])
 
   const filteredRawData = useMemo(() => {
     return filterPatients(baseData, {
@@ -281,17 +290,25 @@ export default function DashboardPage() {
   const filteredDiseases = useMemo(() => {
     if (filteredRawData.length === 0) return []
 
-    const diseaseMap = new Map<string, number>()
+    const diseasePatients = new Map<string, Set<string>>()
     filteredRawData.forEach((patient) => {
-      const count = diseaseMap.get(patient.disease_name) || 0
-      diseaseMap.set(patient.disease_name, count + 1)
+      if (!patient.disease_name) return
+      const key = resolvePatientId(patient)
+      if (!diseasePatients.has(patient.disease_name)) {
+        diseasePatients.set(patient.disease_name, new Set())
+      }
+      diseasePatients.get(patient.disease_name)!.add(key)
     })
 
-    return Array.from(diseaseMap.entries())
-      .map(([name, count]) => ({
+    const totalUnique = new Set(
+      filteredRawData.map((p) => resolvePatientId(p))
+    ).size
+
+    return Array.from(diseasePatients.entries())
+      .map(([name, patients]) => ({
         name,
-        count,
-        percentage: (count / filteredRawData.length) * 100,
+        count: patients.size,
+        percentage: totalUnique > 0 ? (patients.size / totalUnique) * 100 : 0,
       }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10)
@@ -585,6 +602,18 @@ export default function DashboardPage() {
               selectedRegions.length > 0 ||
               selectedSurgeries.length > 0) &&
               ` · 필터 적용`}
+            {filteredRawData.length === 0 &&
+              hasActiveFilters({
+                selectedDiseases,
+                selectedSurgeries,
+                selectedRegions,
+                ageGroups,
+                genders,
+                dateRange,
+                windowSize,
+                defaultWindowSize: 90,
+              }) &&
+              ' · 필터 결과 없음'}
           </p>
         </div>
         <div className="flex gap-2">
@@ -905,7 +934,7 @@ export default function DashboardPage() {
                     <tr className="border-b">
                       <th className="text-left p-4 font-medium">순위</th>
                       <th className="text-left p-4 font-medium">질병명</th>
-                      <th className="text-right p-4 font-medium">환자수</th>
+                      <th className="text-right p-4 font-medium">고유 환자</th>
                       <th className="text-right p-4 font-medium">비율</th>
                       <th className="text-right p-4 font-medium">재방문율</th>
                     </tr>
@@ -981,7 +1010,7 @@ export default function DashboardPage() {
                 />
               ) : (
                 <p className="py-8 text-center text-sm text-muted-foreground">
-                  업로드된 데이터가 있으면 히트맵이 표시됩니다
+                  필터에 맞는 데이터가 없습니다
                 </p>
               )}
             </CardContent>

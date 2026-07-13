@@ -286,8 +286,29 @@ export function LeafletMap({
       if (heatGenerationRef.current !== generation) return
       heatLayer.addTo(mapRef.current)
       heatLayerRef.current = heatLayer
+
+      // 히트맵은 클릭 이벤트가 없으므로 투명 원으로 선택/상세 연결
+      const clickLayer = L.layerGroup()
+      points.forEach((point) => {
+        const circle = L.circleMarker([point.latitude, point.longitude], {
+          radius: 14,
+          fillColor: '#000',
+          color: '#000',
+          weight: 0,
+          fillOpacity: 0,
+          opacity: 0,
+        })
+        const popupContent = point.region
+          ? `<div><strong>${point.region}</strong><br/>값: ${point.value.toLocaleString()}</div>`
+          : `<div><strong>값: ${point.value.toLocaleString()}</strong></div>`
+        circle.bindPopup(popupContent)
+        circle.on('click', () => handlePointClick(point))
+        clickLayer.addLayer(circle)
+      })
+      clickLayer.addTo(mapRef.current)
+      circleLayerRef.current = clickLayer
     },
-    []
+    [handlePointClick]
   )
 
   useEffect(() => {
