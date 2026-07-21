@@ -1779,3 +1779,44 @@ Round A 구현 완료. PredictionAnalysis 삭제, strategy-metrics 공용 모듈
 - Admin actions ANON 폴백은 전수 grep으로 제거해야 함
 - `error_logs.resolved` 미적용 시 soft-fallback 필요
 - Vercel 앱 내부 CPU 메트릭 불가 → 슬림 헬스(DB/에러/알림)가 ROI 높음
+
+---
+
+## 🎨 UI·메뉴(IA) 개선 제안 (2026-07-21) — Planner Mode
+
+### Background and Motivation
+사용자: 「전체적으로 디자인이나 메뉴 개선 제안도 해줘」.  
+v5.0 Harbor·v5.5 Admin 기능 이후, **IA·셸·스캔성**이 남은 UX 병목.
+
+**상세 제안서**: `docs/01-proposals/UI_MENU_IA_PROPOSAL_v5.6.md`
+
+### Key Challenges
+1. Admin 사이드바 9항목 평탄 → 개요/사용자/관측/운영 그룹화 필요
+2. Admin Header가 사이드바 위 전체폭 → 표준 셸(사이드바 풀하이트)로
+3. 메인 업로드가 네비 1급 아님 · 전략 7탭 모바일 과밀
+4. Admin/메인 h1 타이포 불일치 · 통계 차트 `#0088FE` 하드코딩
+5. 랜딩은 추상 SVG만 — 제품 스틸(real visual anchor) 보강 여지
+
+### High-level Task Breakdown
+#### Phase U — Admin IA·셸
+- [ ] U1 사이드바 섹션 그룹화
+- [ ] U2 Sidebar 풀하이트 + Header는 content만
+- [ ] U3 모바일 Admin 드로어
+- [ ] U4 PageHeader · 타이포 통일
+
+#### Phase N — 메인 네비·전략
+- [ ] N1 업로드 네비 추가
+- [ ] N2 전략 sm=Select / md+=Tabs
+- [ ] N3 (선택) 샘플 칩
+
+#### Phase V — 시각 폴리시
+- [ ] 메트릭 스트립 · 대시보드 앵커 · 랜딩 스틸 · chart 토큰 · 빈상태
+
+### Project Status Board
+- [x] 실측·제안서 작성
+- [ ] 사용자 의사결정 (모니터링 유지/흡수, 업로드 네비, 랜딩 스틸, 범위)
+- [ ] Executor 착수 (승인 후)
+
+### Executor's Feedback or Assistance Requests
+#### 2026-07-21 — Planner
+구현 없음. 기본 권고: 모니터링 유지·업로드 네비 추가·랜딩 스틸·범위 U→N→V.
