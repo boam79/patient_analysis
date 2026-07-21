@@ -1747,3 +1747,69 @@ Round A 구현 완료. PredictionAnalysis 삭제, strategy-metrics 공용 모듈
 
 ### Lessons
 - 버그픽스는 사용자가 보는 main에 바로 반영. PR만 고치면 "아직도 안 됨"이 반복됨.
+
+---
+
+## 🛠️ 제작자(Admin) 콘솔 고도화 제안 (2026-07-21) — Planner Mode
+
+### Background and Motivation
+
+사용자 요청: 「admin 페이지를 분석하고 고도화 제안을 해」.  
+`main` @ `ae020d2` (v5.4.1) 기준 `/admin` 실측. 임상 분석(대시보드/지도/전략)과 분리된 **제작자 운영 콘솔**만 범위.
+
+이미 갖춘 것: 사용자 승인·역할, IP 로그·이상탐지·크론, 감사/에러 로그, Harbor Clinical Admin 셸.  
+병목: ANON 폴백 잔존, 유지보수 모드 미강제, 모니터링 하드코딩, login-temp, 목록 페이지네이션·통계/로그 중복.
+
+**상세 제안서**: `docs/01-proposals/ADMIN_CONSOLE_ENHANCEMENT_v5.4.md`
+
+### Key Challenges and Analysis
+
+| ID | Sev | 요약 |
+|----|-----|------|
+| A0-1 | P0 | users/audit/statistics/maintenance ANON 폴백 (`logs`만 service-role 강제) |
+| A0-2 | P0 | `maintenance.enabled` 저장만 하고 middleware 차단 없음 |
+| A0-3 | P0 | `login-temp` + `/admin/login*` 미들웨어 오픈, docs는 옛 `/admin/login` |
+| A0-4 | P0 | `/admin/monitoring` DB “정상”/CPU “-” 하드코딩 |
+| A1-1 | P1 | users/logs/audit/errors 페이지네이션 부재 |
+| A1-2 | P1 | 통계 ↔ 로그 IP 차트 중복 |
+| A1-3 | P1 | Header Bell/Settings 데드 버튼 |
+| A1-6 | P1 | `system_alerts` UI 없음 |
+
+### High-level Task Breakdown
+
+#### Phase A — 보안·인증
+- [ ] A1 ANON 폴백 제거 + service role 필수
+- [ ] A2 `requireAdminAuth()` 전 actions 통일
+- [ ] A3 login-temp 삭제 · middleware/docs `/login-admin` 정합
+- [ ] A4 유지보수 모드 middleware 강제 (또는 UI 제거)
+
+#### Phase B — 모니터링 신뢰
+- [ ] B1 슬림 헬스 실데이터 (또는 페이지 삭제)
+- [ ] B2 IP total count exact · status_code “미수집”
+
+#### Phase C — 목록·IA
+- [ ] C1 서버 페이지네이션 (users/audit/errors/logs)
+- [ ] C2 통계 IP 섹션 → logs 딥링크
+- [ ] C3 Header 데드 버튼 정리
+- [ ] C4 `getAuditLogs` 페이지 연결
+
+#### Phase D — 선택
+- [ ] D1 system_alerts 뷰어
+- [ ] D2 에러 해결 워크플로
+- [ ] D3 ADMIN 자기보호 가드
+- [ ] D4 settings Zod (선택)
+
+### Project Status Board
+
+- [x] 실측 분석·제안서 작성
+- [ ] 사용자 의사결정 (A4/B1/범위)
+- [ ] Executor Phase A 착수 (승인 후)
+
+### Executor's Feedback or Assistance Requests
+
+#### 2026-07-21 — Planner
+제안서 작성 완료. **구현은 Executor 모드 + 사용자 승인 후**.  
+기본 권고: A4=미들웨어 강제, B1=슬림 헬스, 범위=A→B→C 한 태스크씩.
+
+### Lessons
+- Admin actions에 `requireAdminAuth`를 일부만 적용하면 ANON 폴백이 다른 파일에 남는다 — 헬퍼 도입 시 grep으로 전수 교체가 필수.
