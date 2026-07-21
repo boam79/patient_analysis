@@ -1817,14 +1817,16 @@ Round A 구현 완료. PredictionAnalysis 삭제, strategy-metrics 공용 모듈
 - [x] S2 구현
 - [x] S3 구현
 - [x] 테스트·타입·빌드
-- [ ] main 커밋·푸시 (진행 중)
+- [x] main 커밋·푸시 (`3db4bdc`)
 - [ ] 사용자 수동 확인 후 Planner complete
 
 ### Executor's Feedback or Assistance Requests
-#### 2026-07-21 — Executor: v5.6.1 하드닝 완료, main 푸시 예정
+#### 2026-07-21 — Executor: v5.6.1 하드닝 → main 반영 완료
+- 커밋: `3db4bdc` on `main` (브랜치 `cursor/admin-bug-security-fix-008e` FF)
 - 마이그레이션: `supabase/migrations/20260721_admin_security_hardening.sql` (Supabase SQL 실행 필요)
 - 운영: Vercel `CRON_SECRET` 필수 (미설정 시 cron 401)
-- 검증: vitest 72 pass, tsc OK
+- 검증: vitest 72 pass, tsc OK, next build OK
+- PR 기록: https://github.com/boam79/patient_analysis/pull/15
 
 ### Lessons
 - Cron/유지보수는 fail-open 금지 — 시크릿·service key 없으면 차단
