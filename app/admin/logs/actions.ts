@@ -2,6 +2,7 @@
 
 import { requireAdminAuth, getSupabaseAdmin } from '@/lib/admin-auth'
 import { detectAccessAnomalies } from '@/lib/anomaly-detection'
+import { isValidIp } from '@/lib/ip-utils'
 
 /**
  * Top N 접근 IP 통계
@@ -10,10 +11,11 @@ import { detectAccessAnomalies } from '@/lib/anomaly-detection'
 export async function getTopIps(limit: number = 10) {
   await requireAdminAuth()
   const supabaseAdmin = getSupabaseAdmin()
+  const safeLimit = Math.min(Math.max(Number(limit) || 10, 1), 100)
 
   // DB 레벨 RPC 집계 시도
   const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc('get_top_ips', {
-    limit_count: limit,
+    limit_count: safeLimit,
   })
 
   if (!rpcError && rpcData) {
@@ -42,7 +44,7 @@ export async function getTopIps(limit: number = 10) {
   return Array.from(ipCounts.entries())
     .map(([ip, count]) => ({ ip_address: ip, access_count: count }))
     .sort((a, b) => b.access_count - a.access_count)
-    .slice(0, limit)
+    .slice(0, safeLimit)
     .filter((item) => item.ip_address && item.access_count > 0)
 }
 
@@ -53,7 +55,10 @@ export async function getHourlyStats(days: number = 1) {
   await requireAdminAuth()
   const supabaseAdmin = getSupabaseAdmin()
 
-  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+  const safeDays = Math.min(Math.max(Number(days) || 1, 1), 90)
+  const since = new Date(
+    Date.now() - safeDays * 24 * 60 * 60 * 1000
+  ).toISOString()
 
   // DB 레벨 RPC 집계 시도
   const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc('get_hourly_stats', {
@@ -153,10 +158,11 @@ export async function getPathStats() {
 export async function getCountryStats(limit: number = 10) {
   await requireAdminAuth()
   const supabaseAdmin = getSupabaseAdmin()
+  const safeLimit = Math.min(Math.max(Number(limit) || 10, 1), 100)
 
   // DB 레벨 RPC 집계 시도
   const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc('get_country_stats', {
-    limit_count: limit,
+    limit_count: safeLimit,
   })
 
   if (!rpcError && rpcData) {
@@ -194,7 +200,7 @@ export async function getCountryStats(limit: number = 10) {
       unique_ips: stats.uniqueIps.size,
     }))
     .sort((a, b) => b.access_count - a.access_count)
-    .slice(0, limit)
+    .slice(0, safeLimit)
     .filter((item) => item.country && item.access_count > 0)
 }
 
@@ -235,6 +241,9 @@ export async function exportIpLogs(
     .limit(50000)
 
   if (ipAddress) {
+    if (!isValidIp(ipAddress)) {
+      throw new Error('유효한 IP 주소만 필터로 사용할 수 있습니다.')
+    }
     query = query.eq('ip_address', ipAddress)
   }
 

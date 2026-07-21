@@ -27,6 +27,19 @@ export default async function ErrorsPage({
     params.resolved === 'open' || params.resolved === 'resolved'
       ? params.resolved
       : 'all'
+  const q = params.q || ''
+  const start = params.start || ''
+  const end = params.end || ''
+  const errorsQs = (pageNum: number) => {
+    const sp = new URLSearchParams()
+    sp.set('page', String(pageNum))
+    sp.set('boundary', boundary)
+    sp.set('resolved', resolved)
+    if (q) sp.set('q', q)
+    if (start) sp.set('start', start)
+    if (end) sp.set('end', end)
+    return `/admin/errors?${sp.toString()}`
+  }
 
   let stats = { total: 0, last24h: 0, open: 0 }
   let result = {
@@ -113,7 +126,7 @@ export default async function ErrorsPage({
             <div className="flex gap-3">
               {result.page > 1 && (
                 <Link
-                  href={`/admin/errors?page=${result.page - 1}&boundary=${boundary}&resolved=${resolved}`}
+                  href={errorsQs(result.page - 1)}
                   className="text-primary hover:underline"
                 >
                   이전
@@ -121,7 +134,7 @@ export default async function ErrorsPage({
               )}
               {result.page < result.totalPages && (
                 <Link
-                  href={`/admin/errors?page=${result.page + 1}&boundary=${boundary}&resolved=${resolved}`}
+                  href={errorsQs(result.page + 1)}
                   className="text-primary hover:underline"
                 >
                   다음

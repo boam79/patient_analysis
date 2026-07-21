@@ -76,10 +76,14 @@ export function IpLogViewer({ logs: initialLogs }: IpLogViewerProps) {
         // 날짜 미입력 시 기본값: 최근 30일
         const defaultStart = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
         const defaultEnd = new Date().toISOString()
+        const maybeIp = searchTerm.trim()
+        const ipFilter = /^\d{1,3}(\.\d{1,3}){3}$/.test(maybeIp)
+          ? maybeIp
+          : undefined
         const data = await exportIpLogs(
           startDate ? new Date(startDate).toISOString() : defaultStart,
           endDate ? new Date(endDate + 'T23:59:59').toISOString() : defaultEnd,
-          searchTerm || undefined
+          ipFilter
         )
 
         // CSV 변환

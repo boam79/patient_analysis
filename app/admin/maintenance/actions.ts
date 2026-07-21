@@ -52,23 +52,13 @@ export async function getDatabaseStats() {
 }
 
 /**
- * 인덱스 정보 조회
+ * 인덱스 정보 조회 — exec_sql 표면 제거. 전용 RPC 미설치 시 빈 배열.
  */
 export async function getIndexInfo() {
   await requireAdminAuth()
   const supabaseAdmin = getSupabaseAdmin()
 
-  const { data, error } = await supabaseAdmin.rpc('exec_sql', {
-    query: `
-      SELECT 
-        tablename,
-        indexname,
-        indexdef
-      FROM pg_indexes
-      WHERE schemaname = 'public'
-      ORDER BY tablename, indexname
-    `,
-  })
+  const { data, error } = await supabaseAdmin.rpc('get_index_info')
 
   if (error) {
     return []
@@ -98,11 +88,13 @@ export async function getSystemSettings() {
 
 /**
  * 시스템 설정 업데이트 (Zod 검증)
+ * @param options.skipAudit — 상위 액션이 이미 감사 로그를 남길 때
  */
 export async function updateSystemSetting(
   key: string,
   value: string,
-  description?: string
+  description?: string,
+  options?: { skipAudit?: boolean }
 ) {
   const { userId } = await requireAdminAuth()
   const supabaseAdmin = getSupabaseAdmin()
@@ -145,16 +137,18 @@ export async function updateSystemSetting(
     }
   }
 
-  await logAction({
-    userId,
-    action: 'settings.update',
-    resource: 'settings',
-    details: {
-      key,
-      old_value: existing?.value,
-      new_value: value,
-    },
-  })
+  if (!options?.skipAudit) {
+    await logAction({
+      userId,
+      action: 'settings.update',
+      resource: 'settings',
+      details: {
+        key,
+        old_value: existing?.value,
+        new_value: value,
+      },
+    })
+  }
 
   revalidatePath('/admin/maintenance')
 }
@@ -168,7 +162,8 @@ export async function toggleMaintenanceMode(enabled: boolean) {
   await updateSystemSetting(
     'maintenance.enabled',
     enabled ? 'true' : 'false',
-    '시스템 유지보수 모드 활성화 여부'
+    '시스템 유지보수 모드 활성화 여부',
+    { skipAudit: true }
   )
 
   await logAction({

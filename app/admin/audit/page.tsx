@@ -13,6 +13,12 @@ export default async function AuditPage({
   const params = await searchParams
   const page = Math.max(1, Number(params.page) || 1)
   const action = params.action && params.action !== 'all' ? params.action : undefined
+  const auditQs = (pageNum: number) => {
+    const sp = new URLSearchParams()
+    sp.set('page', String(pageNum))
+    if (action) sp.set('action', action)
+    return `/admin/audit?${sp.toString()}`
+  }
 
   let stats = { total: 0, actionCounts: [] as Array<{ action: string; count: number }>, topUsers: [] as Array<{ userId: string; count: number }> }
   let result = {
@@ -87,7 +93,7 @@ export default async function AuditPage({
             <div className="flex gap-3">
               {result.page > 1 && (
                 <Link
-                  href={`/admin/audit?page=${result.page - 1}`}
+                  href={auditQs(result.page - 1)}
                   className="text-primary hover:underline"
                 >
                   이전
@@ -95,7 +101,7 @@ export default async function AuditPage({
               )}
               {result.page < result.totalPages && (
                 <Link
-                  href={`/admin/audit?page=${result.page + 1}`}
+                  href={auditQs(result.page + 1)}
                   className="text-primary hover:underline"
                 >
                   다음

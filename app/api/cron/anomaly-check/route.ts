@@ -6,28 +6,27 @@ import { sendSlackAlert } from '@/lib/alerts'
 const DEDUP_WINDOW_MINUTES = 30
 
 /**
- * 시스템 이상탐지(IP 접근 급증 등) 주기 점검 및 Slack 알림.
- * Vercel Cron(vercel.json의 crons 설정)에 의해 주기 호출됨.
- *
- * 참고: Vercel Hobby 플랜은 크론 주기가 하루 1회로 제한되어 vercel.json에는
- * 일 1회(매일 03:00 UTC) 스케줄로 등록되어 있다. 분 단위 등 더 빈번한
- * 근실시간 알림이 필요하면 Vercel Pro 플랜으로 업그레이드 후 schedule 값을
- * 조정한다(예: '*\/15 * * * *').
- *
- * 필요 환경변수:
- * - SLACK_WEBHOOK_URL: 미설정 시 감지는 수행하되 알림은 스킵(선택 기능)
- * - CRON_SECRET: 설정 시 Vercel Cron 표준 인증 헤더 검증(Authorization: Bearer <secret>)
- * - SUPABASE_SERVICE_ROLE_KEY: 이상탐지 조회에 필요
+ * 시스템 이상탐지 주기 점검 및 Slack 알림.
+ * CRON_SECRET 필수 (미설정 시 401 fail-closed).
  */
 export async function GET(request: NextRequest) {
-  if (process.env.CRON_SECRET) {
-    const authHeader = request.headers.get('authorization')
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+  const cronSecret = process.env.CRON_SECRET
+  if (!cronSecret) {
+    return NextResponse.json(
+      { error: 'CRON_SECRET is not configured' },
+      { status: 401 }
+    )
   }
 
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  const authHeader = request.headers.get('authorization')
+  if (authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  if (
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    !process.env.SUPABASE_SERVICE_ROLE_KEY
+  ) {
     return NextResponse.json(
       { skipped: true, reason: 'Supabase service role key not configured' },
       { status: 200 }
@@ -56,7 +55,9 @@ export async function GET(request: NextRequest) {
     let alertsSent = 0
     for (const anomaly of highSeverity) {
       const alertKey = `anomaly:${anomaly.ip_address}`
-      const dedupWindowStart = new Date(Date.now() - DEDUP_WINDOW_MINUTES * 60 * 1000).toISOString()
+      const dedupWindowStart = new Date(
+        Date.now() - DEDUP_WINDOW_MINUTES * 60 * 1000
+      ).toISOString()
 
       const { data: recentAlerts, error: recentError } = await supabaseAdmin
         .from('system_alerts')
@@ -66,7 +67,6 @@ export async function GET(request: NextRequest) {
         .limit(1)
 
       if (recentError) {
-        // system_alerts 테이블 미배포 등의 이유로 조회 실패 시 이번 항목은 건너뜀 (fail-safe)
         console.error('system_alerts lookup failed:', recentError)
         continue
       }
@@ -96,8 +96,11 @@ export async function GET(request: NextRequest) {
       highSeverity: highSeverity.length,
       alertsSent,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Anomaly check cron error:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'cron failed' },
+      { status: 500 }
+    )
   }
 }

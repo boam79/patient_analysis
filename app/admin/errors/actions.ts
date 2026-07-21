@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { requireAdminAuth, getSupabaseAdmin } from '@/lib/admin-auth'
 import { logAction } from '@/lib/audit'
+import { sanitizeSearchTerm } from '@/lib/admin-validation'
 
 export async function getErrorLogsPage(options: {
   page?: number
@@ -36,41 +37,25 @@ export async function getErrorLogsPage(options: {
   if (options.endDate) {
     query = query.lte('created_at', options.endDate)
   }
-  const applyResolved = options.resolved === 'open' || options.resolved === 'resolved'
   if (options.resolved === 'open') {
     query = query.eq('resolved', false)
   } else if (options.resolved === 'resolved') {
     query = query.eq('resolved', true)
   }
-  if (options.search?.trim()) {
-    const q = options.search.trim()
+  const q = options.search ? sanitizeSearchTerm(options.search) : ''
+  if (q) {
     query = query.or(`message.ilike.%${q}%,path.ilike.%${q}%`)
   }
 
-  let { data, error, count } = await query
-  // resolved 컬럼 미적용 DB에서는 필터 없이 재시도
-  if (error && applyResolved) {
-    let retry = supabaseAdmin
-      .from('error_logs')
-      .select('*', { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .range(from, to)
-    if (options.boundary && options.boundary !== 'all') {
-      retry = retry.eq('boundary', options.boundary)
-    }
-    if (options.startDate) retry = retry.gte('created_at', options.startDate)
-    if (options.endDate) retry = retry.lte('created_at', options.endDate)
-    if (options.search?.trim()) {
-      const q = options.search.trim()
-      retry = retry.or(`message.ilike.%${q}%,path.ilike.%${q}%`)
-    }
-    const retried = await retry
-    data = retried.data
-    error = retried.error
-    count = retried.count
-  }
+  const { data, error, count } = await query
   if (error) {
-    throw new Error(`에러 로그 조회 실패: ${error.message}`)
+    const degraded =
+      options.resolved === 'open' || options.resolved === 'resolved'
+    throw new Error(
+      degraded
+        ? `에러 로그 조회 실패 (resolved 컬럼/마이그레이션 확인): ${error.message}`
+        : `에러 로그 조회 실패: ${error.message}`
+    )
   }
 
   return {
@@ -121,7 +106,9 @@ export async function resolveErrorLog(id: number, resolved: boolean = true) {
     .eq('id', id)
 
   if (error) {
-    throw new Error(`에러 로그 상태 변경 실패: ${error.message}`)
+    throw new Error(
+      `에러 로그 상태 변경 실패 (resolved 컬럼 마이그레이션 확인): ${error.message}`
+    )
   }
 
   await logAction({
@@ -139,7 +126,7 @@ export async function getErrorStats() {
   const supabaseAdmin = getSupabaseAdmin()
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
 
-  const [total, last24h] = await Promise.all([
+  const [total, last24h, openResult] = await Promise.all([
     supabaseAdmin
       .from('error_logs')
       .select('*', { count: 'exact', head: true }),
@@ -147,25 +134,21 @@ export async function getErrorStats() {
       .from('error_logs')
       .select('*', { count: 'exact', head: true })
       .gte('created_at', since24h),
-  ])
-
-  // resolved 컬럼은 마이그레이션 후 사용 가능 — 미적용 시 open=total로 폴백
-  let open = total.count || 0
-  try {
-    const openResult = await supabaseAdmin
+    supabaseAdmin
       .from('error_logs')
       .select('*', { count: 'exact', head: true })
-      .eq('resolved', false)
-    if (!openResult.error) {
-      open = openResult.count || 0
-    }
-  } catch {
-    // ignore
+      .eq('resolved', false),
+  ])
+
+  if (openResult.error) {
+    throw new Error(
+      `미해결 에러 집계 실패 (resolved 컬럼 마이그레이션 확인): ${openResult.error.message}`
+    )
   }
 
   return {
     total: total.count || 0,
     last24h: last24h.count || 0,
-    open,
+    open: openResult.count || 0,
   }
 }

@@ -24,15 +24,18 @@ export async function POST(request: NextRequest) {
     }
 
     const ipAddress = getClientIp(request)
+    const rateLimitKey = isValidIp(ipAddress) ? ipAddress : 'unknown'
 
-    if (isValidIp(ipAddress)) {
-      const rateLimit = await checkRateLimit(ipAddress, 'log-error', {
-        maxRequests: 20,
-        windowSeconds: 60,
-      })
-      if (!rateLimit.allowed) {
-        return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
-      }
+    // IP 유효성과 무관하게 항상 레이트리밋 (우회 방지)
+    const rateLimit = await checkRateLimit(rateLimitKey, 'log-error', {
+      maxRequests: 20,
+      windowSeconds: 60,
+    })
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded' },
+        { status: 429 }
+      )
     }
 
     const supabaseAdmin = getServiceClient()

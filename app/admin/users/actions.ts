@@ -3,6 +3,33 @@
 import { revalidatePath } from 'next/cache'
 import { logAction } from '@/lib/audit'
 import { requireAdminAuth, getSupabaseAdmin } from '@/lib/admin-auth'
+import {
+  sanitizeSearchTerm,
+  validateAdminPassword,
+} from '@/lib/admin-validation'
+
+async function countActiveAdmins(
+  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>
+) {
+  const { count, error } = await supabaseAdmin
+    .from('user_profiles')
+    .select('*', { count: 'exact', head: true })
+    .eq('role', 'ADMIN')
+    .eq('is_approved', true)
+
+  if (error) {
+    throw new Error(`ADMIN 수 조회 실패: ${error.message}`)
+  }
+
+  return count || 0
+}
+
+function rpcErrorMessage(error: { message?: string } | null): string {
+  const msg = error?.message || ''
+  // plpgsql RAISE EXCEPTION 메시지 추출
+  const m = msg.match(/ERROR:\s*(.+?)(?:\n|$)/i) || msg.match(/exception:\s*(.+)/i)
+  return (m?.[1] || msg || '작업 실패').trim()
+}
 
 /**
  * 사용자 승인
@@ -35,23 +62,60 @@ export async function approveUser(userId: string) {
 }
 
 /**
- * 사용자 거부 (승인 취소)
+ * 사용자 거부 (승인 취소) — self / last-admin 보호
  */
 export async function rejectUser(userId: string) {
   const { userId: adminId } = await requireAdminAuth()
   const supabaseAdmin = getSupabaseAdmin()
 
-  const { error } = await supabaseAdmin
-    .from('user_profiles')
-    .update({
-      is_approved: false,
-      approved_at: null,
-      approved_by: null,
-    })
-    .eq('id', userId)
+  if (userId === adminId) {
+    throw new Error('자신의 승인은 취소할 수 없습니다.')
+  }
 
-  if (error) {
-    throw new Error(`사용자 거부 실패: ${error.message}`)
+  // 원자 RPC 우선
+  const { error: rpcError } = await supabaseAdmin.rpc('admin_safe_reject_user', {
+    target_id: userId,
+    actor_id: adminId,
+  })
+
+  if (rpcError) {
+    // RPC 미설치 시 JS 폴백
+    if (
+      rpcError.message?.includes('Could not find the function') ||
+      rpcError.code === 'PGRST202'
+    ) {
+      const { data: targetUser } = await supabaseAdmin
+        .from('user_profiles')
+        .select('role, is_approved')
+        .eq('id', userId)
+        .single()
+
+      if (!targetUser) {
+        throw new Error('사용자를 찾을 수 없습니다.')
+      }
+
+      if (targetUser.role === 'ADMIN' && targetUser.is_approved) {
+        const adminCount = await countActiveAdmins(supabaseAdmin)
+        if (adminCount <= 1) {
+          throw new Error('마지막 관리자 계정은 승인을 취소할 수 없습니다.')
+        }
+      }
+
+      const { error } = await supabaseAdmin
+        .from('user_profiles')
+        .update({
+          is_approved: false,
+          approved_at: null,
+          approved_by: null,
+        })
+        .eq('id', userId)
+
+      if (error) {
+        throw new Error(`사용자 거부 실패: ${error.message}`)
+      }
+    } else {
+      throw new Error(rpcErrorMessage(rpcError))
+    }
   }
 
   await logAction({
@@ -62,23 +126,6 @@ export async function rejectUser(userId: string) {
   })
 
   revalidatePath('/admin/users')
-}
-
-/**
- * 활성 ADMIN 수 조회 (마지막 ADMIN 보호용)
- */
-async function countActiveAdmins(supabaseAdmin: ReturnType<typeof getSupabaseAdmin>) {
-  const { count, error } = await supabaseAdmin
-    .from('user_profiles')
-    .select('*', { count: 'exact', head: true })
-    .eq('role', 'ADMIN')
-    .eq('is_approved', true)
-
-  if (error) {
-    throw new Error(`ADMIN 수 조회 실패: ${error.message}`)
-  }
-
-  return count || 0
 }
 
 /**
@@ -105,25 +152,39 @@ export async function updateUserRole(
     throw new Error('사용자를 찾을 수 없습니다.')
   }
 
-  // 마지막 승인 ADMIN을 강등 불가
-  if (
-    targetUser.role === 'ADMIN' &&
-    targetUser.is_approved &&
-    newRole !== 'ADMIN'
-  ) {
-    const adminCount = await countActiveAdmins(supabaseAdmin)
-    if (adminCount <= 1) {
-      throw new Error('마지막 관리자 계정은 강등할 수 없습니다.')
+  const { error: rpcError } = await supabaseAdmin.rpc('admin_safe_update_role', {
+    target_id: userId,
+    actor_id: adminId,
+    new_role: newRole,
+  })
+
+  if (rpcError) {
+    if (
+      rpcError.message?.includes('Could not find the function') ||
+      rpcError.code === 'PGRST202'
+    ) {
+      if (
+        targetUser.role === 'ADMIN' &&
+        targetUser.is_approved &&
+        newRole !== 'ADMIN'
+      ) {
+        const adminCount = await countActiveAdmins(supabaseAdmin)
+        if (adminCount <= 1) {
+          throw new Error('마지막 관리자 계정은 강등할 수 없습니다.')
+        }
+      }
+
+      const { error } = await supabaseAdmin
+        .from('user_profiles')
+        .update({ role: newRole })
+        .eq('id', userId)
+
+      if (error) {
+        throw new Error(`역할 변경 실패: ${error.message}`)
+      }
+    } else {
+      throw new Error(rpcErrorMessage(rpcError))
     }
-  }
-
-  const { error } = await supabaseAdmin
-    .from('user_profiles')
-    .update({ role: newRole })
-    .eq('id', userId)
-
-  if (error) {
-    throw new Error(`역할 변경 실패: ${error.message}`)
   }
 
   await logAction({
@@ -162,11 +223,27 @@ export async function deleteUser(userId: string) {
     throw new Error('사용자를 찾을 수 없습니다.')
   }
 
-  // 마지막 승인 ADMIN 삭제 불가
-  if (targetUser.role === 'ADMIN' && targetUser.is_approved) {
-    const adminCount = await countActiveAdmins(supabaseAdmin)
-    if (adminCount <= 1) {
-      throw new Error('마지막 관리자 계정은 삭제할 수 없습니다.')
+  const { error: rpcError } = await supabaseAdmin.rpc(
+    'admin_safe_precheck_delete',
+    {
+      target_id: userId,
+      actor_id: adminId,
+    }
+  )
+
+  if (rpcError) {
+    if (
+      rpcError.message?.includes('Could not find the function') ||
+      rpcError.code === 'PGRST202'
+    ) {
+      if (targetUser.role === 'ADMIN' && targetUser.is_approved) {
+        const adminCount = await countActiveAdmins(supabaseAdmin)
+        if (adminCount <= 1) {
+          throw new Error('마지막 관리자 계정은 삭제할 수 없습니다.')
+        }
+      }
+    } else {
+      throw new Error(rpcErrorMessage(rpcError))
     }
   }
 
@@ -189,7 +266,7 @@ export async function deleteUser(userId: string) {
 }
 
 /**
- * 제작자 계정 생성 (새 관리자 계정)
+ * 제작자 계정 생성
  */
 export async function createAdminUser(
   email: string,
@@ -199,8 +276,13 @@ export async function createAdminUser(
   const { userId: adminId } = await requireAdminAuth()
   const supabaseAdmin = getSupabaseAdmin()
 
-  if (!email?.includes('@') || password.length < 8) {
-    throw new Error('유효한 이메일과 8자 이상 비밀번호가 필요합니다.')
+  if (!email?.includes('@')) {
+    throw new Error('유효한 이메일이 필요합니다.')
+  }
+
+  const passwordError = validateAdminPassword(password)
+  if (passwordError) {
+    throw new Error(passwordError)
   }
 
   const { data: authData, error: authError } =
@@ -274,8 +356,8 @@ export async function getUsersPage(options: {
     .order('created_at', { ascending: false })
     .range(from, to)
 
-  if (options.search?.trim()) {
-    const q = options.search.trim()
+  const q = options.search ? sanitizeSearchTerm(options.search) : ''
+  if (q) {
     query = query.or(`email.ilike.%${q}%,name.ilike.%${q}%`)
   }
   if (options.role && options.role !== 'all') {

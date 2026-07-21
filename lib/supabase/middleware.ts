@@ -11,6 +11,15 @@ function getServiceClient() {
   })
 }
 
+/** 유지보수 중에도 허용하는 API (최소 집합) */
+function isMaintenanceApiExempt(pathname: string): boolean {
+  return (
+    pathname === '/api/health' ||
+    pathname === '/api/log-error' ||
+    pathname.startsWith('/api/cron/')
+  )
+}
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
@@ -45,55 +54,66 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname
 
-  // 로그인·인증 관련 경로만 통과 (/admin/login* 임시 경로 예외 제거)
   if (pathname.startsWith('/login') || pathname.startsWith('/auth')) {
     return supabaseResponse
   }
 
-  // 유지보수 모드: 비ADMIN의 /dashboard 및 루트 접근 차단 (ADMIN·API·login은 허용)
   const isMaintenanceExempt =
     pathname.startsWith('/admin') ||
-    pathname.startsWith('/api') ||
     pathname.startsWith('/login') ||
     pathname.startsWith('/auth') ||
-    pathname === '/maintenance'
+    pathname === '/maintenance' ||
+    isMaintenanceApiExempt(pathname)
 
   if (!isMaintenanceExempt) {
     const service = getServiceClient()
+
+    // fail-closed: service role 없으면 유지보수 중으로 간주 (비ADMIN 차단)
+    let maintenanceEnabled = !service
+
     if (service) {
-      const { data: setting } = await service
+      const { data: setting, error } = await service
         .from('settings')
         .select('value')
         .eq('key', 'maintenance.enabled')
         .maybeSingle()
 
-      const enabled =
-        setting?.value === 'true' || setting?.value === '"true"'
+      if (error) {
+        maintenanceEnabled = true
+      } else {
+        maintenanceEnabled =
+          setting?.value === 'true' || setting?.value === '"true"'
+      }
+    }
 
-      if (enabled) {
-        let isAdmin = false
-        if (user) {
-          const { data: profile } = await supabase
-            .from('user_profiles')
-            .select('role, is_approved')
-            .eq('id', user.id)
-            .single()
-          isAdmin =
-            !!profile &&
-            profile.role === 'ADMIN' &&
-            profile.is_approved === true
-        }
+    if (maintenanceEnabled) {
+      let isAdmin = false
+      if (user) {
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('role, is_approved')
+          .eq('id', user.id)
+          .single()
+        isAdmin =
+          !!profile &&
+          profile.role === 'ADMIN' &&
+          profile.is_approved === true
+      }
 
-        if (!isAdmin) {
-          const url = request.nextUrl.clone()
-          url.pathname = '/maintenance'
-          return NextResponse.redirect(url)
+      if (!isAdmin) {
+        if (pathname.startsWith('/api/')) {
+          return NextResponse.json(
+            { error: 'Service under maintenance' },
+            { status: 503 }
+          )
         }
+        const url = request.nextUrl.clone()
+        url.pathname = '/maintenance'
+        return NextResponse.redirect(url)
       }
     }
   }
 
-  // 보호된 경로 접근 시 사용자 확인
   if (pathname.startsWith('/admin')) {
     if (!user) {
       const url = request.nextUrl.clone()

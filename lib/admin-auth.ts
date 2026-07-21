@@ -3,8 +3,7 @@ import { createClient as createAdminClient, type SupabaseClient } from '@supabas
 
 /**
  * 관리자 인증 및 권한 검증 헬퍼
- * ADMIN 역할을 가진 인증된 사용자만 통과시킵니다.
- * 인증 실패 또는 권한 없음 시 Error를 throw합니다.
+ * 승인된(is_approved) ADMIN만 통과시킵니다.
  */
 export async function requireAdminAuth(): Promise<{ userId: string; email: string }> {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -30,7 +29,7 @@ export async function requireAdminAuth(): Promise<{ userId: string; email: strin
 
   const { data: profile, error: profileError } = await supabase
     .from('user_profiles')
-    .select('role')
+    .select('role, is_approved')
     .eq('id', user.id)
     .single()
 
@@ -38,8 +37,8 @@ export async function requireAdminAuth(): Promise<{ userId: string; email: strin
     throw new Error(`프로필 조회 실패: ${profileError.message}`)
   }
 
-  if (!profile || profile.role !== 'ADMIN') {
-    throw new Error('관리자만 접근할 수 있습니다.')
+  if (!profile || profile.role !== 'ADMIN' || profile.is_approved !== true) {
+    throw new Error('승인된 관리자만 접근할 수 있습니다.')
   }
 
   return { userId: user.id, email: user.email ?? '' }

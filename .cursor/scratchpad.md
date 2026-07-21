@@ -1800,3 +1800,33 @@ Round A 구현 완료. PredictionAnalysis 삭제, strategy-metrics 공용 모듈
 
 ### 2026-07-21 — main 반영
 `cursor/ui-menu-ia-v5-6-008e` → `main` fast-forward (`13483c1`) 푸시 완료.
+
+## 🔒 Admin 버그·보안 하드닝 v5.6.1 — Executor 전부 (S1+S2+S3)
+
+### Background and Motivation
+제안서 Phase S1~S3를 Executor로 일괄 구현 후 main 반영 요청.
+
+### High-level Task Breakdown
+- [x] S1: `is_approved` 가드, rejectUser self/last-admin, 원자 RPC + RLS
+- [x] S2: Cron fail-closed, DEFINER REVOKE, log-error rate limit, log-ip 410, 유지보수 fail-closed
+- [x] S3: resolved 명확 에러, 검색 sanitize, 페이지 URL 보존, health/geocode/비밀번호, days/limit clamp
+- [x] 검증: vitest / tsc / build
+
+### Project Status Board
+- [x] S1 구현
+- [x] S2 구현
+- [x] S3 구현
+- [x] 테스트·타입·빌드
+- [ ] main 커밋·푸시 (진행 중)
+- [ ] 사용자 수동 확인 후 Planner complete
+
+### Executor's Feedback or Assistance Requests
+#### 2026-07-21 — Executor: v5.6.1 하드닝 완료, main 푸시 예정
+- 마이그레이션: `supabase/migrations/20260721_admin_security_hardening.sql` (Supabase SQL 실행 필요)
+- 운영: Vercel `CRON_SECRET` 필수 (미설정 시 cron 401)
+- 검증: vitest 72 pass, tsc OK
+
+### Lessons
+- Cron/유지보수는 fail-open 금지 — 시크릿·service key 없으면 차단
+- PostgREST `.or()` 검색어는 `%_,.()` sanitize 필수
+- last-admin 가드는 앱 폴백 + DB RPC(FOR UPDATE) 이중화
