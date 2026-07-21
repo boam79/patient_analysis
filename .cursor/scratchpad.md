@@ -1800,3 +1800,35 @@ Round A 구현 완료. PredictionAnalysis 삭제, strategy-metrics 공용 모듈
 
 ### 2026-07-21 — main 반영
 `cursor/ui-menu-ia-v5-6-008e` → `main` fast-forward (`13483c1`) 푸시 완료.
+
+---
+
+## 🔐 Admin 버그·보안 제안 (2026-07-21) — Planner Mode
+
+### Background and Motivation
+사용자: 「admin 페이지 버그와 보안에 대해 제안해」.  
+v5.5/v5.6 이후 잔여 권한 틈·공개 API·운영 UX 버그 실측.
+
+**상세**: `docs/01-proposals/ADMIN_BUG_SECURITY_v5.6.1.md`
+
+### Key Findings
+| ID | Sev | 요약 |
+|----|-----|------|
+| P0-01 | P0 | `rejectUser` last-admin/self 가드 없음 → 콘솔 잠금 |
+| P0-02 | P0 | `requireAdminAuth`가 `is_approved` 미검사 |
+| P1-02 | P1 | Cron CRON_SECRET 없으면 개방 |
+| P1-03 | P1 | DEFINER cleanup/rate_limit REVOKE 누락 |
+| P1-04 | P1 | log-error 비정상 IP 레이트리밋 우회 |
+| P2-02/03 | P2 | 페이지네이션↔클라이언트 필터·URL 쿼리 유실 |
+
+이미 해소(재신고 금지): ANON 폴백, 유지보수 미강제, XSS/open-redirect.
+
+### High-level Task Breakdown
+- [ ] Phase S1: is_approved + rejectUser 가드 + (권장) 원자 RPC
+- [ ] Phase S2: Cron fail-closed · REVOKE · log-error/log-ip · 유지보수 fail-closed
+- [ ] Phase S3: resolved/검색/페이지네이션/health·geocode
+
+### Project Status Board
+- [x] 실측·제안서 작성
+- [ ] 사용자 의사결정 (범위 S1+S2 권고)
+- [ ] Executor 착수 (승인 후)
