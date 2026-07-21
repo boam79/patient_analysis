@@ -1779,3 +1779,21 @@ Round A 구현 완료. PredictionAnalysis 삭제, strategy-metrics 공용 모듈
 - Admin actions ANON 폴백은 전수 grep으로 제거해야 함
 - `error_logs.resolved` 미적용 시 soft-fallback 필요
 - Vercel 앱 내부 CPU 메트릭 불가 → 슬림 헬스(DB/에러/알림)가 ROI 높음
+
+---
+
+## 🎨 UI·메뉴(IA) v5.6 — Executor 구현 (2026-07-21)
+
+### Project Status Board
+- [x] U1 사이드바 섹션 그룹화 (개요/사용자/관측/운영)
+- [x] U2 Sidebar 풀하이트 + Header content 컬럼
+- [x] U3 모바일 Admin 드로어
+- [x] U4 PageHeader · Admin 타이포 통일
+- [x] N1 업로드 네비 + 샘플/실데이터 칩
+- [x] N2 전략 sm=Select / md+=Tabs
+- [x] N3 로드 배지 → 업로드 이동
+- [x] V 랜딩 제품 스틸 · MetricStrip Admin 홈 · chart 토큰 · 알림 빈상태
+- [ ] 사용자 수동 확인 후 Planner complete
+
+### Executor's Feedback
+브랜치 `cursor/ui-menu-ia-v5-6-008e`. 수동 확인: Admin 그룹 메뉴·모바일 드로어, 헤더 업로드, 전략 모바일 Select, 랜딩 제품 목업.

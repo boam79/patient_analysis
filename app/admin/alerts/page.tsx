@@ -3,6 +3,7 @@ import { Bell, Activity, Clock } from 'lucide-react'
 import { getSystemAlertsPage, getSystemAlertStats } from '@/app/admin/alerts/actions'
 import { SystemAlertsViewer } from '@/components/admin/alerts/system-alerts-viewer'
 import Link from 'next/link'
+import { PageHeader } from '@/components/layout/page-header'
 
 export default async function AlertsPage({
   searchParams,
@@ -33,12 +34,10 @@ export default async function AlertsPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">시스템 알림</h1>
-        <p className="mt-2 text-muted-foreground">
-          이상탐지 크론이 발송한 Slack 알림 이력 (`system_alerts`)
-        </p>
-      </div>
+      <PageHeader
+        title="시스템 알림"
+        description="이상탐지 크론이 발송한 Slack 알림 이력 (`system_alerts`)"
+      />
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>

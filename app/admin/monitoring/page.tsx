@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { PageHeader } from '@/components/layout/page-header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Activity, Database, AlertTriangle, Bell, Search } from 'lucide-react'
 import { getMonitoringHealth } from '@/app/admin/maintenance/actions'
@@ -19,12 +20,10 @@ export default async function MonitoringPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">시스템 모니터링</h1>
-        <p className="text-muted-foreground mt-2">
-          Supabase·에러·알림 기반 슬림 헬스 (Vercel CPU/메모리는 대시보드에서 확인)
-        </p>
-      </div>
+      <PageHeader
+        title="시스템 모니터링"
+        description="Supabase·에러·알림 기반 슬림 헬스 (Vercel CPU/메모리는 대시보드에서 확인)"
+      />
 
       {loadError && (
         <Card className="border-destructive/40 bg-destructive/5">

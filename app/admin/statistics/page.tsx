@@ -1,17 +1,14 @@
 import { StatisticsCharts } from '@/components/admin/statistics/statistics-charts'
+import { PageHeader } from '@/components/layout/page-header'
 
 export default function StatisticsPage() {
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">대시보드 통계</h1>
-        <p className="text-muted-foreground mt-2">
-          사용자 통계 및 사용량 분석
-        </p>
-      </div>
-
+      <PageHeader
+        title="대시보드 통계"
+        description="사용자·세션 메타 통계 (IP·국가는 로그 분석 참고)"
+      />
       <StatisticsCharts />
     </div>
   )
 }
-

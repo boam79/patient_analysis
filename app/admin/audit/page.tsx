@@ -3,6 +3,7 @@ import { getAuditLogs, getAuditStats } from '@/app/admin/audit/actions'
 import { AuditLogViewer } from '@/components/admin/audit/audit-log-viewer'
 import { FileText, Activity, Users } from 'lucide-react'
 import Link from 'next/link'
+import { PageHeader } from '@/components/layout/page-header'
 
 export default async function AuditPage({
   searchParams,
@@ -33,12 +34,10 @@ export default async function AuditPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">감사 로그</h1>
-        <p className="mt-2 text-muted-foreground">
-          모든 관리자 액션 기록 및 추적
-        </p>
-      </div>
+      <PageHeader
+        title="감사 로그"
+        description="모든 관리자 액션 기록 및 추적"
+      />
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>

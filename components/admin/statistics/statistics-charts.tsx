@@ -26,7 +26,14 @@ import {
 } from '@/app/admin/statistics/actions'
 import { Users, UserCheck, Activity, TrendingUp, Search } from 'lucide-react'
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8']
+/** Harbor chart tokens — globals.css --chart-1…5 */
+const COLORS = [
+  'hsl(var(--chart-1))',
+  'hsl(var(--chart-2))',
+  'hsl(var(--chart-3))',
+  'hsl(var(--chart-4))',
+  'hsl(var(--chart-5))',
+]
 
 export function StatisticsCharts() {
   const [summary, setSummary] = useState({
@@ -186,7 +193,7 @@ export function StatisticsCharts() {
                   <Line
                     type="monotone"
                     dataKey="가입수"
-                    stroke="#0088FE"
+                    stroke="hsl(var(--chart-1))"
                     strokeWidth={2}
                   />
                 </LineChart>
@@ -254,7 +261,7 @@ export function StatisticsCharts() {
                   <XAxis dataKey="시간" />
                   <YAxis />
                   <Tooltip />
-                  <Bar dataKey="로그인수" fill="#0088FE" />
+                  <Bar dataKey="로그인수" fill="hsl(var(--chart-1))" />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -280,7 +287,7 @@ export function StatisticsCharts() {
                   <Line
                     type="monotone"
                     dataKey="활성사용자"
-                    stroke="#00C49F"
+                    stroke="hsl(var(--chart-5))"
                     strokeWidth={2}
                   />
                 </LineChart>

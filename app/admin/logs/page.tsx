@@ -4,6 +4,7 @@ import { IpStatisticsDashboard } from '@/components/admin/logs/ip-statistics-das
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import Link from 'next/link'
+import { PageHeader } from '@/components/layout/page-header'
 
 export default async function LogsPage({
   searchParams,
@@ -51,12 +52,10 @@ export default async function LogsPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">로그 분석</h1>
-        <p className="mt-2 text-muted-foreground">
-          IP 접근 로그 조회 및 분석
-        </p>
-      </div>
+      <PageHeader
+        title="로그 분석"
+        description="IP 접근 로그 조회 및 분석"
+      />
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>

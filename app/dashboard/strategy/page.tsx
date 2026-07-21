@@ -1,16 +1,25 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useFilterStore } from '@/stores/filter-store'
 import { useDataStore } from '@/stores/data-store'
-import { Users, MapPin, Calendar, Target, BarChart3, AlertTriangle, Activity } from 'lucide-react'
+import {
+  Users,
+  MapPin,
+  Calendar,
+  Target,
+  BarChart3,
+  AlertTriangle,
+  Activity,
+} from 'lucide-react'
 import { filterPatients } from '@/lib/utils/patient-filters'
 import {
   SAMPLE_DATE_RANGE_LABEL,
   resolveAnalysisData,
   isUsingSampleData,
 } from '@/lib/sample-data'
+import { PageHeader } from '@/components/layout/page-header'
 
 import { PatientFlowAnalysis } from '@/components/strategy/patient-flow-analysis'
 import { RegionalMarketAnalysis } from '@/components/strategy/regional-market-analysis'
@@ -27,6 +36,18 @@ import { AnomalyDetection } from '@/components/strategy/anomaly-detection'
 import { PatientJourney } from '@/components/strategy/patient-journey'
 import { AdvancedStatisticsTab } from '@/components/strategy/advanced-statistics-tab'
 
+const STRATEGY_TABS = [
+  { value: 'executive', label: '경영 요약', icon: BarChart3 },
+  { value: 'retention', label: '유입·유지', icon: Users },
+  { value: 'regional', label: '지역 시장', icon: MapPin },
+  { value: 'clinical', label: '질병·수술·연관', icon: Activity },
+  { value: 'segment', label: '세그먼트', icon: Target },
+  { value: 'timeseries', label: '시계열·예측', icon: Calendar },
+  { value: 'advanced', label: '이상·고급', icon: AlertTriangle },
+] as const
+
+type TabValue = (typeof STRATEGY_TABS)[number]['value']
+
 export default function StrategyPage() {
   const {
     selectedDiseases,
@@ -38,10 +59,8 @@ export default function StrategyPage() {
     windowSize,
   } = useFilterStore()
 
-  const {
-    rawData,
-    isDataLoaded,
-  } = useDataStore()
+  const { rawData, isDataLoaded } = useDataStore()
+  const [tab, setTab] = useState<TabValue>('executive')
 
   const usingSample = isUsingSampleData(isDataLoaded, rawData)
 
@@ -57,49 +76,73 @@ export default function StrategyPage() {
       genders: genders as ('남성' | '여성')[],
       dateRange,
     })
-  }, [isDataLoaded, rawData, selectedDiseases, selectedRegions, selectedSurgeries, ageGroups, genders, dateRange])
+  }, [
+    isDataLoaded,
+    rawData,
+    selectedDiseases,
+    selectedRegions,
+    selectedSurgeries,
+    ageGroups,
+    genders,
+    dateRange,
+  ])
+
+  const description = [
+    '병원 CRM 데이터 기반 경영·마케팅 전략 수립을 위한 심화 분석',
+    usingSample
+      ? `샘플 데이터 · ${SAMPLE_DATE_RANGE_LABEL}`
+      : '실제 데이터',
+    `재방문 윈도우 ${windowSize}일`,
+    filteredData.length === 0
+      ? '필터 결과 없음'
+      : `${filteredData.length}건`,
+  ].join(' · ')
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6" id="strategy-main">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-3xl font-bold">경영·마케팅 전략 분석</h1>
-          <p className="text-sm text-muted-foreground mt-2">
-            병원 CRM 데이터 기반 경영·마케팅 전략 수립을 위한 심화 분석
-            {usingSample
-              ? ` (샘플 데이터 · ${SAMPLE_DATE_RANGE_LABEL})`
-              : ' (실제 데이터)'}
-            {' · '}재방문 윈도우 {windowSize}일
-            {filteredData.length === 0 ? ' · 필터 결과 없음' : ` · ${filteredData.length}건`}
-          </p>
-        </div>
-      </div>
+    <div className="container mx-auto space-y-6 px-4 py-6" id="strategy-main">
+      <PageHeader title="경영·마케팅 전략 분석" description={description} />
 
       <ManagementInsights data={filteredData} windowSize={windowSize} />
 
-      <Tabs defaultValue="executive" className="w-full">
-        <TabsList className="flex flex-wrap gap-1 h-auto justify-start">
-          <TabsTrigger value="executive" className="flex items-center gap-1 text-xs">
-            <BarChart3 className="h-3 w-3" />경영 요약
-          </TabsTrigger>
-          <TabsTrigger value="retention" className="flex items-center gap-1 text-xs">
-            <Users className="h-3 w-3" />유입·유지
-          </TabsTrigger>
-          <TabsTrigger value="regional" className="flex items-center gap-1 text-xs">
-            <MapPin className="h-3 w-3" />지역 시장
-          </TabsTrigger>
-          <TabsTrigger value="clinical" className="flex items-center gap-1 text-xs">
-            <Activity className="h-3 w-3" />질병·수술·연관
-          </TabsTrigger>
-          <TabsTrigger value="segment" className="flex items-center gap-1 text-xs">
-            <Target className="h-3 w-3" />세그먼트
-          </TabsTrigger>
-          <TabsTrigger value="timeseries" className="flex items-center gap-1 text-xs">
-            <Calendar className="h-3 w-3" />시계열·예측
-          </TabsTrigger>
-          <TabsTrigger value="advanced" className="flex items-center gap-1 text-xs">
-            <AlertTriangle className="h-3 w-3" />이상·고급
-          </TabsTrigger>
+      <Tabs
+        value={tab}
+        onValueChange={(v) => setTab(v as TabValue)}
+        className="w-full"
+      >
+        {/* Mobile: select */}
+        <div className="md:hidden">
+          <label htmlFor="strategy-tab" className="sr-only">
+            전략 분석 탭
+          </label>
+          <select
+            id="strategy-tab"
+            value={tab}
+            onChange={(e) => setTab(e.target.value as TabValue)}
+            className="w-full rounded-md border border-border bg-card px-3 py-2.5 text-sm font-medium text-foreground"
+          >
+            {STRATEGY_TABS.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Desktop: tabs */}
+        <TabsList className="hidden h-auto flex-wrap justify-start gap-1 md:flex">
+          {STRATEGY_TABS.map((t) => {
+            const Icon = t.icon
+            return (
+              <TabsTrigger
+                key={t.value}
+                value={t.value}
+                className="flex items-center gap-1 text-xs"
+              >
+                <Icon className="h-3 w-3" />
+                {t.label}
+              </TabsTrigger>
+            )
+          })}
         </TabsList>
 
         <TabsContent value="executive" className="mt-6">

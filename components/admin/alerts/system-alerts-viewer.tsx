@@ -61,9 +61,17 @@ export function SystemAlertsViewer({ alerts, severity }: Props) {
               <TableRow>
                 <TableCell
                   colSpan={4}
-                  className="py-8 text-center text-muted-foreground"
+                  className="py-10 text-center text-sm text-muted-foreground"
                 >
-                  알림이 없습니다
+                  아직 시스템 알림이 없습니다.{' '}
+                  <a
+                    href="/admin/logs"
+                    className="font-medium text-primary hover:underline"
+                  >
+                    로그 분석
+                  </a>
+                  에서 이상 접근을 확인하거나, 크론·Slack 웹훅 설정을
+                  점검하세요.
                 </TableCell>
               </TableRow>
             ) : (

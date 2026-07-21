@@ -2,6 +2,7 @@ import { getUsersPage } from '@/app/admin/users/actions'
 import { UserManagementTable } from '@/components/admin/users/user-management-table'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import Link from 'next/link'
+import { PageHeader } from '@/components/layout/page-header'
 
 export default async function UsersPage({
   searchParams,
@@ -42,12 +43,10 @@ export default async function UsersPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">사용자 관리</h1>
-        <p className="mt-2 text-muted-foreground">
-          사용자 목록 조회, 승인, 역할 변경 및 삭제
-        </p>
-      </div>
+      <PageHeader
+        title="사용자 관리"
+        description="사용자 목록 조회, 승인, 역할 변경 및 삭제"
+      />
 
       <Card>
         <CardHeader>

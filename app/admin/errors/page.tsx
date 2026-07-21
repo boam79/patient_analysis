@@ -6,6 +6,7 @@ import {
 } from '@/app/admin/errors/actions'
 import { ErrorLogViewer } from '@/components/admin/errors/error-log-viewer'
 import Link from 'next/link'
+import { PageHeader } from '@/components/layout/page-header'
 
 export default async function ErrorsPage({
   searchParams,
@@ -55,12 +56,10 @@ export default async function ErrorsPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">에러 로그</h1>
-        <p className="mt-2 text-muted-foreground">
-          클라이언트 사이드 런타임 에러 자동 수집 (Next.js 에러 바운더리 기반)
-        </p>
-      </div>
+      <PageHeader
+        title="에러 로그"
+        description="클라이언트 사이드 런타임 에러 자동 수집 (Next.js 에러 바운더리 기반)"
+      />
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
