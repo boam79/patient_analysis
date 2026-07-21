@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient, type SupabaseClient } from '@supabase/supabase-js'
 
 /**
  * 관리자 인증 및 권한 검증 헬퍼
@@ -42,4 +43,26 @@ export async function requireAdminAuth(): Promise<{ userId: string; email: strin
   }
 
   return { userId: user.id, email: user.email ?? '' }
+}
+
+/**
+ * Service Role 전용 Supabase Admin 클라이언트.
+ * ANON_KEY 폴백 금지 — 키 없으면 즉시 throw.
+ */
+export function getSupabaseAdmin(): SupabaseClient {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!url || !key) {
+    throw new Error(
+      'SUPABASE_SERVICE_ROLE_KEY 환경 변수가 설정되지 않았습니다. 관리자 기능을 사용할 수 없습니다.'
+    )
+  }
+
+  return createAdminClient(url, key, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  })
 }

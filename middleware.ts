@@ -4,16 +4,15 @@ import { getClientIp, isValidIp } from '@/lib/ip-utils'
 import { getIpGeolocation } from '@/lib/ip-geolocation'
 import { createClient } from '@supabase/supabase-js'
 
-// Service Role Key를 사용하여 RLS를 우회하고 직접 삽입
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  {
-    auth: {
-      persistSession: false,
-    },
-  }
-)
+// Service Role Key 필수 — ANON 폴백 금지 (RLS silent fail 방지)
+function getIpLogClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) return null
+  return createClient(url, key, {
+    auth: { persistSession: false },
+  })
+}
 
 export async function middleware(request: NextRequest) {
   const startTime = Date.now()
@@ -48,20 +47,26 @@ export async function middleware(request: NextRequest) {
             console.error('Geolocation failed:', geoError)
           }
 
-          const { error } = await supabaseAdmin
-            .from('ip_access_logs')
-            .insert({
-              ip_address: ipAddress,
-              path: request.nextUrl.pathname,
-              method: request.method,
-              user_agent: userAgent,
-              referer: referer,
-              country: country,
-              city: city,
-              // 미들웨어는 응답 전에 실행되므로 실제 상태 코드를 알 수 없어 null로 기록
-              status_code: null,
-              response_time: responseTime,
-            })
+          const supabaseAdmin = getIpLogClient()
+          if (!supabaseAdmin) {
+            console.error(
+              'IP logging skipped: SUPABASE_SERVICE_ROLE_KEY not set'
+            )
+            return
+          }
+
+          const { error } = await supabaseAdmin.from('ip_access_logs').insert({
+            ip_address: ipAddress,
+            path: request.nextUrl.pathname,
+            method: request.method,
+            user_agent: userAgent,
+            referer: referer,
+            country: country,
+            city: city,
+            // 미들웨어는 응답 전에 실행되므로 실제 상태 코드를 알 수 없어 null로 기록
+            status_code: null,
+            response_time: responseTime,
+          })
 
           if (error) {
             console.error('Failed to log IP access:', error)

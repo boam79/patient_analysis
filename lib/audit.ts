@@ -3,13 +3,8 @@
  * 모든 중요한 관리자 액션을 audit_logs 테이블에 기록
  */
 
-import { createClient } from '@supabase/supabase-js'
 import { headers } from 'next/headers'
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+import { getSupabaseAdmin } from '@/lib/admin-auth'
 
 interface LogActionParams {
   userId: string
@@ -32,25 +27,25 @@ export async function logAction({
   details,
 }: LogActionParams) {
   try {
+    const supabaseAdmin = getSupabaseAdmin()
+
     // 요청 헤더에서 IP 주소 및 User-Agent 추출
     const headersList = await headers()
-    const ipAddress = 
+    const ipAddress =
       headersList.get('x-forwarded-for')?.split(',')[0] ||
       headersList.get('x-real-ip') ||
       'unknown'
     const userAgent = headersList.get('user-agent') || null
 
     // 감사 로그 저장
-    const { error } = await supabaseAdmin
-      .from('audit_logs')
-      .insert({
-        user_id: userId,
-        action,
-        resource,
-        details: details || null,
-        ip_address: ipAddress,
-        user_agent: userAgent,
-      })
+    const { error } = await supabaseAdmin.from('audit_logs').insert({
+      user_id: userId,
+      action,
+      resource,
+      details: details || null,
+      ip_address: ipAddress,
+      user_agent: userAgent,
+    })
 
     if (error) {
       console.error('Failed to log audit action:', error)

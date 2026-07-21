@@ -120,7 +120,7 @@ async function seedAdmin() {
     console.log('⚠️  보안을 위해 비밀번호를 변경하세요!')
     console.log('')
     console.log('다음 단계:')
-    console.log('   1. http://localhost:3000/admin/login 에서 로그인')
+    console.log('   1. http://localhost:3000/login-admin 에서 로그인')
     console.log('   2. 첫 로그인 후 비밀번호 변경 권장')
   } catch (error: any) {
     console.error('❌ 오류 발생:', error.message)

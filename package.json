@@ -1,6 +1,6 @@
 {
   "name": "hospital-crm",
-  "version": "5.4.1",
+  "version": "5.5.0",
   "private": true,
   "description": "병원 CRM — 방문·질병·수술 데이터 분석 및 전략 인사이트",
   "scripts": {

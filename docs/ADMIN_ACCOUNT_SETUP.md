@@ -60,7 +60,7 @@ ADMIN_EMAIL=pjm7908@hanmail.net ADMIN_PASSWORD=새비밀번호123! tsx scripts/r
 ## 로그인 테스트
 
 1. 개발 서버 실행: `npm run dev`
-2. 브라우저에서 `http://localhost:3000/admin/login` 접속
+2. 브라우저에서 `http://localhost:3000/login-admin` 접속
 3. 이메일과 비밀번호 입력
 4. 로그인 성공 시 제작자 대시보드로 이동
 

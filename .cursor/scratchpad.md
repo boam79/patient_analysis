@@ -1747,3 +1747,35 @@ Round A 구현 완료. PredictionAnalysis 삭제, strategy-metrics 공용 모듈
 
 ### Lessons
 - 버그픽스는 사용자가 보는 main에 바로 반영. PR만 고치면 "아직도 안 됨"이 반복됨.
+
+---
+
+## 🛠️ 제작자(Admin) 콘솔 고도화 (2026-07-21) — Executor 완료 → main
+
+### Background and Motivation
+사용자: 「전부 executor 진행해 / main으로 커밋하고 푸쉬해」  
+기본값: A4=미들웨어 강제, B1=슬림 헬스, 범위=A~D 전부.
+
+**제안서**: `docs/01-proposals/ADMIN_CONSOLE_ENHANCEMENT_v5.4.md`  
+**버전**: v5.5.0
+
+### Project Status Board
+- [x] A1–A4 보안·인증·login-temp·유지보수 강제
+- [x] B1–B2 모니터링 슬림 헬스 · IP total count · status_code 미수집
+- [x] C1–C4 페이지네이션 · 통계 IP 딥링크 · Header 링크 · getAuditLogs
+- [x] D1–D4 alerts 뷰어 · 에러 resolved/CSV · ADMIN 가드 · settings Zod
+- [x] tsc / vitest 67 / lint / build (`/admin/alerts`, `/maintenance` 포함)
+- [ ] 사용자 수동 확인 후 Planner complete
+
+### Executor's Feedback or Assistance Requests
+#### 2026-07-21 — Executor → main
+구현 완료. **수동 확인 요청**:
+1. `/login-admin` 로그인 후 사이드바「시스템 알림」
+2. 유지보수 토글 ON → 비ADMIN `/dashboard` → `/maintenance`
+3. 모니터링에 하드코딩 `-`/`정상` 없는지
+4. Supabase SQL: `20260721_error_logs_resolved.sql` 실행 후 에러「해결」버튼
+
+### Lessons
+- Admin actions ANON 폴백은 전수 grep으로 제거해야 함
+- `error_logs.resolved` 미적용 시 soft-fallback 필요
+- Vercel 앱 내부 CPU 메트릭 불가 → 슬림 헬스(DB/에러/알림)가 ROI 높음

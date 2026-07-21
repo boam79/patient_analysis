@@ -1,37 +1,27 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
+import { z } from 'zod'
 import { logAction } from '@/lib/audit'
+import { requireAdminAuth, getSupabaseAdmin } from '@/lib/admin-auth'
 
-const supabaseAdmin = createAdminClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+const settingValueSchema = z.object({
+  key: z
+    .string()
+    .min(1)
+    .max(120)
+    .regex(/^[a-zA-Z0-9._-]+$/, '설정 키는 영문·숫자·._- 만 허용합니다.'),
+  value: z.string().max(4000),
+  description: z.string().max(500).optional(),
+})
 
 /**
  * 데이터베이스 테이블 통계 조회
  */
 export async function getDatabaseStats() {
-  const supabase = await createClient()
-  
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    throw new Error('인증이 필요합니다.')
-  }
+  await requireAdminAuth()
+  const supabaseAdmin = getSupabaseAdmin()
 
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile || profile.role !== 'ADMIN') {
-    throw new Error('관리자만 접근할 수 있습니다.')
-  }
-
-  // 각 테이블의 행 수 조회
   const tables = [
     'user_profiles',
     'user_sessions',
@@ -40,6 +30,8 @@ export async function getDatabaseStats() {
     'settings',
     'permissions',
     'user_permissions',
+    'error_logs',
+    'system_alerts',
   ]
 
   const tableStats = await Promise.all(
@@ -63,24 +55,9 @@ export async function getDatabaseStats() {
  * 인덱스 정보 조회
  */
 export async function getIndexInfo() {
-  const supabase = await createClient()
-  
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    throw new Error('인증이 필요합니다.')
-  }
+  await requireAdminAuth()
+  const supabaseAdmin = getSupabaseAdmin()
 
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile || profile.role !== 'ADMIN') {
-    throw new Error('관리자만 접근할 수 있습니다.')
-  }
-
-  // 인덱스 정보는 SQL로 직접 조회
   const { data, error } = await supabaseAdmin.rpc('exec_sql', {
     query: `
       SELECT 
@@ -94,7 +71,6 @@ export async function getIndexInfo() {
   })
 
   if (error) {
-    // RPC가 없으면 직접 쿼리 (제한적)
     return []
   }
 
@@ -105,22 +81,8 @@ export async function getIndexInfo() {
  * 시스템 설정 조회
  */
 export async function getSystemSettings() {
-  const supabase = await createClient()
-  
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    throw new Error('인증이 필요합니다.')
-  }
-
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile || profile.role !== 'ADMIN') {
-    throw new Error('관리자만 접근할 수 있습니다.')
-  }
+  await requireAdminAuth()
+  const supabaseAdmin = getSupabaseAdmin()
 
   const { data, error } = await supabaseAdmin
     .from('settings')
@@ -135,24 +97,19 @@ export async function getSystemSettings() {
 }
 
 /**
- * 시스템 설정 업데이트
+ * 시스템 설정 업데이트 (Zod 검증)
  */
-export async function updateSystemSetting(key: string, value: string, description?: string) {
-  const supabase = await createClient()
-  
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    throw new Error('인증이 필요합니다.')
-  }
+export async function updateSystemSetting(
+  key: string,
+  value: string,
+  description?: string
+) {
+  const { userId } = await requireAdminAuth()
+  const supabaseAdmin = getSupabaseAdmin()
 
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile || profile.role !== 'ADMIN') {
-    throw new Error('관리자만 접근할 수 있습니다.')
+  const parsed = settingValueSchema.safeParse({ key, value, description })
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message || '설정 값이 올바르지 않습니다.')
   }
 
   const { data: existing } = await supabaseAdmin
@@ -162,14 +119,13 @@ export async function updateSystemSetting(key: string, value: string, descriptio
     .single()
 
   if (existing) {
-    // 업데이트
     const { error } = await supabaseAdmin
       .from('settings')
       .update({
         value,
         description: description || existing.description,
         updated_at: new Date().toISOString(),
-        updated_by: user.id,
+        updated_by: userId,
       })
       .eq('key', key)
 
@@ -177,15 +133,12 @@ export async function updateSystemSetting(key: string, value: string, descriptio
       throw new Error(`설정 업데이트 실패: ${error.message}`)
     }
   } else {
-    // 생성
-    const { error } = await supabaseAdmin
-      .from('settings')
-      .insert({
-        key,
-        value,
-        description: description || null,
-        updated_by: user.id,
-      })
+    const { error } = await supabaseAdmin.from('settings').insert({
+      key,
+      value,
+      description: description || null,
+      updated_by: userId,
+    })
 
     if (error) {
       throw new Error(`설정 생성 실패: ${error.message}`)
@@ -193,7 +146,7 @@ export async function updateSystemSetting(key: string, value: string, descriptio
   }
 
   await logAction({
-    userId: user.id,
+    userId,
     action: 'settings.update',
     resource: 'settings',
     details: {
@@ -210,22 +163,7 @@ export async function updateSystemSetting(key: string, value: string, descriptio
  * 유지보수 모드 토글
  */
 export async function toggleMaintenanceMode(enabled: boolean) {
-  const supabase = await createClient()
-  
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    throw new Error('인증이 필요합니다.')
-  }
-
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile || profile.role !== 'ADMIN') {
-    throw new Error('관리자만 접근할 수 있습니다.')
-  }
+  const { userId } = await requireAdminAuth()
 
   await updateSystemSetting(
     'maintenance.enabled',
@@ -234,12 +172,10 @@ export async function toggleMaintenanceMode(enabled: boolean) {
   )
 
   await logAction({
-    userId: user.id,
+    userId,
     action: 'maintenance.toggle',
     resource: 'system',
-    details: {
-      enabled,
-    },
+    details: { enabled },
   })
 
   return { success: true }
@@ -249,46 +185,72 @@ export async function toggleMaintenanceMode(enabled: boolean) {
  * 데이터베이스 연결 상태 확인
  */
 export async function checkDatabaseHealth() {
-  const supabase = await createClient()
-  
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    throw new Error('인증이 필요합니다.')
-  }
-
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile || profile.role !== 'ADMIN') {
-    throw new Error('관리자만 접근할 수 있습니다.')
-  }
+  await requireAdminAuth()
+  const supabaseAdmin = getSupabaseAdmin()
 
   try {
-    // 간단한 쿼리로 연결 확인
     const { error } = await supabaseAdmin
       .from('user_profiles')
-      .select('count')
+      .select('id')
       .limit(1)
 
     if (error) {
       return {
-        status: 'error',
+        status: 'error' as const,
         message: error.message,
       }
     }
 
     return {
-      status: 'healthy',
+      status: 'healthy' as const,
       message: '데이터베이스 연결 정상',
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
-      status: 'error',
-      message: error.message || '데이터베이스 연결 실패',
+      status: 'error' as const,
+      message: error instanceof Error ? error.message : '데이터베이스 연결 실패',
     }
   }
 }
 
+/**
+ * 모니터링용 슬림 헬스 요약 (실데이터만)
+ */
+export async function getMonitoringHealth() {
+  await requireAdminAuth()
+  const supabaseAdmin = getSupabaseAdmin()
+
+  const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+
+  const [dbHealth, errors24h, alerts24h, ipToday] = await Promise.all([
+    (async () => {
+      const { error } = await supabaseAdmin
+        .from('user_profiles')
+        .select('id')
+        .limit(1)
+      return error
+        ? { status: 'error' as const, message: error.message }
+        : { status: 'healthy' as const, message: '데이터베이스 연결 정상' }
+    })(),
+    supabaseAdmin
+      .from('error_logs')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', since24h),
+    supabaseAdmin
+      .from('system_alerts')
+      .select('*', { count: 'exact', head: true })
+      .gte('sent_at', since24h),
+    supabaseAdmin
+      .from('ip_access_logs')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', new Date().toISOString().split('T')[0]),
+  ])
+
+  return {
+    database: dbHealth,
+    errorLogs24h: errors24h.count || 0,
+    systemAlerts24h: alerts24h.count || 0,
+    ipLogsToday: ipToday.count || 0,
+    checkedAt: new Date().toISOString(),
+  }
+}

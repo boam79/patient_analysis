@@ -11,6 +11,7 @@ import {
   Settings,
   FileText,
   AlertTriangle,
+  Bell,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -20,6 +21,7 @@ const menuItems = [
   { href: '/admin/statistics', label: '통계', icon: BarChart3 },
   { href: '/admin/logs', label: '로그 분석', icon: Search },
   { href: '/admin/errors', label: '에러 로그', icon: AlertTriangle },
+  { href: '/admin/alerts', label: '시스템 알림', icon: Bell },
   { href: '/admin/monitoring', label: '모니터링', icon: Activity },
   { href: '/admin/maintenance', label: '유지보수', icon: Settings },
   { href: '/admin/audit', label: '감사 로그', icon: FileText },

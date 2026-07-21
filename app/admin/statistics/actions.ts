@@ -1,33 +1,13 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
-
-const supabaseAdmin = createAdminClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+import { requireAdminAuth, getSupabaseAdmin } from '@/lib/admin-auth'
 
 /**
  * 국가별 접근 통계 (Top N)
  */
 export async function getIpAccessCountryStats(limit: number = 10) {
-  const supabase = await createClient()
-  
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    throw new Error('인증이 필요합니다.')
-  }
-
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile || profile.role !== 'ADMIN') {
-    throw new Error('관리자만 접근할 수 있습니다.')
-  }
+  await requireAdminAuth()
+  const supabaseAdmin = getSupabaseAdmin()
 
   const { data: ipLogs, error } = await supabaseAdmin
     .from('ip_access_logs')
@@ -69,22 +49,8 @@ export async function getIpAccessCountryStats(limit: number = 10) {
  * 사용자 가입 추이 (월별)
  */
 export async function getUserSignupTrend(months: number = 12) {
-  const supabase = await createClient()
-  
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    throw new Error('인증이 필요합니다.')
-  }
-
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile || profile.role !== 'ADMIN') {
-    throw new Error('관리자만 접근할 수 있습니다.')
-  }
+  await requireAdminAuth()
+  const supabaseAdmin = getSupabaseAdmin()
 
   const { data, error } = await supabaseAdmin
     .from('user_profiles')
@@ -118,22 +84,8 @@ export async function getUserSignupTrend(months: number = 12) {
  * 역할별 사용자 분포
  */
 export async function getUserRoleDistribution() {
-  const supabase = await createClient()
-  
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    throw new Error('인증이 필요합니다.')
-  }
-
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile || profile.role !== 'ADMIN') {
-    throw new Error('관리자만 접근할 수 있습니다.')
-  }
+  await requireAdminAuth()
+  const supabaseAdmin = getSupabaseAdmin()
 
   const { data, error } = await supabaseAdmin
     .from('user_profiles')
@@ -171,22 +123,8 @@ export async function getUserRoleDistribution() {
  * 활성 사용자 통계
  */
 export async function getActiveUserStats(days: number = 30) {
-  const supabase = await createClient()
-  
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    throw new Error('인증이 필요합니다.')
-  }
-
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile || profile.role !== 'ADMIN') {
-    throw new Error('관리자만 접근할 수 있습니다.')
-  }
+  await requireAdminAuth()
+  const supabaseAdmin = getSupabaseAdmin()
 
   const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
 
@@ -227,22 +165,8 @@ export async function getActiveUserStats(days: number = 30) {
  * 사용량 통계 (로그인, 세션)
  */
 export async function getUsageStats(days: number = 30) {
-  const supabase = await createClient()
-  
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    throw new Error('인증이 필요합니다.')
-  }
-
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile || profile.role !== 'ADMIN') {
-    throw new Error('관리자만 접근할 수 있습니다.')
-  }
+  await requireAdminAuth()
+  const supabaseAdmin = getSupabaseAdmin()
 
   const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
 
@@ -282,22 +206,8 @@ export async function getUsageStats(days: number = 30) {
  * 전체 통계 요약
  */
 export async function getStatisticsSummary() {
-  const supabase = await createClient()
-  
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    throw new Error('인증이 필요합니다.')
-  }
-
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile || profile.role !== 'ADMIN') {
-    throw new Error('관리자만 접근할 수 있습니다.')
-  }
+  await requireAdminAuth()
+  const supabaseAdmin = getSupabaseAdmin()
 
   // 총 사용자 수
   const { count: totalUsers } = await supabaseAdmin
@@ -336,22 +246,8 @@ export async function getStatisticsSummary() {
  * IP 접근 통계 요약
  */
 export async function getIpAccessSummary() {
-  const supabase = await createClient()
-  
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    throw new Error('인증이 필요합니다.')
-  }
-
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile || profile.role !== 'ADMIN') {
-    throw new Error('관리자만 접근할 수 있습니다.')
-  }
+  await requireAdminAuth()
+  const supabaseAdmin = getSupabaseAdmin()
 
   // 총 IP 로그 수
   const { count: totalIpLogs } = await supabaseAdmin
@@ -385,22 +281,8 @@ export async function getIpAccessSummary() {
  * IP 접근 추이 (일별)
  */
 export async function getIpAccessTrend(days: number = 30) {
-  const supabase = await createClient()
-  
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    throw new Error('인증이 필요합니다.')
-  }
-
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile || profile.role !== 'ADMIN') {
-    throw new Error('관리자만 접근할 수 있습니다.')
-  }
+  await requireAdminAuth()
+  const supabaseAdmin = getSupabaseAdmin()
 
   const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
 
@@ -443,22 +325,8 @@ export async function getIpAccessTrend(days: number = 30) {
  * IP 접근 시간대별 분포
  */
 export async function getIpAccessHourlyDistribution(days: number = 30) {
-  const supabase = await createClient()
-  
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    throw new Error('인증이 필요합니다.')
-  }
-
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile || profile.role !== 'ADMIN') {
-    throw new Error('관리자만 접근할 수 있습니다.')
-  }
+  await requireAdminAuth()
+  const supabaseAdmin = getSupabaseAdmin()
 
   const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
 
@@ -490,22 +358,8 @@ export async function getIpAccessHourlyDistribution(days: number = 30) {
  * IP 접근 경로별 통계
  */
 export async function getIpAccessPathStats() {
-  const supabase = await createClient()
-  
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    throw new Error('인증이 필요합니다.')
-  }
-
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile || profile.role !== 'ADMIN') {
-    throw new Error('관리자만 접근할 수 있습니다.')
-  }
+  await requireAdminAuth()
+  const supabaseAdmin = getSupabaseAdmin()
 
   const { data: ipLogs, error } = await supabaseAdmin
     .from('ip_access_logs')

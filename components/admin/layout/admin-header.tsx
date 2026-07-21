@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
@@ -27,12 +28,16 @@ export function AdminHeader({ user }: AdminHeaderProps) {
       <h1 className="font-display text-lg font-semibold text-brand-ink">관리</h1>
 
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" aria-label="알림">
-          <Bell className="h-5 w-5" />
+        <Button variant="ghost" size="icon" aria-label="알림" asChild>
+          <Link href="/admin/alerts">
+            <Bell className="h-5 w-5" />
+          </Link>
         </Button>
 
-        <Button variant="ghost" size="icon" aria-label="설정">
-          <Settings className="h-5 w-5" />
+        <Button variant="ghost" size="icon" aria-label="설정" asChild>
+          <Link href="/admin/maintenance">
+            <Settings className="h-5 w-5" />
+          </Link>
         </Button>
 
         <div className="ml-2 flex items-center gap-3 border-l border-border pl-4">

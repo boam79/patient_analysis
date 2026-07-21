@@ -3,48 +3,61 @@ import { IpLogViewer } from '@/components/admin/logs/ip-log-viewer'
 import { IpStatisticsDashboard } from '@/components/admin/logs/ip-statistics-dashboard'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import Link from 'next/link'
 
-export default async function LogsPage() {
+export default async function LogsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>
+}) {
+  const params = await searchParams
+  const page = Math.max(1, Number(params.page) || 1)
+  const pageSize = 100
+  const from = (page - 1) * pageSize
+  const to = from + pageSize - 1
+
   const supabase = await createClient()
 
-  // IP 로그 조회 (최근 1000개)
-  const { data: ipLogs, error } = await supabase
+  const { data: ipLogs, error, count: pageCount } = await supabase
     .from('ip_access_logs')
-    .select('*')
+    .select('*', { count: 'exact' })
     .order('created_at', { ascending: false })
-    .limit(1000)
+    .range(from, to)
 
   if (error) {
     console.error('Error fetching IP logs:', error)
   }
 
-  // 통계 계산
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  
-  const { count: todayCount } = await supabase
-    .from('ip_access_logs')
-    .select('*', { count: 'exact', head: true })
-    .gte('created_at', today.toISOString())
 
-  // 고유 IP 수
+  const [{ count: todayCount }, { count: totalCount }] = await Promise.all([
+    supabase
+      .from('ip_access_logs')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', today.toISOString()),
+    supabase
+      .from('ip_access_logs')
+      .select('*', { count: 'exact', head: true }),
+  ])
+
   const { data: uniqueIps } = await supabase
     .from('ip_access_logs')
     .select('ip_address')
     .limit(10000)
 
-  const uniqueIpCount = new Set(uniqueIps?.map(log => log.ip_address) || []).size
+  const uniqueIpCount = new Set(uniqueIps?.map((log) => log.ip_address) || []).size
+  const totalPages = Math.max(1, Math.ceil((totalCount || 0) / pageSize))
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">로그 분석</h1>
-        <p className="text-muted-foreground mt-2">
+        <p className="mt-2 text-muted-foreground">
           IP 접근 로그 조회 및 분석
         </p>
       </div>
 
-      {/* 통계 카드 */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
@@ -67,29 +80,54 @@ export default async function LogsPage() {
             <CardTitle className="text-sm font-medium">전체 로그</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{ipLogs?.length || 0}</div>
+            <div className="text-2xl font-bold">{totalCount || 0}</div>
+            <p className="text-xs text-muted-foreground">
+              현재 페이지 {pageCount ?? ipLogs?.length ?? 0}건 표시
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* 탭으로 통계와 로그 분리 */}
       <Tabs defaultValue="statistics" className="space-y-4">
         <TabsList>
           <TabsTrigger value="statistics">통계 분석</TabsTrigger>
           <TabsTrigger value="logs">로그 조회</TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="statistics" className="space-y-4">
           <IpStatisticsDashboard />
         </TabsContent>
-        
+
         <TabsContent value="logs" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>IP 접근 로그</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <IpLogViewer logs={ipLogs || []} />
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">
+                  {totalCount || 0}건 · {page}/{totalPages} 페이지
+                </span>
+                <div className="flex gap-3">
+                  {page > 1 && (
+                    <Link
+                      href={`/admin/logs?page=${page - 1}`}
+                      className="text-primary hover:underline"
+                    >
+                      이전
+                    </Link>
+                  )}
+                  {page < totalPages && (
+                    <Link
+                      href={`/admin/logs?page=${page + 1}`}
+                      className="text-primary hover:underline"
+                    >
+                      다음
+                    </Link>
+                  )}
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -97,4 +135,3 @@ export default async function LogsPage() {
     </div>
   )
 }
-

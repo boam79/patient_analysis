@@ -28,7 +28,7 @@ interface IpLog {
   referer: string | null
   country: string | null
   city: string | null
-  status_code: number
+  status_code: number | null
   response_time: number | null
   created_at: string
 }
@@ -256,11 +256,17 @@ export function IpLogViewer({ logs: initialLogs }: IpLogViewerProps) {
                     <Badge variant="outline">{log.method}</Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge 
-                      variant={log.status_code >= 400 ? 'destructive' : 'default'}
-                    >
-                      {log.status_code}
-                    </Badge>
+                    {log.status_code == null ? (
+                      <Badge variant="outline">미수집</Badge>
+                    ) : (
+                      <Badge
+                        variant={
+                          log.status_code >= 400 ? 'destructive' : 'default'
+                        }
+                      >
+                        {log.status_code}
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell>
                     {log.response_time ? `${log.response_time}ms` : '-'}

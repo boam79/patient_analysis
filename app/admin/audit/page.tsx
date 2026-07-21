@@ -1,48 +1,45 @@
-import { createClient } from '@/lib/supabase/server'
-import { AuditLogViewer } from '@/components/admin/audit/audit-log-viewer'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { getAuditStats } from '@/app/admin/audit/actions'
+import { getAuditLogs, getAuditStats } from '@/app/admin/audit/actions'
+import { AuditLogViewer } from '@/components/admin/audit/audit-log-viewer'
 import { FileText, Activity, Users } from 'lucide-react'
+import Link from 'next/link'
 
-export default async function AuditPage() {
-  const supabase = await createClient()
+export default async function AuditPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; action?: string }>
+}) {
+  const params = await searchParams
+  const page = Math.max(1, Number(params.page) || 1)
+  const action = params.action && params.action !== 'all' ? params.action : undefined
 
-  // 감사 로그 조회 (사용자 정보 포함)
-  const { data: auditLogs, error } = await supabase
-    .from('audit_logs')
-    .select(`
-      *,
-      user_profiles!audit_logs_user_id_fkey (
-        email,
-        name
-      )
-    `)
-    .order('created_at', { ascending: false })
-    .limit(100)
-
-  if (error) {
-    console.error('Error fetching audit logs:', error)
+  let stats = { total: 0, actionCounts: [] as Array<{ action: string; count: number }>, topUsers: [] as Array<{ userId: string; count: number }> }
+  let result = {
+    logs: [] as Awaited<ReturnType<typeof getAuditLogs>>['logs'],
+    total: 0,
+    page: 1,
+    pageSize: 50,
+    totalPages: 1,
   }
 
-  // 통계 조회
-  let stats
   try {
-    stats = await getAuditStats(7)
-  } catch (error) {
-    console.error('Error fetching audit stats:', error)
-    stats = { total: 0, actionCounts: [], topUsers: [] }
+    ;[stats, result] = await Promise.all([
+      getAuditStats(7),
+      getAuditLogs({ page, pageSize: 50, action }),
+    ])
+  } catch (e) {
+    console.error('Error fetching audit data:', e)
   }
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">감사 로그</h1>
-        <p className="text-muted-foreground mt-2">
+        <p className="mt-2 text-muted-foreground">
           모든 관리자 액션 기록 및 추적
         </p>
       </div>
 
-      {/* 통계 카드 */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -51,9 +48,7 @@ export default async function AuditPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.total}</div>
-            <p className="text-xs text-muted-foreground">
-              총 관리자 액션 수
-            </p>
+            <p className="text-xs text-muted-foreground">총 관리자 액션 수</p>
           </CardContent>
         </Card>
 
@@ -64,9 +59,7 @@ export default async function AuditPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.actionCounts.length}</div>
-            <p className="text-xs text-muted-foreground">
-              고유 액션 타입 수
-            </p>
+            <p className="text-xs text-muted-foreground">고유 액션 타입 수</p>
           </CardContent>
         </Card>
 
@@ -77,23 +70,42 @@ export default async function AuditPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.topUsers.length}</div>
-            <p className="text-xs text-muted-foreground">
-              최근 활동한 관리자 수
-            </p>
+            <p className="text-xs text-muted-foreground">최근 활동한 관리자 수</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* 감사 로그 테이블 */}
       <Card>
         <CardHeader>
           <CardTitle>감사 로그 목록</CardTitle>
         </CardHeader>
-        <CardContent>
-          <AuditLogViewer logs={auditLogs || []} />
+        <CardContent className="space-y-4">
+          <AuditLogViewer logs={result.logs as any} />
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">
+              {result.total}건 · {result.page}/{result.totalPages} 페이지
+            </span>
+            <div className="flex gap-3">
+              {result.page > 1 && (
+                <Link
+                  href={`/admin/audit?page=${result.page - 1}`}
+                  className="text-primary hover:underline"
+                >
+                  이전
+                </Link>
+              )}
+              {result.page < result.totalPages && (
+                <Link
+                  href={`/admin/audit?page=${result.page + 1}`}
+                  className="text-primary hover:underline"
+                >
+                  다음
+                </Link>
+              )}
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
   )
 }
-
