@@ -1797,3 +1797,6 @@ Round A 구현 완료. PredictionAnalysis 삭제, strategy-metrics 공용 모듈
 
 ### Executor's Feedback
 브랜치 `cursor/ui-menu-ia-v5-6-008e`. 수동 확인: Admin 그룹 메뉴·모바일 드로어, 헤더 업로드, 전략 모바일 Select, 랜딩 제품 목업.
+
+### 2026-07-21 — main 반영
+`cursor/ui-menu-ia-v5-6-008e` → `main` fast-forward (`13483c1`) 푸시 완료.
