@@ -1910,3 +1910,42 @@ Round A 구현 완료. PredictionAnalysis 삭제, strategy-metrics 공용 모듈
 - 필터는 즉시 반영 + 시트「완료」로 닫기가 모바일 Apply UX와 충돌 없이 동작
 - sticky 칩 바 `top`은 Header 높이에 맞출 것 (약 57px)
 - 모바일 하단 탭과 Header 햄버거를 동시에 두면 중복 → 햄버거 제거
+
+---
+
+## 🔍 분석·인사이트 정확도 점검 v5.8 (2026-07-24) — Planner
+
+### Background and Motivation
+사용자: 「분석툴이나 인사이트의 정확도를 점검하고 더욱 정확도를 높힐 수 있는 제안을 해줘」  
+코드 실측: 핵심 윈도우 재방문은 공유되나 **동일 라벨「재방문율」이 화면마다 다른 정의**(월별=생애, 수술 산점도=2회+, 지역시장=2회+, store KPI=고정90일).
+
+**상세 제안서**: `docs/01-proposals/ANALYSIS_ACCURACY_AUDIT_v5.8.md`
+
+### Key Challenges and Analysis
+1. P0: 수술 산점도 vs 전략, 월별 차트 라벨, 지역시장/유입 혼재
+2. P1: store 90일, 질병 분모, evidenceLevel official 과대, 샘플 간격 편향, 날짜 UTC
+3. 이미 견고: resolvePatientId, computeRetentionSummary, 벤치마크 분리, 가짜 HIRA 테스트
+
+### High-level Task Breakdown
+#### Phase A (필수)
+- [ ] A1 수술 산점도 윈도우화 또는 라벨 분리
+- [ ] A2 월별 차트 라벨/정의 정직화
+- [ ] A3 지역·유입 「다회 방문」 vs 윈도우율 분리
+- [ ] A4 KPI·배너에 windowSize 표기
+
+#### Phase B (권장)
+- [ ] B1 store KPI 구분 또는 windowSize 연동
+- [ ] B2 질병 재방문 분모 통일
+- [ ] B3 evidenceLevel 정정
+- [ ] B4–B6 임계 OPS화 · 샘플 편향 카피 · 날짜 파싱
+
+#### Phase C (선택)
+- [ ] C1–C4 업로드 ID · glossary · confidence 라벨 · 샘플 스냅샷 테스트
+
+### Project Status Board
+- [x] Planner 점검·문서화
+- [ ] 사용자 범위 승인 후 Executor
+
+### Executor's Feedback or Assistance Requests
+#### 2026-07-24 — Planner
+구현 대기. 「Executor로 Phase A」 / 「A+B」 / 「전부」 지시 요청.
