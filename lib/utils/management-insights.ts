@@ -17,6 +17,7 @@ import {
   SURGERY_VISIT_SHARE_OPS,
   VISIT_INTENSITY_OPS,
   WINDOW_RETENTION_OPS,
+  NEW_PATIENT_SHARE_OPS,
   confidenceFor,
   formatSource,
   type EvidenceLevel,
@@ -272,14 +273,14 @@ export function buildManagementInsights(
         '국민 1인당 외래 18.0회는 전 국민·전 진료과 평균이라 병원 CRM과 직접 비교하지 말 것',
       ],
     })
-  } else if (annualizedVisits >= 6) {
+  } else if (annualizedVisits >= vOps.sustainedAnnualizedAtOrAbove) {
     insights.push({
       id: 'avg-visits-sustained',
       category: 'success',
       priority: 'low',
       title: '환자당 방문 지속성 양호(연환산)',
       description: `관측 ${obsMonths.toFixed(1)}개월 평균 ${avgVisits.toFixed(2)}회 → 연환산 약 ${annualizedVisits.toFixed(1)}회.`,
-      statisticalBasis: `${formatSource(vOps.source)}`,
+      statisticalBasis: `운영선 연환산 ≥${vOps.sustainedAnnualizedAtOrAbove}. ${formatSource(vOps.source)}`,
       confidence: confidenceFor('operational', uniquePatients),
       evidenceLevel: 'operational',
     })
@@ -379,9 +380,9 @@ export function buildManagementInsights(
       priority: 'medium',
       title: '주요 질환 포트폴리오',
       description: `1위 ${topDiseases[0].disease}(${topShare.toFixed(1)}%), Top3 ${top3.toFixed(1)}%. 근골격·척추·관절로 분류된 환자 약 ${mskShare.toFixed(1)}%.`,
-      statisticalBasis: `방문 기반 근사. 전문병원 지정 환자구성비율(입원 MDC): 관절 ${SPECIALTY_PATIENT_MIX.jointMdcShareMin}%·척추 ${SPECIALTY_PATIENT_MIX.spineMdcShareMin}% — ${formatSource(SPECIALTY_PATIENT_MIX.source)}. ${INSIGHT_SOURCES.mohwSpecialty2024.label}`,
-      confidence: confidenceFor('official', uniquePatients) - 8,
-      evidenceLevel: 'official',
+      statisticalBasis: `방문 기반 근사(운영). 전문병원 지정 환자구성비율(입원 MDC)은 참고만: 관절 ${SPECIALTY_PATIENT_MIX.jointMdcShareMin}%·척추 ${SPECIALTY_PATIENT_MIX.spineMdcShareMin}% — ${formatSource(SPECIALTY_PATIENT_MIX.source)}. ${INSIGHT_SOURCES.mohwSpecialty2024.label}`,
+      confidence: confidenceFor('operational', uniquePatients),
+      evidenceLevel: 'operational',
       recommendations: [
         '인증 갱신·지정 심사는 청구·MDC 기준으로 별도 산출 필요',
         '본 CRM 질병명 집계는 지정 심사 대체 지표가 아님',
@@ -392,14 +393,15 @@ export function buildManagementInsights(
   // 8) 신규(윈도우 미재방문) 비율
   const newRate =
     uniquePatients > 0 ? (retention.newPatients / uniquePatients) * 100 : 0
-  if (newRate > 70) {
+  const nOps = NEW_PATIENT_SHARE_OPS
+  if (newRate > nOps.highAbove) {
     insights.push({
       id: 'new-patient-high',
       category: 'warning',
       priority: 'medium',
       title: '윈도우 기준 신규(미재방문) 비중 높음',
-      description: `${windowSize}일 미재방문 환자 ${newRate.toFixed(1)}%. 초진→재방문 전환을 점검하세요.`,
-      statisticalBasis: `신규(윈도우 미재방문) ${retention.newPatients} / 고유 ${uniquePatients}. ${formatSource(WINDOW_RETENTION_OPS.source)}`,
+      description: `${windowSize}일 미재방문 환자 ${newRate.toFixed(1)}%(운영 상한 ${nOps.highAbove}%). 초진→재방문 전환을 점검하세요.`,
+      statisticalBasis: `신규(윈도우 미재방문) ${retention.newPatients} / 고유 ${uniquePatients}. ${formatSource(nOps.source)}`,
       confidence: confidenceFor('operational', uniquePatients),
       evidenceLevel: 'operational',
       recommendations: [
@@ -407,14 +409,14 @@ export function buildManagementInsights(
         '단기간 데이터면 신규 비중이 높게 나올 수 있음',
       ],
     })
-  } else if (newRate < 25 && uniquePatients > 50) {
+  } else if (newRate < nOps.lowBelow && uniquePatients > nOps.minPatientsForLowAlert) {
     insights.push({
       id: 'new-patient-low',
       category: 'warning',
       priority: 'medium',
       title: '신규 유입 비중 낮음',
-      description: `윈도우 기준 신규 ${newRate.toFixed(1)}%. 기존 환자 의존도가 높을 수 있습니다.`,
-      statisticalBasis: `배경 수요: ${INSIGHT_SOURCES.kostatElderly2023.label} (65세+ ${CONTEXT_FACTS.elderlyShare2023Pct}%)`,
+      description: `윈도우 기준 신규 ${newRate.toFixed(1)}%(운영 하한 ${nOps.lowBelow}% 미만). 기존 환자 의존도가 높을 수 있습니다.`,
+      statisticalBasis: `배경 수요: ${INSIGHT_SOURCES.kostatElderly2023.label} (65세+ ${CONTEXT_FACTS.elderlyShare2023Pct}%) · ${formatSource(nOps.source)}`,
       confidence: confidenceFor('operational', uniquePatients),
       evidenceLevel: 'operational',
       recommendations: ['신규 유입 채널·1차 의료기관 연계 점검'],

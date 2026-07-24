@@ -3,28 +3,31 @@ import {
   groupVisitsByPatient,
   resolvePatientId,
 } from '@/lib/utils/patient-identity'
+import { extractMonth } from '@/lib/utils/date-helpers'
+import { isReturningWithinWindow } from '@/lib/utils/strategy-metrics'
 
 export interface MonthlyTrendPoint {
   month: string
+  /** 해당 월 방문자 중 생애 재방문(첫 방문 이후) 비중 — KPI 윈도우 재방문율과 다름 */
+  lifetimeReturnShare: number
+  /** @deprecated lifetimeReturnShare와 동일 — 차트 dataKey 호환 */
   recurrenceRate: number
   newPatients: number
   returningPatients: number
 }
 
-const MS_PER_DAY = 1000 * 60 * 60 * 24
-
 /**
- * 월별 신규/재방문 집계.
+ * 월별 신규/생애재방문 집계.
  * - 환자 생애 첫 방문 월 → 신규
- * - 이후 방문 월 → 재방문
- * - 라벨: `YYYY년 M월` (연도 충돌 방지)
- * windowSize는 호환용으로 받지만, 신규/재방문 분류에는 사용하지 않음
- * (재방문율 KPI의 윈도우 로직과 분리).
+ * - 이후 방문 월 → 생애 재방문
+ * - 라벨: `YYYY년 M월`
+ * windowSize는 API 호환용으로만 받으며 분류에 사용하지 않음.
  */
 export function computeMonthlyTrend(
   data: PatientData[],
   _windowSize = 90
 ): MonthlyTrendPoint[] {
+  void _windowSize
   if (!data.length) return []
 
   const byPatient = groupVisitsByPatient(data)
@@ -35,9 +38,8 @@ export function computeMonthlyTrend(
 
   byPatient.forEach((visits, patientId) => {
     visits.forEach((visit, index) => {
-      const d = new Date(visit.visit_date)
-      if (Number.isNaN(d.getTime())) return
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      const key = extractMonth(visit.visit_date)
+      if (!key) return
       const bucket = monthMap.get(key) ?? {
         newIds: new Set<string>(),
         returningIds: new Set<string>(),
@@ -58,22 +60,33 @@ export function computeMonthlyTrend(
       const newPatients = bucket.newIds.size
       const returningPatients = bucket.returningIds.size
       const total = newPatients + returningPatients
+      const share =
+        total > 0 ? Math.round((returningPatients / total) * 1000) / 10 : 0
       return {
         month: `${y}년 ${Number(m)}월`,
         newPatients,
         returningPatients,
-        recurrenceRate:
-          total > 0 ? Math.round((returningPatients / total) * 1000) / 10 : 0,
+        lifetimeReturnShare: share,
+        recurrenceRate: share,
       }
     })
 }
 
-export function computeDiseaseRecurrenceRates(
+export interface DiseaseRecurrenceStat {
+  disease: string
+  total: number
+  returning: number
+  rate: number
+}
+
+/**
+ * 질병별 윈도우 재방문 — 분모·분자는 「해당 질병 방문이 있는 환자」로 통일
+ */
+export function computeDiseaseRecurrenceStats(
   data: PatientData[],
   windowSize = 90
-): Map<string, number> {
-  const rates = new Map<string, number>()
-  if (!data.length) return rates
+): DiseaseRecurrenceStat[] {
+  if (!data.length) return []
 
   const byDiseasePatients = new Map<string, Map<string, PatientData[]>>()
 
@@ -90,32 +103,32 @@ export function computeDiseaseRecurrenceRates(
     patients.set(pid, visits)
   })
 
+  const stats: DiseaseRecurrenceStat[] = []
   byDiseasePatients.forEach((patients, disease) => {
     let returning = 0
     let total = 0
     patients.forEach((visits) => {
       total++
-      const sorted = [...visits].sort(
-        (a, b) =>
-          new Date(a.visit_date).getTime() - new Date(b.visit_date).getTime()
-      )
-      if (sorted.length < 2) return
-      for (let i = 1; i < sorted.length; i++) {
-        const interval =
-          (new Date(sorted[i].visit_date).getTime() -
-            new Date(sorted[i - 1].visit_date).getTime()) /
-          MS_PER_DAY
-        if (interval <= windowSize) {
-          returning++
-          return
-        }
-      }
+      if (isReturningWithinWindow(visits, windowSize)) returning++
     })
-    rates.set(
+    stats.push({
       disease,
-      total > 0 ? Math.round((returning / total) * 1000) / 10 : 0
-    )
+      total,
+      returning,
+      rate: total > 0 ? Math.round((returning / total) * 1000) / 10 : 0,
+    })
   })
 
+  return stats.sort((a, b) => b.total - a.total)
+}
+
+export function computeDiseaseRecurrenceRates(
+  data: PatientData[],
+  windowSize = 90
+): Map<string, number> {
+  const rates = new Map<string, number>()
+  for (const s of computeDiseaseRecurrenceStats(data, windowSize)) {
+    rates.set(s.disease, s.rate)
+  }
   return rates
 }

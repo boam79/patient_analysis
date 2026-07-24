@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { FilterChipBar } from '@/components/filter/filter-chip-bar'
 import { InsightBanner } from '@/components/layout/insight-banner'
+import { MetricGlossary } from '@/components/layout/metric-glossary'
 import { buildDashboardInsight } from '@/lib/utils/dashboard-insight'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ChartSkeleton } from '@/components/ui/skeleton'
@@ -46,7 +47,7 @@ import {
   isUsingSampleData,
   getSampleMapPoints,
 } from '@/lib/sample-data'
-import { computeRetentionSummary } from '@/lib/utils/strategy-metrics'
+import { computeRetentionSummary, isReturningWithinWindow } from '@/lib/utils/strategy-metrics'
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24
 
@@ -390,18 +391,17 @@ export default function DashboardPage() {
         (surgeryStats[surgeryKey].diseases[patient.disease_name] || 0) + 1
     })
 
-    const patientVisitCountMap: Record<string, number> = {}
-    filteredRawData.forEach((p) => {
-      const key = resolvePatientId(p)
-      patientVisitCountMap[key] = (patientVisitCountMap[key] || 0) + 1
-    })
+    const visitsByPatientGlobal = groupVisitsByPatient(filteredRawData)
 
     const scatter = Object.entries(surgeryStats)
       .map(([surgeryName, stats]) => {
         const totalSurgeryPatients = stats.patientKeys.size
         let returningCount = 0
         stats.patientKeys.forEach((key) => {
-          if ((patientVisitCountMap[key] || 0) > 1) returningCount++
+          const visits = visitsByPatientGlobal.get(key)
+          if (visits && isReturningWithinWindow(visits, windowSize)) {
+            returningCount++
+          }
         })
         return {
           surgeryName,
@@ -428,7 +428,7 @@ export default function DashboardPage() {
     })
 
     return { scatter, matrix, diseases: topDiseases }
-  }, [filteredRawData, filteredDiseases])
+  }, [filteredRawData, filteredDiseases, windowSize])
 
   const filteredBoundaryData = useMemo(() => {
     if (filteredRawData.length === 0) return []
@@ -612,6 +612,7 @@ export default function DashboardPage() {
         recurrenceRate: Number(kpiData.recurrenceRate),
         totalPatients: kpiData.totalPatients,
         avgInterval: kpiData.avgInterval,
+        windowSize,
         topRegion: filteredBoundaryData[0]?.region ?? null,
         topDisease: filteredDiseases[0]?.name ?? null,
         usingSample,
@@ -619,6 +620,7 @@ export default function DashboardPage() {
       }),
     [
       kpiData,
+      windowSize,
       filteredBoundaryData,
       filteredDiseases,
       usingSample,
@@ -643,6 +645,7 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <MetricGlossary />
           <div className="inline-flex rounded-md border border-border bg-card p-0.5">
             {(
               [
@@ -702,7 +705,7 @@ export default function DashboardPage() {
         </div>
         <div className="flex items-center justify-between bg-card/90 px-4 py-3">
           <div>
-            <p className="text-xs text-muted-foreground">재방문율</p>
+            <p className="text-xs text-muted-foreground">재방문율 · {windowSize}일</p>
             <p className="font-numeric text-xl font-bold tabular-nums">
               {kpiData.recurrenceRate}%
             </p>
@@ -945,7 +948,10 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">월별 추세</CardTitle>
+                <CardTitle className="text-base">월별 신규·생애재방문</CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  생애 첫 방문 이후 월 비중 · KPI {windowSize}일 윈도우와 별개
+                </p>
               </CardHeader>
               <CardContent className="pt-0">
                 {chartsReady ? (
@@ -957,7 +963,10 @@ export default function DashboardPage() {
             </Card>
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">신규 vs 재방문</CardTitle>
+                <CardTitle className="text-base">신규 vs 생애재방문</CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  월별 생애 기준 (윈도우 미적용)
+                </p>
               </CardHeader>
               <CardContent className="pt-0">
                 {chartsReady ? (
@@ -1071,6 +1080,7 @@ export default function DashboardPage() {
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">수술별 산점도</CardTitle>
                 <p className="mt-1 text-xs text-muted-foreground">
+                  재방문율 = {windowSize}일 윈도우 ·{' '}
                   {isDataLoaded
                     ? `실제 데이터 ${surgeryData.scatter.length}개 수술`
                     : '샘플 데이터'}

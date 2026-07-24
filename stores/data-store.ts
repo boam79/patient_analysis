@@ -85,11 +85,12 @@ export interface DataState {
   boundaryData: BoundaryData[]
   boxplotData: BoxplotData[]
   
-  // KPI 데이터
+  // KPI 데이터 (업로드 요약 — 필터 윈도우와 별개)
   totalPatients: number
   recurrenceRate: number
   avgInterval: number
   totalSurgery: number
+  kpiWindowSize: number
   
   // 로딩 상태
   isLoading: boolean
@@ -99,7 +100,7 @@ export interface DataState {
 export interface DataActions {
   // 데이터 로드
   setRawData: (data: PatientData[]) => void
-  processData: () => void
+  processData: (windowSize?: number) => void
   
   // 개별 데이터 설정
   setDiseases: (diseases: DiseaseStats[]) => void
@@ -131,6 +132,7 @@ const initialState: DataState = {
   recurrenceRate: 0,
   avgInterval: 0,
   totalSurgery: 0,
+  kpiWindowSize: 90,
   isLoading: false,
   error: null,
 }
@@ -147,7 +149,7 @@ export const useDataStore = create<DataState & DataActions>()(
         set({ rawData: data, isDataLoaded: true, error: null })
       },
 
-      processData: () => {
+      processData: (windowSize = 90) => {
         const { rawData } = get()
         if (!rawData || rawData.length === 0) return
 
@@ -398,8 +400,8 @@ export const useDataStore = create<DataState & DataActions>()(
             female: ageGroupMap.get(ageGroup)?.female || 0,
           }))
 
-          // KPI 계산 (기본 윈도우 90일 — 대시보드 KPI와 동일 정의)
-          const DEFAULT_WINDOW = 90
+          // KPI 계산 (업로드 요약 윈도우 — 헤더에 「요약 N일」로 구분 표기)
+          const DEFAULT_WINDOW = windowSize
           const MS_PER_DAY = 1000 * 60 * 60 * 24
           const surgeryCount = rawData.filter((p) => hasSurgery(p)).length
 
@@ -553,6 +555,7 @@ export const useDataStore = create<DataState & DataActions>()(
             recurrenceRate: calculatedRecurrenceRate,
             avgInterval: calculatedAvgInterval,
             totalSurgery: surgeryCount,
+            kpiWindowSize: DEFAULT_WINDOW,
             isLoading: false,
           })
         } catch (error) {
@@ -592,6 +595,7 @@ export const useDataStore = create<DataState & DataActions>()(
           recurrenceRate: state.recurrenceRate,
           avgInterval: state.avgInterval,
           totalSurgery: state.totalSurgery,
+          kpiWindowSize: state.kpiWindowSize,
           // isLoading, error는 제외 (휘발성 데이터)
         }),
         // 데이터 복원 후 자동 처리하지 않음 (이미 처리된 상태)

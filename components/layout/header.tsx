@@ -18,7 +18,7 @@ const navItems = [
 export function Header() {
   const router = useRouter()
   const pathname = usePathname()
-  const { isDataLoaded, totalPatients, rawData } = useDataStore()
+  const { isDataLoaded, totalPatients, rawData, kpiWindowSize, recurrenceRate } = useDataStore()
   const usingSample = isUsingSampleData(isDataLoaded, rawData)
 
   const isActive = (href: string, exact?: boolean) => {
@@ -46,6 +46,12 @@ export function Header() {
                 title="데이터 업로드로 이동"
               >
                 {totalPatients.toLocaleString()}명
+                <span
+                  className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+                  title={`업로드 요약 재방문율 ${recurrenceRate.toFixed(1)}% (${kpiWindowSize}일)`}
+                >
+                  요약 {kpiWindowSize}일
+                </span>
                 {usingSample ? (
                   <span className="rounded bg-accent px-1.5 py-0.5 text-[10px] font-medium text-accent-foreground">
                     샘플

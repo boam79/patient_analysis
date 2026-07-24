@@ -21,6 +21,7 @@ import {
 } from '@/lib/sample-data'
 import { PageHeader } from '@/components/layout/page-header'
 import { FilterChipBar } from '@/components/filter/filter-chip-bar'
+import { MetricGlossary } from '@/components/layout/metric-glossary'
 
 import { PatientFlowAnalysis } from '@/components/strategy/patient-flow-analysis'
 import { RegionalMarketAnalysis } from '@/components/strategy/regional-market-analysis'
@@ -102,7 +103,10 @@ export default function StrategyPage() {
   return (
     <div className="container mx-auto space-y-4 px-4 py-4 md:space-y-6 md:py-6" id="strategy-main">
       <FilterChipBar />
-      <PageHeader title="경영·마케팅 전략 분석" description={description} />
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <PageHeader title="경영·마케팅 전략 분석" description={description} />
+        <MetricGlossary />
+      </div>
 
       <ManagementInsights data={filteredData} windowSize={windowSize} />
 
@@ -159,7 +163,7 @@ export default function StrategyPage() {
         </TabsContent>
 
         <TabsContent value="regional" className="mt-6">
-          <RegionalMarketAnalysis data={filteredData} />
+          <RegionalMarketAnalysis data={filteredData} windowSize={windowSize} />
         </TabsContent>
 
         <TabsContent value="clinical" className="mt-6 space-y-8">

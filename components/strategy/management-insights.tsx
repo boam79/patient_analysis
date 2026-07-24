@@ -20,7 +20,9 @@ import {
   buildManagementInsights,
   type InsightCategory,
 } from '@/lib/utils/management-insights'
-import { INSIGHT_SOURCES } from '@/lib/utils/management-insight-benchmarks'
+import { INSIGHT_SOURCES, confidenceLabel } from '@/lib/utils/management-insight-benchmarks'
+import { isUsingSampleData } from '@/lib/sample-data'
+import { useDataStore } from '@/stores/data-store'
 
 interface ManagementInsightsProps {
   data: PatientData[]
@@ -48,6 +50,9 @@ export function ManagementInsights({
   data,
   windowSize = DEFAULT_STRATEGY_WINDOW,
 }: ManagementInsightsProps) {
+  const { isDataLoaded, rawData } = useDataStore()
+  const usingSample = isUsingSampleData(isDataLoaded, rawData)
+
   const insights = useMemo(
     () => buildManagementInsights(data, windowSize),
     [data, windowSize]
@@ -112,10 +117,15 @@ export function ManagementInsights({
                     {evidenceLabel[insight.evidenceLevel]}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    신뢰도 {insight.confidence}
+                    {confidenceLabel(insight.confidence)}
                   </span>
                 </div>
                 <p className="text-sm text-muted-foreground">{insight.description}</p>
+                {usingSample ? (
+                  <p className="text-xs text-warning">
+                    샘플 데이터(재방문 간격 대략 14–120일) 기준 · 실데이터와 수치가 다를 수 있음
+                  </p>
+                ) : null}
                 <p className="text-xs text-muted-foreground border-l-2 border-muted pl-2">
                   {insight.statisticalBasis}
                 </p>

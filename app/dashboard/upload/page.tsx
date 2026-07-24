@@ -12,7 +12,7 @@ import { geocodeBatch } from '@/lib/geocoding-batch'
 export default function UploadPage() {
   const router = useRouter()
   const { setRawData, processData, setLoading, isDataLoaded, totalPatients, resetData } = useDataStore()
-  const { resetFilters, setDateRange } = useFilterStore()
+  const { resetFilters, setDateRange, windowSize } = useFilterStore()
   
   const [uploadedData, setUploadedData] = useState<any[] | null>(null)
   const [fileName, setFileName] = useState<string>('')
@@ -107,26 +107,14 @@ export default function UploadPage() {
           }
         }
 
-        // patient_id 생성: CSV에 patient_id가 있으면 사용, 없으면 이름+주소 기반으로 생성
-        // 같은 환자(이름+주소 동일)는 같은 patient_id를 가지도록 함
-        // BOM 문자가 포함된 경우를 처리 ('\ufeffname' 지원)
+        // patient_id: CSV 값 우선, 없으면 name|address (해시 충돌로 재방문율 과대 방지)
         const name = (row.name || row['\ufeffname'] || row['이름'] || '미상').toString().trim()
         let patientId: string
-        
+
         if (row.patient_id || row['환자ID'] || row.id) {
-          // CSV에 patient_id가 있으면 사용
           patientId = (row.patient_id || row['환자ID'] || row.id).toString()
         } else {
-          // 이름+주소 기반으로 patient_id 생성 (같은 환자는 같은 ID)
-          // 간단한 해시 함수 사용 (문자열을 숫자로 변환)
-          const patientKey = `${name}|${address}`
-          let hash = 0
-          for (let i = 0; i < patientKey.length; i++) {
-            const char = patientKey.charCodeAt(i)
-            hash = ((hash << 5) - hash) + char
-            hash = hash & hash // Convert to 32bit integer
-          }
-          patientId = `patient_${Math.abs(hash)}`
+          patientId = `${name}|${address || 'no-address'}`
         }
 
         return {
@@ -201,7 +189,7 @@ export default function UploadPage() {
       
       // 데이터 처리 (통계 계산)
       // 실제 데이터 처리가 누락되지 않도록 즉시 실행
-      await processData()
+      await processData(windowSize)
 
       setSuccess(true)
       // 메모리 사용량을 줄이기 위해 업로드 원본 데이터는 해제

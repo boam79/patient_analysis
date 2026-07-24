@@ -17,6 +17,7 @@ import {
 interface MonthlyTrendData {
   month: string
   recurrenceRate: number
+  lifetimeReturnShare?: number
   newPatients: number
   returningPatients: number
 }
@@ -25,15 +26,22 @@ interface MonthlyTrendChartProps {
   data: MonthlyTrendData[]
 }
 
+/** 월별 생애 신규/재방문 — KPI 윈도우 재방문율과 다른 정의 */
 export const MonthlyTrendChart = memo(function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
   return (
     <div className="space-y-2">
-      <h3 className="text-sm font-semibold">월별 재방문율 추세</h3>
+      <h3 className="text-sm font-semibold">월별 생애재방문 비중</h3>
+      <p className="text-xs text-muted-foreground">
+        해당 월 방문자 중 생애 첫 방문이 아닌 환자 비율 (윈도우 미적용)
+      </p>
       <ResponsiveContainer width="100%" height={300}>
         <LineChart data={data} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
           <XAxis dataKey="month" fontSize={12} />
-          <YAxis yAxisId="left" label={{ value: '재방문율 (%)', angle: -90, position: 'insideLeft' }} />
+          <YAxis
+            yAxisId="left"
+            label={{ value: '생애재방문 (%)', angle: -90, position: 'insideLeft' }}
+          />
           <YAxis
             yAxisId="right"
             orientation="right"
@@ -55,7 +63,7 @@ export const MonthlyTrendChart = memo(function MonthlyTrendChart({ data }: Month
             strokeWidth={2}
             dot={{ r: 4 }}
             activeDot={{ r: 6 }}
-            name="재방문율 (%)"
+            name="생애재방문 비중 (%)"
           />
           <Line
             yAxisId="right"
@@ -64,7 +72,7 @@ export const MonthlyTrendChart = memo(function MonthlyTrendChart({ data }: Month
             stroke="#3b82f6"
             strokeWidth={2}
             strokeDasharray="5 5"
-            name="신규 환자"
+            name="신규(생애 첫월)"
           />
           <Line
             yAxisId="right"
@@ -73,7 +81,7 @@ export const MonthlyTrendChart = memo(function MonthlyTrendChart({ data }: Month
             stroke="#f59e0b"
             strokeWidth={2}
             strokeDasharray="5 5"
-            name="재방문 환자"
+            name="생애재방문"
           />
         </LineChart>
       </ResponsiveContainer>
@@ -84,7 +92,8 @@ export const MonthlyTrendChart = memo(function MonthlyTrendChart({ data }: Month
 export const NewVsReturningChart = memo(function NewVsReturningChart({ data }: MonthlyTrendChartProps) {
   return (
     <div className="space-y-2">
-      <h3 className="text-sm font-semibold">신규 vs 재방문 환자</h3>
+      <h3 className="text-sm font-semibold">신규 vs 생애재방문</h3>
+      <p className="text-xs text-muted-foreground">월별 생애 기준 (윈도우 미적용)</p>
       <ResponsiveContainer width="100%" height={300}>
         <AreaChart data={data} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -105,7 +114,7 @@ export const NewVsReturningChart = memo(function NewVsReturningChart({ data }: M
             stroke="#3b82f6"
             fill="#3b82f6"
             fillOpacity={0.6}
-            name="신규 환자"
+            name="신규(생애 첫월)"
           />
           <Area
             type="monotone"
@@ -114,11 +123,10 @@ export const NewVsReturningChart = memo(function NewVsReturningChart({ data }: M
             stroke="#f59e0b"
             fill="#f59e0b"
             fillOpacity={0.6}
-            name="재방문 환자"
+            name="생애재방문"
           />
         </AreaChart>
       </ResponsiveContainer>
     </div>
   )
 })
-

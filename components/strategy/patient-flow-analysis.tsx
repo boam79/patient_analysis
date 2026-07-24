@@ -7,7 +7,7 @@ import { Users, TrendingUp, TrendingDown } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts'
 import { parseDate } from '@/lib/utils/date-helpers'
 import { groupVisitsByPatient } from '@/lib/utils/patient-identity'
-import { computeDiseaseRecurrenceRates } from '@/lib/utils/monthly-trend'
+import { computeDiseaseRecurrenceStats } from '@/lib/utils/monthly-trend'
 import {
   computeRetentionSummary,
   isReturningWithinWindow,
@@ -90,25 +90,17 @@ export function PatientFlowAnalysis({
       return { visits: visitCount, patients: count }
     })
 
-    // 질병별 재방문율 (윈도우 기준 — 대시보드와 동일)
-    const diseaseRates = computeDiseaseRecurrenceRates(data, windowSize)
-    const diseaseTotals = new Map<string, number>()
-    visitsByPatient.forEach((visits) => {
-      const primary = visits[0]?.disease_name
-      if (!primary) return
-      diseaseTotals.set(primary, (diseaseTotals.get(primary) || 0) + 1)
-    })
-    const retentionByDisease = Array.from(diseaseTotals.entries())
-      .map(([disease, total]) => ({
-        disease,
-        retentionRate: diseaseRates.get(disease) || 0,
-        total,
-        returning: Math.round(((diseaseRates.get(disease) || 0) / 100) * total),
-      }))
-      .sort((a, b) => b.total - a.total)
+    // 질병별 재방문율 (윈도우 · 해당 질병 방문 환자 = 분모)
+    const retentionByDisease = computeDiseaseRecurrenceStats(data, windowSize)
       .slice(0, 10)
+      .map((s) => ({
+        disease: s.disease,
+        retentionRate: s.rate,
+        total: s.total,
+        returning: s.returning,
+      }))
 
-    // 지역별 재방문율 (윈도우)
+    // 지역별 재방문율 (윈도우 · 첫 방문 지역 귀속)
     const regionRetention = new Map<string, { total: number; returning: number }>()
     visitsByPatient.forEach((visits) => {
       const region = visits[0]?.region
@@ -199,7 +191,7 @@ export function PatientFlowAnalysis({
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">재방문 환자</CardTitle>
+            <CardTitle className="text-sm font-medium">다회 방문 환자</CardTitle>
             <TrendingUp className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
@@ -210,7 +202,7 @@ export function PatientFlowAnalysis({
                 .toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
-              2회+ 방문 · 윈도우 재방문율{' '}
+              2회+ 방문(다회) · 별도 지표: 윈도우 재방문율{' '}
               {(flowAnalysis.windowRetentionRate ?? 0).toFixed(1)}% ({windowSize}일)
             </p>
           </CardContent>
@@ -218,7 +210,7 @@ export function PatientFlowAnalysis({
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">이탈률</CardTitle>
+            <CardTitle className="text-sm font-medium">1회만 방문 비율</CardTitle>
             <TrendingDown className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
@@ -226,7 +218,7 @@ export function PatientFlowAnalysis({
               {flowAnalysis.churnAnalysis.churnRate.toFixed(1)}%
             </div>
             <p className="text-xs text-muted-foreground">
-              {flowAnalysis.churnAnalysis.totalChurned.toLocaleString()}명 이탈
+              {flowAnalysis.churnAnalysis.totalChurned.toLocaleString()}명 · 방문 1회만(윈도우와 별개)
             </p>
           </CardContent>
         </Card>
@@ -281,7 +273,7 @@ export function PatientFlowAnalysis({
       {/* 질병별 재방문율 */}
       <Card>
         <CardHeader>
-          <CardTitle>질병별 재방문율 Top 10</CardTitle>
+          <CardTitle>질병별 재방문율 Top 10 ({windowSize}일)</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
@@ -316,7 +308,7 @@ export function PatientFlowAnalysis({
       {/* 지역별 재방문율 */}
       <Card>
         <CardHeader>
-          <CardTitle>지역별 재방문율 Top 10</CardTitle>
+          <CardTitle>지역별 재방문율 Top 10 ({windowSize}일 · 첫 방문 지역)</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">

@@ -120,7 +120,17 @@ export const VISIT_INTENSITY_OPS = {
   lowAvgVisitsInPeriod: 1.5,
   /** 연환산 방문이 이보다 낮으면 추적 관리 점검 힌트 */
   lowAnnualized: 3,
+  /** 연환산이 이 이상이면 「지속성 양호」 정보성 인사이트 */
+  sustainedAnnualizedAtOrAbove: 6,
   source: INSIGHT_SOURCES.visitsIntensityOperational,
+}
+
+/** 윈도우 기준 신규(미재방문) 비중 운영선 (%) */
+export const NEW_PATIENT_SHARE_OPS = {
+  highAbove: 70,
+  lowBelow: 25,
+  minPatientsForLowAlert: 50,
+  source: INSIGHT_SOURCES.retentionWindowOperational,
 }
 
 export const CONTEXT_FACTS = {
@@ -139,4 +149,9 @@ export function confidenceFor(level: EvidenceLevel, sampleSize: number): number 
     level === 'official' ? 78 : level === 'literature' ? 62 : 58
   const nBoost = Math.min(20, Math.floor(sampleSize / 50) * 2)
   return Math.min(92, base + nBoost)
+}
+
+/** UI 표기: 통계적 CI가 아닌 표본 가산 휴리스틱 점수 */
+export function confidenceLabel(score: number): string {
+  return `표본 가산 점수 ${score}`
 }

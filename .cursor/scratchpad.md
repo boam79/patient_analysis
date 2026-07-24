@@ -1949,3 +1949,28 @@ Round A 구현 완료. PredictionAnalysis 삭제, strategy-metrics 공용 모듈
 ### Executor's Feedback or Assistance Requests
 #### 2026-07-24 — Planner
 구현 대기. 「Executor로 Phase A」 / 「A+B」 / 「전부」 지시 요청.
+
+---
+
+## ✅ 분석 정확도 v5.8 — Executor 전부 (2026-07-24)
+
+### Project Status Board
+- [x] A1 수술 산점도 윈도우화
+- [x] A2 월별 생애재방문 라벨 + extractMonth
+- [x] A3 지역·유입 다회방문 vs 윈도우율 분리
+- [x] A4 KPI·배너 windowSize
+- [x] B1 store kpiWindowSize + 헤더 「요약 N일」
+- [x] B2 computeDiseaseRecurrenceStats 분모 통일
+- [x] B3 disease-portfolio evidenceLevel operational
+- [x] B4 NEW_PATIENT_SHARE_OPS / sustainedAnnualized
+- [x] B5 샘플 편향 카피
+- [x] B6 parseDate 로컬 noon
+- [x] C1 업로드 ID name|address
+- [x] C2 MetricGlossary
+- [x] C3 confidenceLabel 표본 가산 점수
+- [x] C4 accuracy-hardening 테스트
+- [x] tsc / vitest 83 / build
+- [ ] 사용자 수동 확인 · main 반영 지시
+
+### Executor's Feedback
+버전 5.8.0. 수동 확인: 대시보드 KPI `· N일`, 월별 「생애재방문」, 지역표 다회/윈도우 두 열, 지표 정의 다이얼로그, 헤더 요약 배지.
