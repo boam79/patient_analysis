@@ -1903,6 +1903,9 @@ Round A 구현 완료. PredictionAnalysis 삭제, strategy-metrics 공용 모듈
 검증: vitest 76 pass, tsc OK, next build OK. package 5.7.0.
 잔여 audit: next/xlsx(force 브레이킹 없이 유지).
 
+### 2026-07-24 — main 반영
+`cursor/ui-ux-proposal-v5-7-9914` → `main` fast-forward (`957a386`) 푸시 완료.
+
 ### Lessons
 - 필터는 즉시 반영 + 시트「완료」로 닫기가 모바일 Apply UX와 충돌 없이 동작
 - sticky 칩 바 `top`은 Header 높이에 맞출 것 (약 57px)
