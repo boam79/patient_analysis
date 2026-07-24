@@ -1832,3 +1832,40 @@ Round A 구현 완료. PredictionAnalysis 삭제, strategy-metrics 공용 모듈
 - Cron/유지보수는 fail-open 금지 — 시크릿·service key 없으면 차단
 - PostgREST `.or()` 검색어는 `%_,.()` sanitize 필수
 - last-admin 가드는 앱 폴백 + DB RPC(FOR UPDATE) 이중화
+
+---
+
+## 🎨 UI·UX 고도화 제안 v5.7 (2026-07-24) — Planner Mode
+
+### Background and Motivation
+사용자: 「전체적인 ui 및 ux 고도화 제안 해줘 이미지로 보여줘」  
+기능·토큰(Harbor Clinical)·IA(v5.6)는 성숙. 남은 병목은 **차트 스크롤 벽**, **필터 소실**, **라우트 단절**, **모바일 필터**, **첫 실행 유도**.
+
+**상세 제안서**: `docs/01-proposals/UI_UX_ENHANCEMENT_v5.7.md`  
+**시안**: dashboard insight / workspace split / mobile filter / onboarding (아티팩트 이미지 4장)
+
+### Key Challenges and Analysis
+1. 대시보드가 인사이트보다 차트 나열 → 1뷰포트 계층 재설계 필요
+2. FilterPanel이 sticky가 아님 → 칩 바 + 드로어/시트로 조작 비용 감소
+3. 지도·전략 분리 라우트 → Workspace 분할 뷰로 맥락 유지(선택)
+4. 모바일 햄버거만으로는 필터·탭 전환이 무거움
+
+### High-level Task Breakdown
+- [ ] Ux1 Sticky 필터 칩 바 + 드로어/시트
+- [ ] Ux2 Insight-First 대시보드 (인사이트 + MetricStrip + 핵심 2시각)
+- [ ] Ux3 Analysis Workspace (지도+차트 뷰 모드)
+- [ ] Ux4 모바일 하단 탭 + 필터 바텀시트
+- [ ] Ux5 온보딩 스텝(업로드→검증→대시보드)
+- [ ] Ux6 빈/로딩/에러 상태 통일
+
+### Project Status Board
+- [x] Planner 제안·시안·문서 작성
+- [ ] 사용자 우선순위 선택 / Executor 승인
+- [ ] 구현 (미착수)
+
+### Executor's Feedback or Assistance Requests
+#### 2026-07-24 — Planner
+구현 범위 선택 대기:
+- **권장**: Ux1 + Ux2 + Ux4 (+ Ux5 저비용)
+- Ux3는 침습도 높아 2차로
+모드를 명시하지 않으면 Executor로 진행하지 않음. 「Executor로 Ux1~Ux4 진행」 등으로 지시 요청.
