@@ -1,4 +1,5 @@
 import { Header } from '@/components/layout/header'
+import { MobileBottomNav } from '@/components/layout/mobile-bottom-nav'
 
 export default function DashboardLayout({
   children,
@@ -8,8 +9,8 @@ export default function DashboardLayout({
   return (
     <>
       <Header />
-      <main>{children}</main>
+      <main className="pb-20 lg:pb-6">{children}</main>
+      <MobileBottomNav />
     </>
   )
 }
-

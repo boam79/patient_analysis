@@ -224,32 +224,37 @@ export default function UploadPage() {
   const step = success ? 3 : uploadedData ? 2 : 1
 
   return (
-    <div className="container mx-auto max-w-3xl px-4 py-10 space-y-8">
+    <div className="container mx-auto max-w-3xl space-y-8 px-4 py-10">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="font-display text-3xl font-bold text-brand-ink mb-2">
+          <h1 className="mb-2 font-display text-3xl font-bold text-brand-ink">
             데이터 업로드
           </h1>
           <p className="text-muted-foreground">
             파일을 올리면 브라우저에서 바로 전처리합니다
           </p>
         </div>
-        {isDataLoaded && (
-          <Button variant="outline" onClick={handleClearData}>
-            <Database className="mr-2 h-4 w-4" />
-            저장된 데이터 삭제
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => router.push('/dashboard')}>
+            샘플로 둘러보기
           </Button>
-        )}
+          {isDataLoaded && (
+            <Button variant="outline" onClick={handleClearData}>
+              <Database className="mr-2 h-4 w-4" />
+              저장된 데이터 삭제
+            </Button>
+          )}
+        </div>
       </div>
 
-      <ol className="flex items-center gap-2 text-sm">
+      <ol className="flex flex-wrap items-center gap-2 text-sm" aria-label="업로드 단계">
         {[
-          { n: 1, label: '파일 선택' },
-          { n: 2, label: '처리' },
-          { n: 3, label: '완료' },
+          { n: 1, label: '업로드' },
+          { n: 2, label: '검증' },
+          { n: 3, label: '대시보드' },
         ].map((s, i) => (
           <li key={s.n} className="flex items-center gap-2">
-            {i > 0 && <span className="mx-1 h-px w-6 bg-border" />}
+            {i > 0 && <span className="mx-1 h-px w-6 bg-border" aria-hidden />}
             <span
               className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${
                 step >= s.n

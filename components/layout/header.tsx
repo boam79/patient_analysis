@@ -1,10 +1,9 @@
 'use client'
 
-import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Upload, Menu, X, LayoutDashboard, Map, LineChart } from 'lucide-react'
+import { Upload, LayoutDashboard, Map, LineChart } from 'lucide-react'
 import { useDataStore } from '@/stores/data-store'
 import { isUsingSampleData } from '@/lib/sample-data'
 import { cn } from '@/lib/utils'
@@ -20,7 +19,6 @@ export function Header() {
   const router = useRouter()
   const pathname = usePathname()
   const { isDataLoaded, totalPatients, rawData } = useDataStore()
-  const [mobileOpen, setMobileOpen] = useState(false)
   const usingSample = isUsingSampleData(isDataLoaded, rawData)
 
   const isActive = (href: string, exact?: boolean) => {
@@ -37,7 +35,6 @@ export function Header() {
               href="/"
               className="font-display text-xl font-bold text-brand transition-opacity hover:opacity-80 md:text-2xl"
               aria-label="메인으로 이동"
-              onClick={() => setMobileOpen(false)}
             >
               병원 CRM
             </Link>
@@ -93,42 +90,9 @@ export function Header() {
               <Upload className="mr-2 h-4 w-4" />
               업로드
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="lg:hidden"
-              onClick={() => setMobileOpen((v) => !v)}
-              aria-label="메뉴"
-            >
-              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </Button>
+            {/* 모바일은 하단 탭(MobileBottomNav) 사용 — 햄버거 중복 제거 */}
           </div>
         </div>
-
-        {mobileOpen && (
-          <nav className="mt-3 flex flex-col gap-1 border-t border-border/60 pb-1 pt-3 lg:hidden">
-            {navItems.map((item) => {
-              const Icon = item.icon
-              const active = isActive(item.href, item.exact)
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setMobileOpen(false)}
-                  className={cn(
-                    'flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium',
-                    active
-                      ? 'bg-accent text-brand'
-                      : 'text-muted-foreground hover:bg-muted'
-                  )}
-                >
-                  <Icon className="h-4 w-4" />
-                  {item.label}
-                </Link>
-              )
-            })}
-          </nav>
-        )}
       </div>
     </header>
   )

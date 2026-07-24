@@ -20,6 +20,7 @@ import {
   isUsingSampleData,
 } from '@/lib/sample-data'
 import { PageHeader } from '@/components/layout/page-header'
+import { FilterChipBar } from '@/components/filter/filter-chip-bar'
 
 import { PatientFlowAnalysis } from '@/components/strategy/patient-flow-analysis'
 import { RegionalMarketAnalysis } from '@/components/strategy/regional-market-analysis'
@@ -99,7 +100,8 @@ export default function StrategyPage() {
   ].join(' · ')
 
   return (
-    <div className="container mx-auto space-y-6 px-4 py-6" id="strategy-main">
+    <div className="container mx-auto space-y-4 px-4 py-4 md:space-y-6 md:py-6" id="strategy-main">
+      <FilterChipBar />
       <PageHeader title="경영·마케팅 전략 분석" description={description} />
 
       <ManagementInsights data={filteredData} windowSize={windowSize} />

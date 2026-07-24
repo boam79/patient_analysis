@@ -16,7 +16,12 @@ import {
 import { hasSurgery, hasActiveFilters as checkActiveFilters } from '@/lib/utils/analysis-helpers'
 import { surgeryLabel } from '@/lib/utils/map-metrics'
 
-export function FilterPanel() {
+interface FilterPanelProps {
+  /** card: 기존 카드 래퍼 / plain: 시트·드로어용 */
+  variant?: 'card' | 'plain'
+}
+
+export function FilterPanel({ variant = 'card' }: FilterPanelProps) {
   const {
     dateRange,
     windowSize,
@@ -156,25 +161,30 @@ export function FilterPanel() {
       .map(([name]) => name)
   }, [isDataLoaded, rawData])
 
-  return (
-    <Card className="w-full">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4" />
-            <CardTitle className="text-base">필터</CardTitle>
-            {activeFilters.hasActiveFilters && (
-              <Badge variant="secondary" className="text-xs">{activeFilters.count}개 적용</Badge>
+  const body = (
+    <div className={variant === 'plain' ? 'space-y-3' : 'space-y-3 pt-0'}>
+        {variant === 'plain' && (
+          <div className="flex items-center justify-between">
+            {activeFilters.hasActiveFilters ? (
+              <Badge variant="secondary" className="text-xs">
+                {activeFilters.count}개 적용
+              </Badge>
+            ) : (
+              <span className="text-xs text-muted-foreground">필터 없음</span>
             )}
+            <Button variant="ghost" size="sm" onClick={resetFilters}>
+              <RefreshCw className="mr-1 h-3 w-3" />
+              초기화
+            </Button>
           </div>
-          <Button variant="ghost" size="sm" onClick={resetFilters}>
-            <RefreshCw className="h-3 w-3 mr-1" />
-            초기화
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3 pt-0">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        )}
+        <div
+          className={
+            variant === 'plain'
+              ? 'grid grid-cols-1 gap-3'
+              : 'grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3'
+          }
+        >
           {/* 기간 필터 */}
           <div className="space-y-2">
             <label className="text-sm font-medium">기간</label>
@@ -386,7 +396,7 @@ export function FilterPanel() {
         {(selectedDiseases.length > 0 ||
           selectedSurgeries.length > 0 ||
           selectedRegions.length > 0) && (
-          <div className="space-y-2 pt-3 border-t">
+          <div className="space-y-2 border-t pt-3">
             <p className="text-xs font-medium">선택된 필터</p>
             <div className="flex flex-wrap gap-1.5">
               {selectedDiseases.map((disease) => (
@@ -425,7 +435,33 @@ export function FilterPanel() {
             </div>
           </div>
         )}
-      </CardContent>
+    </div>
+  )
+
+  if (variant === 'plain') {
+    return body
+  }
+
+  return (
+    <Card className="w-full">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4" />
+            <CardTitle className="text-base">필터</CardTitle>
+            {activeFilters.hasActiveFilters && (
+              <Badge variant="secondary" className="text-xs">
+                {activeFilters.count}개 적용
+              </Badge>
+            )}
+          </div>
+          <Button variant="ghost" size="sm" onClick={resetFilters}>
+            <RefreshCw className="mr-1 h-3 w-3" />
+            초기화
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>{body}</CardContent>
     </Card>
   )
 }

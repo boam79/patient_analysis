@@ -98,15 +98,18 @@ export default function Home() {
               href="/dashboard/upload"
               className="inline-flex h-11 items-center justify-center rounded-md bg-primary px-8 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
             >
-              데이터 시작하기
+              파일 업로드
             </Link>
             <Link
               href="/dashboard"
-              className="text-sm font-medium text-brand underline-offset-4 hover:underline"
+              className="inline-flex h-11 items-center justify-center rounded-md border border-border bg-card/80 px-6 text-sm font-medium text-brand transition-colors hover:bg-accent"
             >
-              대시보드 보기
+              샘플로 둘러보기
             </Link>
           </div>
+          <p className="mt-4 text-xs text-muted-foreground">
+            업로드 → 검증 → 대시보드 · 브라우저에서만 처리합니다
+          </p>
         </div>
 
         <div className="animate-fade-up-delay hidden md:block">

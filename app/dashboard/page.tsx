@@ -3,7 +3,13 @@
 import { useMemo, useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { FilterPanel } from '@/components/filter/filter-panel'
+import { FilterChipBar } from '@/components/filter/filter-chip-bar'
+import { InsightBanner } from '@/components/layout/insight-banner'
+import { buildDashboardInsight } from '@/lib/utils/dashboard-insight'
+import { EmptyState } from '@/components/ui/empty-state'
+import { ChartSkeleton } from '@/components/ui/skeleton'
+import { cn } from '@/lib/utils'
+import { LayoutGrid, Map as MapIcon, BarChart3 } from 'lucide-react'
 import { InteractiveDiseaseChart } from '@/components/charts/interactive-disease-chart'
 import { LeafletMap } from '@/components/map/leaflet-map'
 import { AgePyramidChart } from '@/components/charts/age-pyramid-chart'
@@ -63,6 +69,7 @@ const calculateIntervalsWithinWindow = (visits: PatientData[], windowSize: numbe
 export default function DashboardPage() {
   const router = useRouter()
   const [mapMode, setMapMode] = useState<'markers' | 'circle' | 'heatmap'>('markers')
+  const [viewMode, setViewMode] = useState<'split' | 'map' | 'charts'>('split')
   const {
     selectedDiseases,
     selectedRegions,
@@ -588,38 +595,85 @@ export default function DashboardPage() {
     }
   }, [filteredRawData, patientVisitsByKey, windowSize])
 
+  const filtersActive = hasActiveFilters({
+    selectedDiseases,
+    selectedSurgeries,
+    selectedRegions,
+    ageGroups,
+    genders,
+    dateRange,
+    windowSize,
+    defaultWindowSize: 90,
+  })
+
+  const insight = useMemo(
+    () =>
+      buildDashboardInsight({
+        recurrenceRate: Number(kpiData.recurrenceRate),
+        totalPatients: kpiData.totalPatients,
+        avgInterval: kpiData.avgInterval,
+        topRegion: filteredBoundaryData[0]?.region ?? null,
+        topDisease: filteredDiseases[0]?.name ?? null,
+        usingSample,
+        emptyFilter: filtersActive && filteredRawData.length === 0,
+      }),
+    [
+      kpiData,
+      filteredBoundaryData,
+      filteredDiseases,
+      usingSample,
+      filtersActive,
+      filteredRawData.length,
+    ]
+  )
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-4" id="dashboard-main">
-      <div className="flex items-center justify-between mb-2">
+    <div className="container mx-auto space-y-4 px-4 py-4 md:py-6" id="dashboard-main">
+      <FilterChipBar />
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="font-display text-2xl font-bold text-brand-ink">통합 대시보드</h1>
           <p className="text-sm text-muted-foreground">
             {usingSample
               ? `샘플 데이터 (${SAMPLE_DATE_RANGE_LABEL})`
               : '실제 데이터'}
-            {(selectedDiseases.length > 0 ||
-              selectedRegions.length > 0 ||
-              selectedSurgeries.length > 0) &&
-              ` · 필터 적용`}
-            {filteredRawData.length === 0 &&
-              hasActiveFilters({
-                selectedDiseases,
-                selectedSurgeries,
-                selectedRegions,
-                ageGroups,
-                genders,
-                dateRange,
-                windowSize,
-                defaultWindowSize: 90,
-              }) &&
-              ' · 필터 결과 없음'}
+            {filtersActive && ' · 필터 적용'}
+            {filtersActive && filteredRawData.length === 0 && ' · 필터 결과 없음'}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex rounded-md border border-border bg-card p-0.5">
+            {(
+              [
+                { id: 'split' as const, label: '지도+차트', icon: LayoutGrid },
+                { id: 'map' as const, label: '지도만', icon: MapIcon },
+                { id: 'charts' as const, label: '차트만', icon: BarChart3 },
+              ]
+            ).map((mode) => {
+              const Icon = mode.icon
+              return (
+                <button
+                  key={mode.id}
+                  type="button"
+                  onClick={() => setViewMode(mode.id)}
+                  className={cn(
+                    'inline-flex items-center gap-1 rounded px-2.5 py-1.5 text-xs font-medium transition-colors',
+                    viewMode === mode.id
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                  aria-pressed={viewMode === mode.id}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">{mode.label}</span>
+                </button>
+              )
+            })}
+          </div>
           {!isDataLoaded && (
             <Button variant="outline" size="sm" onClick={() => router.push('/dashboard/upload')}>
-              <Upload className="h-4 w-4 mr-2" />
+              <Upload className="mr-2 h-4 w-4" />
               데이터 업로드
             </Button>
           )}
@@ -627,9 +681,15 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <FilterPanel />
+      <InsightBanner
+        insight={insight}
+        onCta={
+          insight.ctaLabel === '필터 초기화'
+            ? () => useFilterStore.getState().resetFilters()
+            : undefined
+        }
+      />
 
-      {/* KPI 메트릭 스트립 — 카드 중첩 없이 */}
       <div className="animate-kpi-in grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border lg:grid-cols-4">
         <div className="flex items-center justify-between bg-card/90 px-4 py-3">
           <div>
@@ -669,78 +729,124 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* 메인 대시보드 */}
+      {/* Workspace — 1뷰포트 핵심 시각 */}
       <div className="grid grid-cols-12 gap-3">
-        {/* 좌측 패널 */}
-        <div className="col-span-12 lg:col-span-3 space-y-3">
-          <Card id="disease-chart">
+        {(viewMode === 'split' || viewMode === 'map') && (
+          <Card
+            className={cn(
+              'col-span-12',
+              viewMode === 'split' ? 'lg:col-span-7' : 'lg:col-span-12'
+            )}
+            id="map-container"
+          >
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Top 10 질병</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <InteractiveDiseaseChart data={filteredDiseases} title="" />
-            </CardContent>
-          </Card>
-          <Card id="age-pyramid-chart">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">연령 분포</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <AgePyramidChart data={filteredAgePyramid} />
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* 중앙 지도 */}
-        <Card className="col-span-12 lg:col-span-6" id="map-container">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between gap-2">
-              <CardTitle className="text-base">
-                공간 분석 지도
-                {selectedRegions.length > 0 && ` (${selectedRegions.length}개 지역 선택)`}
-              </CardTitle>
-              <div className="flex gap-1">
-                <Button
-                  size="sm"
-                  variant={mapMode === 'markers' ? 'default' : 'outline'}
-                  onClick={() => setMapMode('markers')}
-                >
-                  마커
-                </Button>
-                <Button
-                  size="sm"
-                  variant={mapMode === 'circle' ? 'default' : 'outline'}
-                  onClick={() => setMapMode('circle')}
-                >
-                  원형
-                </Button>
-                <Button
-                  size="sm"
-                  variant={mapMode === 'heatmap' ? 'default' : 'outline'}
-                  onClick={() => setMapMode('heatmap')}
-                >
-                  히트맵
-                </Button>
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="text-base">
+                  공간 분석 지도
+                  {selectedRegions.length > 0 && ` (${selectedRegions.length}개 지역 선택)`}
+                </CardTitle>
+                <div className="flex gap-1">
+                  <Button
+                    size="sm"
+                    variant={mapMode === 'markers' ? 'default' : 'outline'}
+                    onClick={() => setMapMode('markers')}
+                  >
+                    마커
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={mapMode === 'circle' ? 'default' : 'outline'}
+                    onClick={() => setMapMode('circle')}
+                  >
+                    원형
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={mapMode === 'heatmap' ? 'default' : 'outline'}
+                    onClick={() => setMapMode('heatmap')}
+                  >
+                    히트맵
+                  </Button>
+                </div>
               </div>
-            </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {filteredMapData.length === 0 ? (
+                <EmptyState
+                  title="표시할 지도 포인트가 없습니다"
+                  description="필터를 완화하거나 좌표가 있는 데이터를 업로드하세요"
+                  className="min-h-[320px]"
+                />
+              ) : (
+                <LeafletMap
+                  data={filteredMapData}
+                  mode={mapMode}
+                  selectedRegions={selectedRegions}
+                  flyToOnSelect
+                  flyToZoom={11}
+                  minHeight={viewMode === 'map' ? 520 : 420}
+                  center={[36.5, 127.5]}
+                  zoom={7}
+                  onLocationSelect={handleMapLocationSelect}
+                />
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {(viewMode === 'split' || viewMode === 'charts') && (
+          <div
+            className={cn(
+              'col-span-12 space-y-3',
+              viewMode === 'split' ? 'lg:col-span-5' : 'lg:col-span-12 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0'
+            )}
+          >
+            <Card id="disease-chart">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Top 10 질병</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {filteredDiseases.length === 0 ? (
+                  <EmptyState
+                    title="질병 데이터가 없습니다"
+                    description="필터 결과 또는 업로드 데이터를 확인하세요"
+                    className="py-8"
+                  />
+                ) : (
+                  <InteractiveDiseaseChart data={filteredDiseases} title="" />
+                )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">지역 비교</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {filteredBoundaryData.length === 0 ? (
+                  <EmptyState
+                    title="지역 통계가 없습니다"
+                    className="py-8"
+                  />
+                ) : (
+                  <BoundaryComparisonChart data={filteredBoundaryData} />
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </div>
+
+      {/* 선택 영역 + 연령 — 2차 정보 */}
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+        <Card className="lg:col-span-1" id="age-pyramid-chart">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">연령 분포</CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
-            <LeafletMap
-              data={filteredMapData}
-              mode={mapMode}
-              selectedRegions={selectedRegions}
-              flyToOnSelect
-              flyToZoom={11}
-              minHeight={480}
-              center={[36.5, 127.5]}
-              zoom={7}
-              onLocationSelect={handleMapLocationSelect}
-            />
+            <AgePyramidChart data={filteredAgePyramid} />
           </CardContent>
         </Card>
-
-        {/* 우측 패널 */}
-        <Card className="col-span-12 lg:col-span-3">
+        <Card className="lg:col-span-2">
           <CardHeader className="pb-3">
             <CardTitle className="text-base">선택 영역 정보</CardTitle>
           </CardHeader>
@@ -749,27 +855,29 @@ export default function DashboardPage() {
               <div className="space-y-4">
                 {selectedDiseases.length > 0 && (
                   <div>
-                    <p className="text-sm font-medium mb-2">선택된 질병</p>
+                    <p className="mb-2 text-sm font-medium">선택된 질병</p>
                     <div className="space-y-1">
                       {selectedDiseases.map((disease) => (
-                        <p key={disease} className="text-sm">• {disease}</p>
+                        <p key={disease} className="text-sm">
+                          • {disease}
+                        </p>
                       ))}
                     </div>
                   </div>
                 )}
                 {selectedRegions.length > 0 && (
                   <div>
-                    <p className="text-sm font-medium mb-2">선택된 지역</p>
+                    <p className="mb-2 text-sm font-medium">선택된 지역</p>
                     <div className="space-y-1">
                       {selectedRegions.map((region) => (
-                        <p key={region} className="text-sm">• {region}</p>
+                        <p key={region} className="text-sm">
+                          • {region}
+                        </p>
                       ))}
                     </div>
-                    
-                    {/* 지역별 통계 */}
                     {selectedRegionStats.patientCount > 0 && (
-                      <div className="mt-4 pt-4 border-t">
-                        <p className="text-xs text-muted-foreground mb-2">
+                      <div className="mt-4 border-t pt-4">
+                        <p className="mb-2 text-xs text-muted-foreground">
                           환자 수: {selectedRegionStats.patientCount.toLocaleString()}명
                           {selectedRegionStats.totalRecords && (
                             <span className="ml-1">
@@ -777,11 +885,9 @@ export default function DashboardPage() {
                             </span>
                           )}
                         </p>
-                        
-                        {/* Top 5 질병 */}
                         {selectedRegionStats.diseases.length > 0 && (
                           <div className="mb-3">
-                            <p className="text-xs font-medium mb-1">Top 5 질병</p>
+                            <p className="mb-1 text-xs font-medium">Top 5 질병</p>
                             <div className="space-y-1">
                               {selectedRegionStats.diseases.map((disease, idx) => (
                                 <div key={disease.name} className="flex justify-between text-xs">
@@ -794,11 +900,9 @@ export default function DashboardPage() {
                             </div>
                           </div>
                         )}
-                        
-                        {/* Top 5 수술 */}
                         {selectedRegionStats.surgeries.length > 0 && (
                           <div>
-                            <p className="text-xs font-medium mb-1">Top 5 수술</p>
+                            <p className="mb-1 text-xs font-medium">Top 5 수술</p>
                             <div className="space-y-1">
                               {selectedRegionStats.surgeries.map((surgery, idx) => (
                                 <div key={surgery.name} className="flex justify-between text-xs">
@@ -817,16 +921,17 @@ export default function DashboardPage() {
                 )}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">
-                차트나 지도에서 항목을 클릭하여 필터를 적용하세요
-              </p>
+              <EmptyState
+                title="아직 선택된 항목이 없습니다"
+                description="차트나 지도에서 항목을 클릭하면 필터가 적용됩니다"
+                className="py-6"
+              />
             )}
           </CardContent>
         </Card>
       </div>
 
-      {/* 하단 탭 */}
-      <Tabs defaultValue="trend" className="w-full">
+      <Tabs defaultValue="trend" className="w-full" id="more-charts">
         <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6">
           <TabsTrigger value="trend">추세</TabsTrigger>
           <TabsTrigger value="boundary">지역</TabsTrigger>
@@ -837,7 +942,7 @@ export default function DashboardPage() {
         </TabsList>
 
         <TabsContent value="trend" className="mt-3">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">월별 추세</CardTitle>
@@ -846,9 +951,7 @@ export default function DashboardPage() {
                 {chartsReady ? (
                   <MonthlyTrendChart data={filteredMonthlyTrend} />
                 ) : (
-                  <div className="h-[300px] flex items-center justify-center text-muted-foreground text-sm">
-                    차트 로딩 중...
-                  </div>
+                  <ChartSkeleton />
                 )}
               </CardContent>
             </Card>
@@ -860,9 +963,7 @@ export default function DashboardPage() {
                 {chartsReady ? (
                   <NewVsReturningChart data={filteredMonthlyTrend} />
                 ) : (
-                  <div className="h-[300px] flex items-center justify-center text-muted-foreground text-sm">
-                    차트 로딩 중...
-                  </div>
+                  <ChartSkeleton />
                 )}
               </CardContent>
             </Card>
@@ -870,7 +971,7 @@ export default function DashboardPage() {
         </TabsContent>
 
         <TabsContent value="boundary" className="mt-3">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">지역 비교</CardTitle>
@@ -882,7 +983,7 @@ export default function DashboardPage() {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">재방문 간격 사분위</CardTitle>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="mt-1 text-xs text-muted-foreground">
                   지역별 재방문 간격의 최소·Q1·중앙값·Q3·최대 (막대 근사)
                 </p>
               </CardHeader>
@@ -932,11 +1033,11 @@ export default function DashboardPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left p-4 font-medium">순위</th>
-                      <th className="text-left p-4 font-medium">질병명</th>
-                      <th className="text-right p-4 font-medium">고유 환자</th>
-                      <th className="text-right p-4 font-medium">비율</th>
-                      <th className="text-right p-4 font-medium">재방문율</th>
+                      <th className="p-4 text-left font-medium">순위</th>
+                      <th className="p-4 text-left font-medium">질병명</th>
+                      <th className="p-4 text-right font-medium">고유 환자</th>
+                      <th className="p-4 text-right font-medium">비율</th>
+                      <th className="p-4 text-right font-medium">재방문율</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -954,9 +1055,10 @@ export default function DashboardPage() {
                   </tbody>
                 </table>
                 {filteredDiseases.length === 0 && (
-                  <div className="text-center py-12 text-muted-foreground">
-                    필터에 맞는 데이터가 없습니다
-                  </div>
+                  <EmptyState
+                    title="필터에 맞는 데이터가 없습니다"
+                    description="칩 바에서 필터를 제거해 보세요"
+                  />
                 )}
               </div>
             </CardContent>
@@ -964,12 +1066,14 @@ export default function DashboardPage() {
         </TabsContent>
 
         <TabsContent value="surgery" className="mt-3">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">수술별 산점도</CardTitle>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {isDataLoaded ? `실제 데이터 ${surgeryData.scatter.length}개 수술` : '샘플 데이터'}
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {isDataLoaded
+                    ? `실제 데이터 ${surgeryData.scatter.length}개 수술`
+                    : '샘플 데이터'}
                 </p>
               </CardHeader>
               <CardContent className="pt-0">
@@ -979,8 +1083,10 @@ export default function DashboardPage() {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">수술-질병 연관</CardTitle>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {isDataLoaded ? `Top ${surgeryData.matrix.length}개 수술 x Top ${surgeryData.diseases.length}개 질병` : '샘플 데이터'}
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {isDataLoaded
+                    ? `Top ${surgeryData.matrix.length}개 수술 x Top ${surgeryData.diseases.length}개 질병`
+                    : '샘플 데이터'}
                 </p>
               </CardHeader>
               <CardContent className="pt-0">
@@ -997,9 +1103,7 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">질병 × 수술 히트맵</CardTitle>
-              <p className="text-xs text-muted-foreground">
-                차트 페이지에서 이관 · 필터 반영
-              </p>
+              <p className="text-xs text-muted-foreground">필터 반영</p>
             </CardHeader>
             <CardContent className="pt-0">
               {diseaseSurgeryHeatmap ? (
@@ -1009,9 +1113,7 @@ export default function DashboardPage() {
                   maxValue={diseaseSurgeryHeatmap.maxValue}
                 />
               ) : (
-                <p className="py-8 text-center text-sm text-muted-foreground">
-                  필터에 맞는 데이터가 없습니다
-                </p>
+                <EmptyState title="필터에 맞는 데이터가 없습니다" />
               )}
             </CardContent>
           </Card>

@@ -7,10 +7,10 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Map, Layers, Users, Activity, Upload, Circle, Filter, X, Stethoscope } from 'lucide-react'
+import { Map, Layers, Users, Activity, Upload, Circle, Stethoscope, X } from 'lucide-react'
 import { useDataStore } from '@/stores/data-store'
 import { useRouter } from 'next/navigation'
-import { FilterPanel } from '@/components/filter/filter-panel'
+import { FilterChipBar } from '@/components/filter/filter-chip-bar'
 import { useFilterStore } from '@/stores/filter-store'
 import { filterPatients } from '@/lib/utils/patient-filters'
 import { normalizeGender, getAgeGroup } from '@/lib/utils/patient-helpers'
@@ -88,7 +88,6 @@ export default function MapPage() {
   const [selectedDisease, setSelectedDisease] = useState('')
   const [selectedSurgery, setSelectedSurgery] = useState('')
   const [selectedAgeGroup, setSelectedAgeGroup] = useState('')
-  const [showFilterPanel, setShowFilterPanel] = useState(false)
 
   const usingSample = isUsingSampleData(isDataLoaded, rawData)
 
@@ -432,73 +431,43 @@ export default function MapPage() {
   const header = titleForTab()
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="container mx-auto space-y-4 px-4 py-4 md:py-8">
+      <FilterChipBar />
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold mb-2">공간 분석 지도</h1>
-          <p className="text-muted-foreground">
+          <h1 className="font-display mb-1 text-2xl font-bold text-brand-ink md:text-3xl">
+            공간 분석 지도
+          </h1>
+          <p className="text-sm text-muted-foreground">
             OpenStreetMap 기반 공간 분석
             {usingSample
               ? ` (샘플 데이터 · ${SAMPLE_DATE_RANGE_LABEL} · 윈도우 ${windowSize}일)`
               : ` (실제 데이터 ${mapData.length}개 지역 · 윈도우 ${windowSize}일)`}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant={showFilterPanel ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setShowFilterPanel(!showFilterPanel)}
-          >
-            <Filter className="h-4 w-4 mr-2" />
-            필터
-            {hasActiveFilters && (
-              <Badge
-                variant="secondary"
-                className="ml-2 h-5 w-5 flex items-center justify-center p-0 rounded-full"
-              >
-                !
-              </Badge>
-            )}
-          </Button>
+        <div className="flex flex-wrap items-center gap-2">
           {usingSample && (
             <Button
               variant="outline"
               size="sm"
               onClick={() => router.push('/dashboard/upload')}
             >
-              <Upload className="h-4 w-4 mr-2" />
+              <Upload className="mr-2 h-4 w-4" />
               데이터 업로드
             </Button>
           )}
           <Badge variant="outline">
-            <Map className="h-3 w-3 mr-1" />
+            <Map className="mr-1 h-3 w-3" />
             OpenStreetMap
           </Badge>
           <Badge variant="secondary">
-            <Users className="h-3 w-3 mr-1" />
+            <Users className="mr-1 h-3 w-3" />
             {`${displayedUniquePatients.toLocaleString()}명`}
             {usingSample ? ' · 샘플' : ''}
           </Badge>
         </div>
       </div>
-
-      {showFilterPanel && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>필터</CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowFilterPanel(false)}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <FilterPanel />
-          </CardContent>
-        </Card>
-      )}
 
       <div className="flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-2">
