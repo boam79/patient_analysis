@@ -1869,3 +1869,41 @@ Round A 구현 완료. PredictionAnalysis 삭제, strategy-metrics 공용 모듈
 - **권장**: Ux1 + Ux2 + Ux4 (+ Ux5 저비용)
 - Ux3는 침습도 높아 2차로
 모드를 명시하지 않으면 Executor로 진행하지 않음. 「Executor로 Ux1~Ux4 진행」 등으로 지시 요청.
+
+---
+
+## 🎨 UI·UX 고도화 v5.7 — Executor 전부 (2026-07-24)
+
+### Background and Motivation
+사용자: 「executor로 전부 진행해」 → Ux1~Ux6 일괄 구현.
+
+### High-level Task Breakdown
+- [x] Ux1 Sticky 필터 칩 바 + Sheet(드로어/바텀시트)
+- [x] Ux2 Insight-First 대시보드 (InsightBanner + KPI + 핵심 시각)
+- [x] Ux3 Workspace 뷰 모드 (지도+차트 / 지도만 / 차트만)
+- [x] Ux4 모바일 하단 탭 + 필터 시트 (햄버거 중복 제거)
+- [x] Ux5 온보딩 (랜딩 CTA·업로드 스텝 업로드→검증→대시보드)
+- [x] Ux6 EmptyState / ChartSkeleton / 에러 링크 정리
+
+### Project Status Board
+- [x] 구현
+- [x] tsc / vitest 76 / lint / build
+- [x] 커밋·푸시·PR 업데이트
+- [ ] 사용자 수동 확인 후 Planner complete
+
+### Executor's Feedback or Assistance Requests
+#### 2026-07-24 — Executor: v5.7 UI/UX 전부 구현
+**수동 확인 요청**:
+1. `/dashboard` — sticky 필터 칩, 인사이트 배너, 뷰 모드 토글
+2. 모바일(또는 좁은 폭) — 하단 탭 4개, 필터「완료」시트
+3. `/` — 「파일 업로드」「샘플로 둘러보기」
+4. `/dashboard/upload` — 업로드→검증→대시보드 스텝
+5. 지도·전략에도 필터 칩 바 동일
+
+검증: vitest 76 pass, tsc OK, next build OK. package 5.7.0.
+잔여 audit: next/xlsx(force 브레이킹 없이 유지).
+
+### Lessons
+- 필터는 즉시 반영 + 시트「완료」로 닫기가 모바일 Apply UX와 충돌 없이 동작
+- sticky 칩 바 `top`은 Header 높이에 맞출 것 (약 57px)
+- 모바일 하단 탭과 Header 햄버거를 동시에 두면 중복 → 햄버거 제거
