@@ -1974,3 +1974,6 @@ Round A 구현 완료. PredictionAnalysis 삭제, strategy-metrics 공용 모듈
 
 ### Executor's Feedback
 버전 5.8.0. 수동 확인: 대시보드 KPI `· N일`, 월별 「생애재방문」, 지역표 다회/윈도우 두 열, 지표 정의 다이얼로그, 헤더 요약 배지.
+
+### 2026-07-24 — main 반영
+`cursor/analysis-accuracy-audit-v5-8-9914` → `main` fast-forward (`ab0dd9c`) 푸시 완료.
